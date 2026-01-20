@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safety | BLACKBOOK</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'rich-black': '#0A0A0A',
+                        'deep-grey': '#161616',
+                        'gold': '#D4AF37',
+                        'bb-blue': '#00A3FF',
+                    }
+                }
+            }
+        }
+    </script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .logo {
+            font-family: 'Cinzel', serif;
+        }
+    </style>
+</head>
+
+<body class="bg-rich-black min-h-screen text-white">
+
+    <!-- Header -->
+    <nav class="p-6 flex justify-between items-center border-b border-gray-900">
+        <a href="/" class="logo text-2xl font-bold tracking-[0.3em] text-gold">BLACKBOOK</a>
+        <!-- Quick Exit -->
+        <a href="https://www.linkedin.com"
+            class="bg-red-500/10 hover:bg-red-500/20 p-2.5 rounded-full border border-red-500/30 transition-colors"
+            title="Quick Exit">
+            <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </a>
+    </nav>
+
+    <main class="max-w-2xl mx-auto px-6 py-12">
+        <h1 class="text-3xl font-bold text-gold mb-8">Safety & Trust</h1>
+
+        <section class="mb-10">
+            <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                <svg class="w-6 h-6 text-bb-blue" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                        d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clip-rule="evenodd" />
+                </svg>
+                Verification Process
+            </h2>
+            <div class="bg-deep-grey rounded-xl p-6 border border-gray-800">
+                <p class="text-gray-400 leading-relaxed">
+                    Every professional on Blackbook undergoes a <span class="text-white font-semibold">live photo
+                        verification</span>.
+                    They must submit a real-time photo with a unique code. Our team manually approves each verification.
+                </p>
+                <div class="mt-4 flex items-center gap-2 text-bb-blue text-sm">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                            clip-rule="evenodd" />
+                    </svg>
+                    <span>Blue tick = Verified identity</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-10">
+            <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                <svg class="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                        d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z"
+                        clip-rule="evenodd" />
+                </svg>
+                Zero Tolerance
+            </h2>
+            <div class="bg-deep-grey rounded-xl p-6 border border-gray-800">
+                <p class="text-gray-400 leading-relaxed">
+                    Blackbook maintains a strict <span class="text-red-400 font-semibold">zero tolerance policy</span>
+                    against scams, fake profiles, and theft.
+                    Reported individuals are permanently banned and added to our internal blacklist.
+                </p>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="text-xl font-semibold mb-4">Report an Issue</h2>
+            <div class="bg-deep-grey rounded-xl p-6 border border-gray-800">
+                <p class="text-gray-400 mb-4">
+                    Encountered a problem? Report it to our admin team via Telegram.
+                </p>
+                <a href="https://t.me/workratew"
+                    class="inline-block bg-gold text-black px-6 py-3 rounded-lg font-bold text-sm hover:bg-gold/90 transition-colors">
+                    Contact Admin
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="py-8 px-4 border-t border-gray-900 mt-12">
+        <div class="max-w-6xl mx-auto flex justify-between items-center text-xs text-gray-600">
+            <span>© 2026 Blackbook</span>
+            <a href="/" class="hover:text-gold transition-colors">Back to Directory</a>
+        </div>
+    </footer>
+
+</body>
+
+</html>

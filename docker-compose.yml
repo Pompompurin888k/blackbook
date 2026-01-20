@@ -1,0 +1,46 @@
+services:
+  # 1. The Vault (PostgreSQL)
+  db:
+    image: postgres:15-alpine
+    container_name: blackbook_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "127.0.0.1:8291:5432" # Only accessible from inside the VPS or via SSH tunnel
+    volumes:
+      - ./db_data:/var/lib/postgresql/data # This keeps your data safe if the container stops
+    networks:
+      - blackbook_network
+
+  # 2. The Brain (Telegram Bot)
+  bot:
+    build: ./bot
+    container_name: blackbook_bot
+    restart: always
+    depends_on:
+      - db
+    env_file:
+      - .env
+    networks:
+      - blackbook_network
+
+  # 3. The Face (Public Website)
+  web:
+    build: ./web
+    container_name: blackbook_web
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    networks:
+      - blackbook_network
+
+networks:
+  blackbook_network:
+    driver: bridge
