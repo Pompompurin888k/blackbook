@@ -6,3 +6,4 @@ __pycache__/
 .git/
 .vscode/
 *.db
+db_data/
