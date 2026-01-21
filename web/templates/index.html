@@ -161,28 +161,27 @@
             {% if providers %}
             {% for provider in providers %}
             <!-- Provider Card -->
-            {% set img_url =
-            'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=800' if loop.index
-            == 1 else ('https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=800' if
-            loop.index == 2 else '') %}
+            {% set images = [
+            'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=800',
+            'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=800',
+            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800',
+            'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=800',
+            'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=800',
+            'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&q=80&w=800',
+            'https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?auto=format&fit=crop&q=80&w=800',
+            'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&q=80&w=800',
+            'https://images.unsplash.com/photo-1496440737103-cd596325d314?auto=format&fit=crop&q=80&w=800',
+            'https://images.unsplash.com/photo-1524638431109-93d95c968f03?auto=format&fit=crop&q=80&w=800'
+            ] %}
+            {% set img_url = images[(loop.index0) % 10] %}
             <div class="group cursor-pointer"
                 onclick="openProfile({{ provider.id }}, '{{ provider.display_name }}', '{{ provider.neighborhood or provider.city }}', '{{ provider.telegram_id }}', '{{ img_url }}')">
                 <div
                     class="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/5 bg-zinc-900 transition-all group-hover:border-[#D4AF37]/50">
                     <!-- Profile Image -->
-                    {% if loop.index == 1 %}
-                    <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=800"
-                        class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500">
-                    {% elif loop.index == 2 %}
-                    <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=800"
-                        class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500">
-                    {% else %}
-                    <div
-                        class="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
-                        <span class="serif text-8xl text-zinc-700 group-hover:text-zinc-600 transition-colors">{{
-                            provider.display_name[0] | upper if provider.display_name else '?' }}</span>
-                    </div>
-                    {% endif %}
+                    <img src="{{ img_url }}"
+                        class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
+                        alt="{{ provider.display_name }}">
                     <!-- Badges Container -->
                     <div class="absolute top-4 right-4 z-10 flex items-center gap-2">
                         <!-- Live Badge (Only for online providers) -->
