@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     ports:
-      - "127.0.0.1:8291:5432" # Only accessible from inside the VPS or via SSH tunnel
+      - "0.0.0.0:8291:5432" # Accessible from host (needed for bot running in host mode)
     volumes:
       - ./db_data:/var/lib/postgresql/data # This keeps your data safe if the container stops
     networks:
@@ -24,11 +24,7 @@ services:
       - db
     env_file:
       - .env
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-    networks:
-      - blackbook_network
+    network_mode: "host" # Bypass Docker DNS issues by using host network
 
   # 3. The Face (Public Website)
   web:
