@@ -186,9 +186,60 @@
             display: none !important;
         }
 
-        /* Lazy Image Blur Placeholder */
+        /* Lazy Image Blur-up Effect */
         img[loading="lazy"] {
             background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);
+            filter: blur(10px);
+            transition: filter 0.4s ease-out;
+        }
+
+        img[loading="lazy"].loaded {
+            filter: blur(0);
+        }
+
+        /* ========== LIGHT MODE ========== */
+        [data-theme="light"] {
+            --gold: #B8960C;
+            --black: #FAFAFA;
+            --zinc: #F0F0F0;
+        }
+
+        [data-theme="light"] body {
+            background-color: #FAFAFA;
+            color: #1a1a1a;
+        }
+
+        [data-theme="light"] .glass {
+            background: rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        [data-theme="light"] .hero-gradient {
+            background: radial-gradient(circle at center, #FFFFFF 0%, #F5F5F5 100%);
+        }
+
+        [data-theme="light"] .gold-text {
+            color: #B8960C;
+        }
+
+        [data-theme="light"] .text-gray-400,
+        [data-theme="light"] .text-gray-500 {
+            color: #666666;
+        }
+
+        [data-theme="light"] .bg-black,
+        [data-theme="light"] .bg-black\/50 {
+            background-color: #FAFAFA;
+        }
+
+        [data-theme="light"] .border-white\/5,
+        [data-theme="light"] .border-white\/10 {
+            border-color: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="light"] .skeleton {
+            background: #e0e0e0;
+            background-image: linear-gradient(to right, #e0e0e0 0%, #f0f0f0 20%, #e0e0e0 40%, #e0e0e0 100%);
         }
 
         /* Panic Button Pulse */
@@ -253,6 +304,22 @@
                         {{ total_count }} Online
                     </p>
                 </div>
+                <!-- Theme Toggle -->
+                <button onclick="toggleTheme()" id="theme-toggle"
+                    class="bg-white/5 p-2.5 rounded-full border border-white/10 hover:bg-white/10 transition-colors"
+                    title="Toggle Light/Dark Mode">
+                    <svg id="theme-icon-dark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
+                        </path>
+                    </svg>
+                    <svg id="theme-icon-light" class="w-5 h-5 hidden" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+                        </path>
+                    </svg>
+                </button>
                 <a href="/safety"
                     class="bg-white/5 p-2.5 rounded-full border border-white/10 hover:bg-white/10 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -330,10 +397,40 @@
         </div>
 
         <div class="max-w-5xl mx-auto pb-24">
-            <!-- Hero Image -->
+            <!-- Image Gallery Carousel -->
             <div class="relative w-full aspect-[4/5] md:aspect-video bg-zinc-900 overflow-hidden">
-                <img id="view-img" src="" class="w-full h-full object-cover">
-                <div class="absolute inset-0 profile-img-gradient"></div>
+                <div id="view-gallery" class="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar">
+                    <!-- Images will be populated by JS -->
+                    <div class="flex-shrink-0 w-full h-full snap-center">
+                        <img id="view-img-1" src="" class="w-full h-full object-cover" loading="lazy">
+                    </div>
+                    <div class="flex-shrink-0 w-full h-full snap-center">
+                        <img id="view-img-2" src="" class="w-full h-full object-cover" loading="lazy">
+                    </div>
+                    <div class="flex-shrink-0 w-full h-full snap-center">
+                        <img id="view-img-3" src="" class="w-full h-full object-cover" loading="lazy">
+                    </div>
+                </div>
+                <!-- Gallery Dots Indicator -->
+                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                    <span class="w-2 h-2 rounded-full bg-white/80"></span>
+                    <span class="w-2 h-2 rounded-full bg-white/30"></span>
+                    <span class="w-2 h-2 rounded-full bg-white/30"></span>
+                </div>
+                <div class="absolute inset-0 profile-img-gradient pointer-events-none"></div>
+                <!-- Swipe Hint -->
+                <div
+                    class="absolute bottom-12 left-1/2 -translate-x-1/2 text-white/50 text-xs uppercase tracking-widest flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 16l-4-4m0 0l4-4m-4 4h18"></path>
+                    </svg>
+                    Swipe
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                    </svg>
+                </div>
             </div>
 
             <!-- Profile Info -->
@@ -450,6 +547,38 @@
 
     <!-- JS LOGIC -->
     <script>
+        // ========== THEME TOGGLE ==========
+        function initTheme() {
+            const savedTheme = localStorage.getItem('blackbook-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeIcon(savedTheme);
+        }
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('blackbook-theme', newTheme);
+            updateThemeIcon(newTheme);
+        }
+
+        function updateThemeIcon(theme) {
+            const darkIcon = document.getElementById('theme-icon-dark');
+            const lightIcon = document.getElementById('theme-icon-light');
+            if (darkIcon && lightIcon) {
+                if (theme === 'light') {
+                    darkIcon.classList.add('hidden');
+                    lightIcon.classList.remove('hidden');
+                } else {
+                    darkIcon.classList.remove('hidden');
+                    lightIcon.classList.add('hidden');
+                }
+            }
+        }
+
+        // Initialize theme on load
+        initTheme();
+
         // Check if we should skip the landing page (filters are active)
         const urlParams = new URLSearchParams(window.location.search);
         const hasCity = urlParams.has('city');
@@ -538,8 +667,15 @@
             // Basic Info
             document.getElementById('view-name').innerText = data.name;
             document.getElementById('view-location').innerText = data.location;
-            document.getElementById('view-img').src = data.img_url;
             document.getElementById('view-contact-btn').href = '/contact/' + data.id;
+
+            // Populate Gallery (use main image + variations)
+            document.getElementById('view-img-1').src = data.img_url;
+            // Create subtle variations by adjusting crop parameters
+            document.getElementById('view-img-2').src = data.img_url.replace('w=800', 'w=850');
+            document.getElementById('view-img-3').src = data.img_url.replace('w=800', 'w=900');
+            // Reset scroll position
+            document.getElementById('view-gallery').scrollLeft = 0;
 
             // Luxury Stats
             document.getElementById('view-age').innerText = data.age;

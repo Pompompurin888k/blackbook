@@ -33,10 +33,10 @@
     }' onclick="openProfile(this)">
     <div
         class="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/5 bg-zinc-900 transition-all group-hover:border-[#D4AF37]/50">
-        <!-- Profile Image with Lazy Loading -->
+        <!-- Profile Image with Lazy Loading + Hover Zoom -->
         <img src="{{ img_url }}" loading="lazy"
-            class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
-            alt="{{ provider.display_name }}"
+            class="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+            alt="{{ provider.display_name }}" onload="this.classList.add('loaded')"
             style="background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);">
         <!-- Badges Container -->
         <div class="absolute top-3 right-3 z-10 flex items-center gap-1.5">
@@ -59,7 +59,13 @@
         </div>
         <!-- Content Overlay -->
         <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/80 to-transparent">
-            <p class="text-[8px] gold-text font-bold uppercase tracking-widest mb-0.5 opacity-80">Verified</p>
+            <div class="flex items-center gap-2 mb-0.5">
+                <p class="text-[8px] gold-text font-bold uppercase tracking-widest opacity-80">Verified</p>
+                {% if provider.services and provider.services|length > 2 %}
+                <span
+                    class="text-[8px] px-1.5 py-0.5 rounded bg-gradient-to-r from-[#D4AF37] to-[#FFD700] text-black font-black uppercase">Premium</span>
+                {% endif %}
+            </div>
             <h3 class="serif text-lg leading-tight mb-0.5">{{ provider.display_name }}</h3>
             <p class="text-gray-400 text-[10px] flex items-center gap-1">
                 <svg class="w-2.5 h-2.5 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
