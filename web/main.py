@@ -58,6 +58,55 @@ async def home(
     })
 
 
+@app.get("/api/grid", response_class=HTMLResponse)
+async def api_grid(
+    request: Request,
+    city: Optional[str] = Query(None),
+    neighborhood: Optional[str] = Query(None)
+):
+    """
+    HTMX endpoint - returns only the provider grid HTML.
+    Used for seamless filtering without full page reload.
+    """
+    providers = db.get_active_providers(city, neighborhood)
+    
+    return templates.TemplateResponse("_grid.html", {
+        "request": request,
+        "providers": providers,
+        "selected_city": city,
+    })
+
+
+@app.get("/api/status/{provider_id}", response_class=HTMLResponse)
+async def get_provider_status(provider_id: int):
+    """
+    Real-time status endpoint for HTMX polling.
+    Returns the Live badge HTML if provider is online.
+    """
+    provider = db.get_provider_by_id(provider_id)
+    
+    if provider and provider.get("is_online"):
+        return f'''
+        <div id="live-badge-{provider_id}"
+             hx-get="/api/status/{provider_id}"
+             hx-trigger="every 30s"
+             hx-swap="outerHTML"
+             class="glass px-2 py-1 rounded-full flex items-center gap-1">
+            <span class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
+            <span class="text-[10px] text-green-400 font-bold uppercase">Live</span>
+        </div>
+        '''
+    else:
+        # Provider is offline - return empty badge that still polls
+        return f'''
+        <div id="live-badge-{provider_id}"
+             hx-get="/api/status/{provider_id}"
+             hx-trigger="every 30s"
+             hx-swap="outerHTML">
+        </div>
+        '''
+
+
 @app.get("/contact/{provider_id}", response_class=HTMLResponse)
 async def contact_page(request: Request, provider_id: int):
     """
