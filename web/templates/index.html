@@ -6,6 +6,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BLACKBOOK | Private Concierge</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gold: '#D4AF37',
+                        black: '#050505',
+                        zinc: {
+                            900: '#121212',
+                            800: '#1a1a1a'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Cinzel', 'serif']
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&display=swap"
         rel="stylesheet">
@@ -58,7 +78,73 @@
             display: none;
         }
 
-        /* Custom Scrollbar */
+        /* Custom Scrollbar - Premium Gold/Zinc */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 4px;
+            /* For horizontal scroll */
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #050505;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #D4AF37;
+            /* Gold on hover */
+        }
+
+        /* Selection */
+        ::selection {
+            background: #D4AF37;
+            color: black;
+        }
+
+        /* Animations */
+        @keyframes fade-in-up {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in-up {
+            animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            /* Start hidden */
+        }
+
+        /* Stagger Delays for Grid Items (up to 10) */
+        .delay-0 {
+            animation-delay: 0ms;
+        }
+
+        .delay-100 {
+            animation-delay: 100ms;
+        }
+
+        .delay-200 {
+            animation-delay: 200ms;
+        }
+
+        .delay-300 {
+            animation-delay: 300ms;
+        }
+
+        .delay-400 {
+            animation-delay: 400ms;
+        }
+
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
@@ -179,17 +265,15 @@
         </nav>
 
 
-        <!-- City Filter (HTMX Enabled) -->
-        <div class="flex overflow-x-auto p-6 pb-3 gap-3 no-scrollbar md:justify-center bg-black/50">
-            <button hx-get="/api/grid" hx-target="#provider-grid" hx-indicator="#provider-grid-wrapper"
-                hx-push-url="true"
-                class="px-8 py-2 rounded-full {% if not selected_city %}gold-bg text-black{% else %}glass text-gray-400{% endif %} font-bold text-sm transition-all hover:scale-105">
+        <!-- City Filter (Full Reload) -->
+        <div class="flex overflow-x-auto p-6 pb-3 gap-3 no-scrollbar md:justify-center bg-black/50" id="city-filters">
+            <button onclick="window.location.href='/?city=all'"
+                class="filter-btn-city px-8 py-2 rounded-full {% if selected_city == 'all' %}gold-bg text-black active-filter{% else %}glass text-gray-400{% endif %} font-bold text-sm transition-all hover:scale-105">
                 All
             </button>
             {% for city in cities %}
-            <button hx-get="/api/grid?city={{ city }}" hx-target="#provider-grid" hx-indicator="#provider-grid-wrapper"
-                hx-push-url="true"
-                class="px-8 py-2 rounded-full {% if selected_city == city %}gold-bg text-black{% else %}glass text-gray-400{% endif %} font-semibold text-sm transition-all hover:scale-105">
+            <button onclick="window.location.href='/?city={{ city }}'"
+                class="filter-btn-city px-8 py-2 rounded-full {% if selected_city == city %}gold-bg text-black active-filter{% else %}glass text-gray-400{% endif %} font-semibold text-sm transition-all hover:scale-105">
                 {{ city }}
             </button>
             {% endfor %}
@@ -197,18 +281,18 @@
 
         <!-- Neighborhood Sub-Navigation (HTMX Enabled) -->
         {% if neighborhoods %}
-        <div class="flex overflow-x-auto px-6 pb-4 gap-2 no-scrollbar md:justify-center">
+        <div class="flex overflow-x-auto px-6 pb-4 gap-2 no-scrollbar md:justify-center" id="hood-filters">
             <button hx-get="/api/grid?city={{ selected_city }}" hx-target="#provider-grid"
-                hx-indicator="#provider-grid-wrapper" hx-push-url="true"
-                class="px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest whitespace-nowrap transition-all
-                       {% if not selected_neighborhood %}border border-[#D4AF37]/50 gold-text{% else %}border border-white/10 text-gray-400 hover:border-[#D4AF37]/30{% endif %}">
+                hx-indicator="#provider-grid-wrapper" hx-push-url="true" onclick="toggleFilter(this, 'hood')"
+                class="filter-btn-hood px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest whitespace-nowrap transition-all
+                       {% if not selected_neighborhood %}border border-[#D4AF37]/50 gold-text active-filter{% else %}border border-white/10 text-gray-400 hover:border-[#D4AF37]/30{% endif %}">
                 All Areas
             </button>
             {% for hood in neighborhoods %}
             <button hx-get="/api/grid?city={{ selected_city }}&neighborhood={{ hood }}" hx-target="#provider-grid"
-                hx-indicator="#provider-grid-wrapper" hx-push-url="true"
-                class="px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest whitespace-nowrap transition-all
-                       {% if selected_neighborhood == hood %}border border-[#D4AF37]/50 gold-text{% else %}border border-white/10 text-gray-400 hover:border-[#D4AF37]/30{% endif %}">
+                hx-indicator="#provider-grid-wrapper" hx-push-url="true" onclick="toggleFilter(this, 'hood')"
+                class="filter-btn-hood px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest whitespace-nowrap transition-all
+                       {% if selected_neighborhood == hood %}border border-[#D4AF37]/50 gold-text active-filter{% else %}border border-white/10 text-gray-400 hover:border-[#D4AF37]/30{% endif %}">
                 {{ hood }}
             </button>
             {% endfor %}
@@ -216,17 +300,17 @@
         {% endif %}
 
         <!-- Grid Wrapper for HTMX & Skeletons -->
-        <div id="provider-grid-wrapper" class="relative min-h-[500px] p-6 md:px-12 pb-24">
+        <div id="provider-grid-wrapper" class="relative min-h-[500px] p-3 md:px-12 pb-24">
 
             <!-- Skeleton Loader (Shown during HTMX requests) -->
             <div
-                class="skeleton-loader hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 absolute inset-0 z-20 bg-black p-6 md:px-12">
+                class="skeleton-loader hidden grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 absolute inset-0 z-20 bg-black p-3 md:px-12">
                 {% include '_skeleton.html' %}
             </div>
 
             <!-- Real Provider Grid (Hidden during HTMX requests) -->
             <div id="provider-grid"
-                class="provider-grid-content grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                class="provider-grid-content grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                 <!-- Using the same provider card logic as initial render -->
                 {% include '_grid.html' %}
             </div>
@@ -260,6 +344,8 @@
                             <span
                                 class="gold-bg text-[10px] text-black px-3 py-1 rounded font-black uppercase tracking-widest">Verified
                                 Member</span>
+
+                            <!-- Identity Confirmed Badge -->
                             <span class="text-[#00A3FF] text-xs font-bold flex items-center gap-1">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path
@@ -268,46 +354,83 @@
                                 </svg>
                                 Identity Confirmed
                             </span>
+
+                            <span id="view-online"
+                                class="hidden text-green-500 text-xs font-bold flex items-center gap-1">
+                                <span class="h-1.5 w-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                                Live Now
+                            </span>
                         </div>
-                        <h1 id="view-name" class="serif text-6xl md:text-8xl mb-2">Provider Name</h1>
+                        <h1 id="view-name" class="serif text-5xl md:text-8xl mb-2">Provider Name</h1>
                         <p id="view-location" class="text-gray-400 text-lg font-light tracking-wide">Location</p>
                     </div>
-                    <!-- Honorarium Section -->
-                    <div class="bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-xl md:text-right">
-                        <p class="text-gray-500 text-[10px] uppercase tracking-[0.3em] mb-1">Honorarium</p>
-                        <p id="view-price" class="serif text-3xl gold-text">10,000 KES</p>
+                </div>
+
+                <!-- LUXURY STATS ROW -->
+                <div class="flex flex-wrap gap-4 mb-12 border-b border-white/5 pb-8">
+                    <div class="glass px-6 py-3 rounded-full border border-[#D4AF37]/20">
+                        <p class="text-[9px] text-[#D4AF37] uppercase tracking-widest mb-1">Age</p>
+                        <p id="view-age" class="font-serif text-xl">24</p>
+                    </div>
+                    <div class="glass px-6 py-3 rounded-full border border-[#D4AF37]/20">
+                        <p class="text-[9px] text-[#D4AF37] uppercase tracking-widest mb-1">Height</p>
+                        <p id="view-height" class="font-serif text-xl">170 cm</p>
+                    </div>
+                    <div class="glass px-6 py-3 rounded-full border border-[#D4AF37]/20">
+                        <p class="text-[9px] text-[#D4AF37] uppercase tracking-widest mb-1">Weight</p>
+                        <p id="view-weight" class="font-serif text-xl">55 kg</p>
+                    </div>
+                    <div class="glass px-6 py-3 rounded-full border border-[#D4AF37]/20">
+                        <p class="text-[9px] text-[#D4AF37] uppercase tracking-widest mb-1">Build</p>
+                        <p id="view-build" class="font-serif text-xl">Slim</p>
                     </div>
                 </div>
 
-                <!-- Stats Grid -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-                    <div class="glass p-5 rounded-3xl">
-                        <p class="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Languages</p>
-                        <p class="font-bold text-sm">English / Swahili</p>
-                    </div>
-                    <div class="glass p-5 rounded-3xl">
-                        <p class="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Status</p>
-                        <p class="font-bold text-sm text-green-500 flex items-center gap-1">
-                            <span class="h-1.5 w-1.5 bg-green-500 rounded-full"></span> Online
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                    <!-- LEFT COL: BIO & LOCATION -->
+                    <div class="lg:col-span-2">
+                        <h3 class="serif text-xl gold-text mb-6 tracking-widest uppercase">The Experience</h3>
+                        <p id="view-bio" class="text-gray-300 leading-relaxed text-lg font-light italic mb-10">
+                            "I provide a sophisticated, discreet companion experience for high-profile gentlemen.
+                            Whether
+                            it's a quiet dinner or a private evening, I bring elegance to every encounter."
                         </p>
-                    </div>
-                    <div class="glass p-5 rounded-3xl">
-                        <p class="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Vibe</p>
-                        <p class="font-bold text-sm">Elegant / Calm</p>
-                    </div>
-                    <div class="glass p-5 rounded-3xl">
-                        <p class="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Response</p>
-                        <p class="font-bold text-sm">~ 5 Minutes</p>
-                    </div>
-                </div>
 
-                <!-- The Experience Section -->
-                <div class="max-w-2xl mb-16">
-                    <h3 class="serif text-xl gold-text mb-6 tracking-widest uppercase">The Experience</h3>
-                    <p id="view-bio" class="text-gray-400 leading-relaxed text-lg font-light italic">
-                        "I provide a sophisticated, discreet companion experience for high-profile gentlemen. Whether
-                        it's a quiet dinner or a private evening, I bring elegance to every encounter."
-                    </p>
+                        <h3 class="serif text-sm text-gray-500 mb-4 tracking-widest uppercase">Location Highlights</h3>
+                        <div id="view-nearby" class="flex flex-wrap gap-2 text-sm text-gray-400 font-light">
+                            <!-- Populated by JS -->
+                            <span class="bg-white/5 px-3 py-1 rounded-full">Near Yaya Center</span>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT COL: SERVICES MENU -->
+                    <div class="glass p-8 rounded-3xl h-fit">
+                        <h3
+                            class="serif text-xl gold-text mb-6 tracking-widest uppercase border-b border-white/10 pb-4">
+                            Services Menu</h3>
+
+                        <div class="mb-6">
+                            <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-3">Availability</p>
+                            <p id="view-avail" class="text-white text-sm font-bold flex items-center gap-2">
+                                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M3 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                In-call & Out-call
+                            </p>
+                        </div>
+
+                        <div>
+                            <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-3">Professional Services
+                            </p>
+                            <div id="view-services" class="flex flex-wrap gap-2">
+                                <!-- Populated by JS -->
+                                <span
+                                    class="bg-[#D4AF37]/10 text-[#D4AF37] text-xs px-3 py-1 rounded border border-[#D4AF37]/20">Massage</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- CALL TO ACTION -->
@@ -382,12 +505,84 @@
             }
         });
 
+        // Filter Toggle Logic
+        function toggleFilter(btn, type) {
+            // Determine selector based on type
+            const selector = type === 'city' ? '.filter-btn-city' : '.filter-btn-hood';
+
+            // Reset all buttons in group
+            const buttons = document.querySelectorAll(selector);
+            buttons.forEach(b => {
+                b.classList.remove('gold-bg', 'text-black', 'active-filter');
+                b.classList.add('glass', 'text-gray-400');
+                // Borders for hoods
+                if (type === 'hood') {
+                    b.classList.remove('border-[#D4AF37]/50', 'gold-text', 'active-filter');
+                    b.classList.add('border-white/10');
+                }
+            });
+
+            // Set active class on clicked
+            btn.classList.remove('glass', 'text-gray-400');
+            btn.classList.add('gold-bg', 'text-black', 'active-filter');
+            if (type === 'hood') {
+                btn.classList.remove('border-white/10');
+                btn.classList.add('border-[#D4AF37]/50', 'gold-text');
+            }
+        }
+
         // Open Profile View
-        function openProfile(id, name, location, telegramId, imgUrl) {
-            document.getElementById('view-name').innerText = name;
-            document.getElementById('view-location').innerText = location;
-            document.getElementById('view-img').src = imgUrl;
-            document.getElementById('view-contact-btn').href = '/contact/' + id;
+        function openProfile(card) {
+            const data = JSON.parse(card.dataset.provider);
+
+            // Basic Info
+            document.getElementById('view-name').innerText = data.name;
+            document.getElementById('view-location').innerText = data.location;
+            document.getElementById('view-img').src = data.img_url;
+            document.getElementById('view-contact-btn').href = '/contact/' + data.id;
+
+            // Luxury Stats
+            document.getElementById('view-age').innerText = data.age;
+            document.getElementById('view-height').innerText = data.height + " cm";
+            document.getElementById('view-weight').innerText = data.weight + " kg";
+            document.getElementById('view-build').innerText = data.build;
+
+            // Bio & Details
+            document.getElementById('view-bio').innerText = '"' + data.bio + '"';
+            document.getElementById('view-avail').innerText = data.avail;
+
+            // Live Status Logic
+            const onlineBadge = document.getElementById('view-online');
+            if (data.is_online) {
+                onlineBadge.classList.remove('hidden');
+            } else {
+                onlineBadge.classList.add('hidden');
+            }
+
+            // Populate Services (Clear prev, then add new)
+            const servicesContainer = document.getElementById('view-services');
+            servicesContainer.innerHTML = ''; // Clear
+            if (data.services.length > 0) {
+                data.services.forEach(service => {
+                    const el = document.createElement('span');
+                    el.className = "bg-[#D4AF37]/10 text-[#D4AF37] text-xs px-3 py-1 rounded border border-[#D4AF37]/20";
+                    el.innerText = service;
+                    servicesContainer.appendChild(el);
+                });
+            } else {
+                servicesContainer.innerHTML = '<span class="text-gray-500 text-xs italic">No specific services listed.</span>';
+            }
+
+            // Populate Nearby (SEO)
+            const nearbyContainer = document.getElementById('view-nearby');
+            nearbyContainer.innerHTML = '';
+            if (data.nearby) {
+                const badge = document.createElement('span');
+                badge.className = "bg-white/5 px-3 py-1 rounded-full border border-white/5";
+                badge.innerText = data.nearby;
+                nearbyContainer.appendChild(badge);
+            }
+
             navigateTo('profile');
         }
     </script>

@@ -97,7 +97,8 @@ class Database:
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""
-                    SELECT id, telegram_id, display_name, city, neighborhood, is_online
+                    SELECT id, telegram_id, display_name, city, neighborhood, is_online,
+                           age, height_cm, weight_kg, build, services, bio, nearby_places
                     FROM providers
                     WHERE id = %s AND is_verified = TRUE AND is_active = TRUE
                 """, (provider_id,))
@@ -111,7 +112,8 @@ class Database:
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""
-                    SELECT id, telegram_id, display_name, city, neighborhood, is_online, expiry_date
+                    SELECT id, telegram_id, display_name, city, neighborhood, is_online, expiry_date,
+                           age, height_cm, weight_kg, build, services, bio, nearby_places
                     FROM providers
                     WHERE telegram_id = %s
                 """, (telegram_id,))

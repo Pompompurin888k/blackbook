@@ -96,13 +96,37 @@ class Database:
         add_columns = """
         DO $$ 
         BEGIN 
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                          WHERE table_name='providers' AND column_name='phone') THEN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='phone') THEN
                 ALTER TABLE providers ADD COLUMN phone VARCHAR(20);
             END IF;
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                          WHERE table_name='providers' AND column_name='is_online') THEN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='is_online') THEN
                 ALTER TABLE providers ADD COLUMN is_online BOOLEAN DEFAULT FALSE;
+            END IF;
+            
+            -- PROFESSIONAL PORTFOLIO COLUMNS
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='age') THEN
+                ALTER TABLE providers ADD COLUMN age INT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='height_cm') THEN
+                ALTER TABLE providers ADD COLUMN height_cm INT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='weight_kg') THEN
+                ALTER TABLE providers ADD COLUMN weight_kg INT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='build') THEN
+                ALTER TABLE providers ADD COLUMN build VARCHAR(50);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='services') THEN
+                ALTER TABLE providers ADD COLUMN services JSONB;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='bio') THEN
+                ALTER TABLE providers ADD COLUMN bio TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='availability_type') THEN
+                ALTER TABLE providers ADD COLUMN availability_type VARCHAR(50);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='nearby_places') THEN
+                ALTER TABLE providers ADD COLUMN nearby_places TEXT;
             END IF;
         END $$;
         """
@@ -143,13 +167,31 @@ class Database:
             logger.error(f"❌ Error adding provider: {e}")
             self.conn.rollback()
 
-    def update_provider_profile(self, tg_id, city, neighborhood):
-        """Updates location details after the registration flow."""
-        query = "UPDATE providers SET city = %s, neighborhood = %s WHERE telegram_id = %s"
+    def update_provider_profile(self, tg_id, data: dict):
+        """
+        Updates provider profile details.
+        Accepts a dictionary of fields to update to allow flexible partial updates.
+        """
+        if not data:
+            return
+            
+        # Build dynamic query
+        set_clauses = []
+        values = []
+        
+        for key, value in data.items():
+            set_clauses.append(f"{key} = %s")
+            values.append(value)
+            
+        values.append(tg_id) # For WHERE clause
+        
+        query = f"UPDATE providers SET {', '.join(set_clauses)} WHERE telegram_id = %s"
+        
         try:
             with self.conn.cursor() as cur:
-                cur.execute(query, (city, neighborhood, tg_id))
+                cur.execute(query, tuple(values))
                 self.conn.commit()
+                logger.info(f"✅ Updated profile for {tg_id}: {list(data.keys())}")
         except Exception as e:
             logger.error(f"❌ Error updating profile: {e}")
             self.conn.rollback()

@@ -14,7 +14,15 @@ from telegram.ext import (
 )
 
 from config import (
+    get_admin_verification_keyboard,
+    get_build_keyboard,
+    get_availability_keyboard,
+    get_services_keyboard,
+)
+from config import (
     STAGE_NAME, CITY, NEIGHBORHOOD, AWAITING_PHOTO,
+    PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, 
+    PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY,
     ADMIN_CHAT_ID,
 )
 from utils.keyboards import (
@@ -208,7 +216,7 @@ async def neighborhood(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     city = context.user_data.get("city")
     stage_name = context.user_data.get("stage_name")
     
-    db.update_provider_profile(user.id, city, neighborhood_input)
+    db.update_provider_profile(user.id, {"city": city, "neighborhood": neighborhood_input})
     
     await update.message.reply_text(
         "✨ *Profile Initialized!*\n\n"
@@ -342,7 +350,196 @@ async def handle_document_rejection(update: Update, context: ContextTypes.DEFAUL
     return AWAITING_PHOTO
 
 
-# ==================== ADMIN VERIFICATION CALLBACK ====================
+# ==================== PROFILE COMPLETION CONVERSATION ====================
+
+async def complete_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Starts the profile completion flow."""
+    user = update.effective_user
+    db = get_db()
+    
+    provider = db.get_provider(user.id)
+    if not provider:
+        await update.message.reply_text("❌ You need to /register first.")
+        return ConversationHandler.END
+        
+    await update.message.reply_text(
+        "✨ *Professional Portfolio Builder*\n\n"
+        "Let's make your profile stand out to high-value clients.\n"
+        "We'll add your physical stats, services, and bio.\n\n"
+        "**Step 1/8: Age**\n"
+        "Please enter your age (e.g., 24):",
+        parse_mode="Markdown"
+    )
+    return PROFILE_AGE
+
+async def profile_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Stores age and asks for height."""
+    try:
+        age = int(update.message.text.strip())
+        if age < 18 or age > 60:
+            await update.message.reply_text("⚠️ Age must be between 18 and 60. Try again.")
+            return PROFILE_AGE
+        context.user_data["p_age"] = age
+    except ValueError:
+        await update.message.reply_text("⚠️ Please enter a valid number (e.g., 24).")
+        return PROFILE_AGE
+        
+    await update.message.reply_text(
+        "📏 **Step 2/8: Height**\n"
+        "Enter your height in cm (e.g., 170):"
+    )
+    return PROFILE_HEIGHT
+
+async def profile_height(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Stores height and asks for weight."""
+    try:
+        height = int(update.message.text.strip())
+        context.user_data["p_height"] = height
+    except ValueError:
+        await update.message.reply_text("⚠️ Please enter a valid number (e.g., 170).")
+        return PROFILE_HEIGHT
+        
+    await update.message.reply_text(
+        "⚖️ **Step 3/8: Weight**\n"
+        "Enter your weight in kg (e.g., 55):"
+    )
+    return PROFILE_WEIGHT
+
+async def profile_weight(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Stores weight and asks for build."""
+    try:
+        weight = int(update.message.text.strip())
+        context.user_data["p_weight"] = weight
+    except ValueError:
+        await update.message.reply_text("⚠️ Please enter a valid number (e.g., 55).")
+        return PROFILE_WEIGHT
+        
+    await update.message.reply_text(
+        "🧘‍♀️ **Step 4/8: Body Build**\n"
+        "Select your body type:",
+        reply_markup=get_build_keyboard()
+    )
+    return PROFILE_BUILD
+
+async def profile_build(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Stores build and asks for availability."""
+    query = update.callback_query
+    await query.answer()
+    
+    build = query.data.replace("build_", "")
+    context.user_data["p_build"] = build
+    
+    await query.edit_message_text(
+        f"✅ Build: {build}\n\n"
+        "🏠 **Step 5/8: Availability**\n"
+        "Where do you provide services?",
+        reply_markup=get_availability_keyboard()
+    )
+    return PROFILE_AVAILABILITY
+
+async def profile_availability(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Stores availability and asks for services."""
+    query = update.callback_query
+    await query.answer()
+    
+    avail = query.data.replace("avail_", "")
+    context.user_data["p_avail"] = avail
+    
+    context.user_data["p_services"] = [] # Initialize services list
+    
+    await query.edit_message_text(
+        f"✅ Availability: {avail}\n\n"
+        "💆‍♀️ **Step 6/8: Services Menu**\n"
+        "Select all that apply (Multi-select). Click Done when finished.",
+        reply_markup=get_services_keyboard([])
+    )
+    return PROFILE_SERVICES
+
+async def profile_services(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handles multi-select services."""
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data
+    current_services = context.user_data.get("p_services", [])
+    
+    if data == "service_done":
+        if not current_services:
+            await query.answer("⚠️ Select at least one service", show_alert=True)
+            return PROFILE_SERVICES
+            
+        await query.edit_message_text(
+            f"✅ Selected: {', '.join(current_services)}\n\n"
+            "📝 **Step 7/8: Your Bio**\n"
+            "Write a short, elegant description about yourself (2-3 sentences). "
+            "Sell the fantasy!",
+            parse_mode="Markdown"
+        )
+        return PROFILE_BIO
+        
+    service = data.replace("service_", "")
+    if service in current_services:
+        current_services.remove(service)
+    else:
+        current_services.append(service)
+        
+    context.user_data["p_services"] = current_services
+    
+    # Update keyboard to show checks
+    await query.edit_message_reply_markup(
+        reply_markup=get_services_keyboard(current_services)
+    )
+    return PROFILE_SERVICES
+
+async def profile_bio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Stores bio and asks for nearby places."""
+    bio = update.message.text.strip()
+    if len(bio) < 20:
+        await update.message.reply_text("⚠️ Too short. Please write at least one full sentence.")
+        return PROFILE_BIO
+        
+    context.user_data["p_bio"] = bio
+    
+    await update.message.reply_text(
+        "🗺️ **Step 8/8: Location Highlights**\n"
+        "List popular malls or landmarks near you (for SEO).\n"
+        "e.g., 'Near Yaya Center, Prestige Plaza'"
+    )
+    return PROFILE_NEARBY
+
+async def profile_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Stores nearby places and saves everything to DB."""
+    nearby = update.message.text.strip()
+    user = update.effective_user
+    db = get_db()
+    
+    # Pack data
+    import json
+    data = {
+        "age": context.user_data["p_age"],
+        "height_cm": context.user_data["p_height"],
+        "weight_kg": context.user_data["p_weight"],
+        "build": context.user_data["p_build"],
+        "availability_type": context.user_data["p_avail"],
+        "services": json.dumps(context.user_data["p_services"]),
+        "bio": context.user_data["p_bio"],
+        "nearby_places": nearby
+    }
+    
+    db.update_provider_profile(user.id, data)
+    
+    await update.message.reply_text(
+        "🎉 **Portfolio Complete!**\n\n"
+        "Your profile has been upgraded to **Professional Status**.\n"
+        "Clients will now see your detailed stats and menu.\n\n"
+        "Use /myprofile to view your status.",
+        parse_mode="Markdown"
+    )
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
+# ==================== VERIFICATION CONVERSATION ====================
 
 async def admin_verification_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handles admin approval/rejection of verification requests."""
@@ -432,6 +629,23 @@ def register_handlers(application):
     # /start command
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("myprofile", myprofile))
+    
+    # Profile Completion Conversation
+    profile_handler = ConversationHandler(
+        entry_points=[CommandHandler("complete_profile", complete_profile)],
+        states={
+            PROFILE_AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_age)],
+            PROFILE_HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_height)],
+            PROFILE_WEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_weight)],
+            PROFILE_BUILD: [CallbackQueryHandler(profile_build, pattern="^build_")],
+            PROFILE_AVAILABILITY: [CallbackQueryHandler(profile_availability, pattern="^avail_")],
+            PROFILE_SERVICES: [CallbackQueryHandler(profile_services, pattern="^service_")],
+            PROFILE_BIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_bio)],
+            PROFILE_NEARBY: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_nearby)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    application.add_handler(profile_handler)
     
     # Registration conversation
     registration_handler = ConversationHandler(

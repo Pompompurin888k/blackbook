@@ -3,7 +3,7 @@ Blackbook Bot Keyboards
 All InlineKeyboardMarkup and ReplyKeyboardMarkup builders.
 """
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from config import CITIES, PACKAGES, SESSION_DURATIONS
+from config import CITIES, PACKAGES, SESSION_DURATIONS, BUILDS, AVAILABILITIES, SERVICES
 
 
 # ==================== MAIN MENU ====================
@@ -182,4 +182,51 @@ def get_inactive_status_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("💰 Go Live", callback_data="menu_topup")],
         [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")],
     ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+# ==================== PROFILE COMPLETION ====================
+
+def get_build_keyboard() -> InlineKeyboardMarkup:
+    """Returns build selection keyboard."""
+    keyboard = [
+        [InlineKeyboardButton(build, callback_data=f"build_{build}")]
+        for build in BUILDS
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_availability_keyboard() -> InlineKeyboardMarkup:
+    """Returns availability selection keyboard."""
+    keyboard = [
+        [InlineKeyboardButton(avail, callback_data=f"avail_{avail}")]
+        for avail in AVAILABILITIES
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_services_keyboard(selected_services=None) -> InlineKeyboardMarkup:
+    """Returns multi-select services keyboard."""
+    if selected_services is None:
+        selected_services = []
+        
+    keyboard = []
+    row = []
+    for service in SERVICES:
+        # Show checkmark if selected
+        text = f"✅ {service}" if service in selected_services else service
+        # Toggle logic in callback data
+        callback = f"service_{service}"
+        row.append(InlineKeyboardButton(text, callback_data=callback))
+        
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    
+    if row:
+        keyboard.append(row)
+        
+    # Add Done button
+    keyboard.append([InlineKeyboardButton("✅ Done / Continue", callback_data="service_done")])
+    
     return InlineKeyboardMarkup(keyboard)

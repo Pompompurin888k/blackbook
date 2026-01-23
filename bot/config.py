@@ -27,16 +27,22 @@ MEGAPAY_STK_ENDPOINT = os.getenv("MEGAPAY_STK_ENDPOINT", "https://megapay.co.ke/
 STAGE_NAME, CITY, NEIGHBORHOOD = range(3)
 
 # Verification flow
-AWAITING_PHOTO = 10
-
-# Topup flow
-TOPUP_PHONE, TOPUP_CONFIRM = 20, 21
+# Profile Completion flow
+PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY = range(30, 38)
 
 # ==================== STATIC DATA ====================
 CITIES = [
     ("Nairobi", "🏙️"),
     ("Eldoret", "🌆"),
     ("Mombasa", "🏖️"),
+]
+
+# Profile Options
+BUILDS = ["Slim", "Athletic", "Curvy", "BBW", "Petite"]
+AVAILABILITIES = ["Incall", "Outcall", "Both"]
+SERVICES = [
+    "GFE", "Massage", "Dinner Date", "Travel", 
+    "Parties", "Overnight", "Couples", "Fetish"
 ]
 
 # Package pricing (days: KES)

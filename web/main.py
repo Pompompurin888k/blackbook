@@ -39,6 +39,10 @@ async def home(
     neighborhood: Optional[str] = Query(None)
 ):
     """Main directory page with optional city and neighborhood filter."""
+    # Default to Nairobi if no city selected
+    if not city:
+        city = "Nairobi"
+
     providers = db.get_active_providers(city, neighborhood)
     city_counts = db.get_city_counts()
     total_count = sum(city_counts.values())
