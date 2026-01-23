@@ -46,6 +46,11 @@ def main() -> None:
         .build()
     )
     
+    # IMPORTANT: Store database in bot_data AFTER build (persistence may overwrite during build)
+    # This ensures the db is always available even if pickle file has old bot_data
+    application.bot_data["db"] = db
+    logger.info("🗄️ Database injected into bot_data")
+    
     # Register all handlers from modular structure
     logger.info("📦 Registering handlers...")
     register_all_handlers(application, db)
