@@ -283,15 +283,16 @@
     <!-- 2. DIRECTORY PAGE -->
     <section id="directory-page" class="page hidden-page min-h-screen bg-black">
         <!-- Navigation -->
-        <nav class="sticky top-0 z-40 glass p-5 flex justify-between items-center px-6 md:px-12">
-            <h1 class="serif text-xl gold-text tracking-widest cursor-pointer" onclick="location.reload()">BLACKBOOK
-            </h1>
-            <div class="flex items-center gap-4">
+        <nav class="sticky top-0 z-40 glass p-3 md:p-5 flex justify-between items-center px-4 md:px-12">
+            <h1 class="serif text-base md:text-xl gold-text tracking-widest cursor-pointer" onclick="location.reload()">
+                BLACKBOOK</h1>
+            <div class="flex items-center gap-2 md:gap-4">
                 <!-- PRO-LEVEL PANIC BUTTON (Stealth Mode) -->
                 <button id="panic-btn" onclick="triggerPanic()"
-                    class="panic-btn bg-red-500/10 hover:bg-red-500/20 p-2.5 rounded-full border border-red-500/30 transition-colors cursor-pointer z-50"
+                    class="panic-btn bg-red-500/10 hover:bg-red-500/20 p-1.5 md:p-2.5 rounded-full border border-red-500/30 transition-colors cursor-pointer z-50"
                     title="Panic Mode (ESC)">
-                    <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 md:w-5 md:h-5 text-red-500" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
                         </path>
@@ -306,14 +307,15 @@
                 </div>
                 <!-- Theme Toggle -->
                 <button onclick="toggleTheme()" id="theme-toggle"
-                    class="bg-white/5 p-2.5 rounded-full border border-white/10 hover:bg-white/10 transition-colors"
+                    class="bg-white/5 p-1.5 md:p-2.5 rounded-full border border-white/10 hover:bg-white/10 transition-colors"
                     title="Toggle Light/Dark Mode">
-                    <svg id="theme-icon-dark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg id="theme-icon-dark" class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
                         </path>
                     </svg>
-                    <svg id="theme-icon-light" class="w-5 h-5 hidden" fill="none" stroke="currentColor"
+                    <svg id="theme-icon-light" class="w-4 h-4 md:w-5 md:h-5 hidden" fill="none" stroke="currentColor"
                         viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
@@ -321,8 +323,8 @@
                     </svg>
                 </button>
                 <a href="/safety"
-                    class="bg-white/5 p-2.5 rounded-full border border-white/10 hover:bg-white/10 transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="bg-white/5 p-1.5 md:p-2.5 rounded-full border border-white/10 hover:bg-white/10 transition-colors">
+                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
                         </path>
@@ -333,14 +335,15 @@
 
 
         <!-- City Filter (Full Reload) -->
-        <div class="flex overflow-x-auto p-6 pb-3 gap-3 no-scrollbar md:justify-center bg-black/50" id="city-filters">
+        <div class="flex overflow-x-auto p-4 md:p-6 pb-2 md:pb-3 gap-2 md:gap-3 no-scrollbar md:justify-center bg-black/50"
+            id="city-filters">
             <button onclick="window.location.href='/?city=all'"
-                class="filter-btn-city px-8 py-2 rounded-full {% if selected_city == 'all' %}gold-bg text-black active-filter{% else %}glass text-gray-400{% endif %} font-bold text-sm transition-all hover:scale-105">
+                class="filter-btn-city px-5 md:px-8 py-1.5 md:py-2 rounded-full {% if selected_city == 'all' %}gold-bg text-black active-filter{% else %}glass text-gray-400{% endif %} font-bold text-xs md:text-sm transition-all hover:scale-105">
                 All
             </button>
             {% for city in cities %}
             <button onclick="window.location.href='/?city={{ city }}'"
-                class="filter-btn-city px-8 py-2 rounded-full {% if selected_city == city %}gold-bg text-black active-filter{% else %}glass text-gray-400{% endif %} font-semibold text-sm transition-all hover:scale-105">
+                class="filter-btn-city px-5 md:px-8 py-1.5 md:py-2 rounded-full {% if selected_city == city %}gold-bg text-black active-filter{% else %}glass text-gray-400{% endif %} font-semibold text-xs md:text-sm transition-all hover:scale-105">
                 {{ city }}
             </button>
             {% endfor %}
@@ -348,7 +351,8 @@
 
         <!-- Neighborhood Sub-Navigation (HTMX Enabled) -->
         {% if neighborhoods %}
-        <div class="flex overflow-x-auto px-6 pb-4 gap-2 no-scrollbar md:justify-center" id="hood-filters">
+        <div class="flex overflow-x-auto px-4 md:px-6 pb-3 md:pb-4 gap-1.5 md:gap-2 no-scrollbar md:justify-center"
+            id="hood-filters">
             <button hx-get="/api/grid?city={{ selected_city }}" hx-target="#provider-grid"
                 hx-indicator="#provider-grid-wrapper" hx-push-url="true" onclick="toggleFilter(this, 'hood')"
                 class="filter-btn-hood px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest whitespace-nowrap transition-all
