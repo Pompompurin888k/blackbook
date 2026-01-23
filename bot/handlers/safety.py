@@ -24,9 +24,10 @@ from utils.keyboards import (
 logger = logging.getLogger(__name__)
 
 
-def get_db(context: ContextTypes.DEFAULT_TYPE):
-    """Gets the database instance from bot_data."""
-    return context.bot_data.get("db")
+def get_db():
+    """Gets the database instance from db_context module."""
+    from db_context import get_db as _get_db
+    return _get_db()
 
 
 # ==================== MENU CALLBACKS ====================
@@ -38,7 +39,7 @@ async def safety_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     
     user = query.from_user
     action = query.data.replace("menu_", "")
-    db = get_db(context)
+    db = get_db()
     provider = db.get_provider(user.id)
     
     # === SAFETY SUITE MENU ===
@@ -186,7 +187,7 @@ async def safety_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 async def check_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Checks if a phone number is blacklisted. Usage: /check 0712345678"""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     
     provider = db.get_provider(user.id)
     if not provider:
@@ -235,7 +236,7 @@ async def check_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def report_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Reports a phone number to the blacklist. Usage: /report 0712345678 Reason here"""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     
     if not context.args or len(context.args) < 2:
         await update.message.reply_text(
@@ -287,7 +288,7 @@ async def report_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def start_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Starts a safety session timer. Usage: /session 60 (for 60 minutes)"""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     
     provider = db.get_provider(user.id)
     if not provider:
@@ -343,7 +344,7 @@ async def start_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Checks in after a session - confirms provider is safe."""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     
     success = db.end_session(user.id)
     
@@ -367,7 +368,7 @@ async def checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def toggle_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Toggles online/offline status for the website."""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     
     provider = db.get_provider(user.id)
     if not provider:

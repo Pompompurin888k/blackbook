@@ -27,9 +27,10 @@ from services.metapay import initiate_stk_push
 logger = logging.getLogger(__name__)
 
 
-def get_db(context: ContextTypes.DEFAULT_TYPE):
-    """Gets the database instance from bot_data."""
-    return context.bot_data.get("db")
+def get_db():
+    """Gets the database instance from db_context module."""
+    from db_context import get_db as _get_db
+    return _get_db()
 
 
 # ==================== MENU CALLBACKS ====================
@@ -41,7 +42,7 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
     
     user = query.from_user
     action = query.data.replace("menu_", "")
-    db = get_db(context)
+    db = get_db()
     provider = db.get_provider(user.id)
     
     # === TOPUP / GO LIVE SCREEN ===
@@ -148,7 +149,7 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
 async def topup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the topup process - shows package selection."""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     
     provider = db.get_provider(user.id)
     if not provider:
@@ -187,7 +188,7 @@ async def topup_package_callback(update: Update, context: ContextTypes.DEFAULT_T
     """Handles package selection and asks for phone number."""
     query = update.callback_query
     await query.answer()
-    db = get_db(context)
+    db = get_db()
     
     days = int(query.data.replace("topup_", ""))
     price = get_package_price(days)
@@ -220,7 +221,7 @@ async def topup_package_callback(update: Update, context: ContextTypes.DEFAULT_T
 async def topup_phone_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handles phone number input for topup."""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     phone = update.message.text.strip()
     
     phone_clean = phone.replace(" ", "").replace("-", "").replace("+", "")
@@ -275,7 +276,7 @@ async def topup_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     await query.answer()
     user = query.from_user
-    db = get_db(context)
+    db = get_db()
     
     if query.data == "topup_use_saved":
         phone = db.get_provider_phone(user.id)

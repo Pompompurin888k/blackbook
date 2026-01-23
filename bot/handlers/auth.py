@@ -38,9 +38,10 @@ logger = logging.getLogger(__name__)
 
 # ==================== HELPER FUNCTIONS ====================
 
-def get_db(context: ContextTypes.DEFAULT_TYPE):
-    """Gets the database instance from bot_data."""
-    return context.bot_data.get("db")
+def get_db():
+    """Gets the database instance from db_context module."""
+    from db_context import get_db as _get_db
+    return _get_db()
 
 
 # ==================== /START COMMAND ====================
@@ -49,7 +50,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handles the /start command with premium welcome message."""
     logger.info(f"🚀 /start command received from user {update.effective_user.id}")
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     
     if db is None:
         logger.error("❌ Database is None! Handler cannot proceed.")
@@ -85,7 +86,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     
     user = query.from_user
     action = query.data.replace("menu_", "")
-    db = get_db(context)
+    db = get_db()
     provider = db.get_provider(user.id)
     
     # === MAIN MENU ===
@@ -166,7 +167,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def stage_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stores the stage name and asks for city selection."""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     stage_name_input = update.message.text.strip()
     
     context.user_data["stage_name"] = stage_name_input
@@ -201,7 +202,7 @@ async def city_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def neighborhood(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stores the neighborhood and completes registration."""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     neighborhood_input = update.message.text.strip()
     
     city = context.user_data.get("city")
@@ -238,7 +239,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def verify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the verification process by giving user a unique code."""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     
     provider = db.get_provider(user.id)
     if not provider:
@@ -275,7 +276,7 @@ async def verify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def handle_verification_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handles the verification photo submission."""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     
     if not update.message.photo:
         await update.message.reply_text(
@@ -347,7 +348,7 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
     """Handles admin approval/rejection of verification requests."""
     query = update.callback_query
     await query.answer()
-    db = get_db(context)
+    db = get_db()
     
     data = query.data
     parts = data.split("_")
@@ -405,7 +406,7 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
 async def myprofile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Shows the provider's current profile status."""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     
     provider = db.get_provider(user.id)
     if not provider:

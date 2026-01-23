@@ -14,9 +14,10 @@ from config import is_admin, is_authorized_partner
 logger = logging.getLogger(__name__)
 
 
-def get_db(context: ContextTypes.DEFAULT_TYPE):
-    """Gets the database instance from bot_data."""
-    return context.bot_data.get("db")
+def get_db():
+    """Gets the database instance from db_context module."""
+    from db_context import get_db as _get_db
+    return _get_db()
 
 
 # ==================== /PARTNER DASHBOARD ====================
@@ -24,7 +25,7 @@ def get_db(context: ContextTypes.DEFAULT_TYPE):
 async def partner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Partner dashboard command - shows recruitment statistics."""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     
     if not is_authorized_partner(user.id):
         await update.message.reply_text(
@@ -104,7 +105,7 @@ async def maintenance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Broadcasts a message to all providers - Admin only."""
     user = update.effective_user
-    db = get_db(context)
+    db = get_db()
     
     if not is_admin(user.id):
         await update.message.reply_text(

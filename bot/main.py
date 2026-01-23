@@ -10,6 +10,7 @@ from config import TELEGRAM_TOKEN, ADMIN_CHAT_ID
 from database import Database
 from handlers import register_all_handlers
 from utils.logger import get_logger, configure_root_logger
+from db_context import set_db
 
 # Setup centralized logging
 configure_root_logger()
@@ -46,10 +47,10 @@ def main() -> None:
         .build()
     )
     
-    # IMPORTANT: Store database in bot_data AFTER build (persistence may overwrite during build)
-    # This ensures the db is always available even if pickle file has old bot_data
-    application.bot_data["db"] = db
-    logger.info("🗄️ Database injected into bot_data")
+    # IMPORTANT: Store database in db_context module (NOT bot_data)
+    # Database objects are not picklable, so they can't be stored in persisted bot_data
+    set_db(db)
+    logger.info("🗄️ Database registered in db_context")
     
     # Register all handlers from modular structure
     logger.info("📦 Registering handlers...")
