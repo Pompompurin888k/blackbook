@@ -106,6 +106,20 @@ class Database:
             logger.error(f"❌ Error getting provider by ID: {e}")
             return None
     
+    def get_provider_by_telegram_id(self, telegram_id: int) -> Optional[Dict]:
+        """Gets a single provider by Telegram ID."""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, telegram_id, display_name, city, neighborhood, is_online, expiry_date
+                    FROM providers
+                    WHERE telegram_id = %s
+                """, (telegram_id,))
+                return cur.fetchone()
+        except Exception as e:
+            logger.error(f"❌ Error getting provider by Telegram ID: {e}")
+            return None
+    
     def activate_subscription(self, tg_id: int, days: int) -> bool:
         """Activates provider subscription for X days. Sets is_active=TRUE and expiry_date."""
         expiry = datetime.now() + timedelta(days=days)

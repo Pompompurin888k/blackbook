@@ -18,6 +18,7 @@ MEGAPAY_STK_ENDPOINT = os.getenv("MEGAPAY_STK_ENDPOINT", "https://megapay.co.ke/
 
 # Package pricing
 PACKAGES = {
+    1: 1,     # 1 day = 1 KES (TEST ONLY)
     3: 400,   # 3 days = 400 KES
     7: 800,   # 7 days = 800 KES
 }

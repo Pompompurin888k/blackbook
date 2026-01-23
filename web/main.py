@@ -148,14 +148,23 @@ async def megapay_callback(request: Request):
             db.activate_subscription(telegram_id, package_days)
             db.log_payment(telegram_id, amount, reference, "SUCCESS", package_days)
             
-            # Send Telegram notification to provider
+            # Fetch provider info for enhanced notification
+            provider = db.get_provider_by_telegram_id(telegram_id)
+            neighborhood = provider.get("neighborhood", "your area") if provider else "your area"
+            
+            # Calculate expiry date
+            from datetime import datetime, timedelta
+            expiry_date = datetime.now() + timedelta(days=package_days)
+            expiry_str = expiry_date.strftime("%Y-%m-%d %H:%M")
+            
+            # Send enhanced Telegram notification to provider
             await send_telegram_notification(
                 telegram_id,
-                f"✅ **Payment Received!**\n\n"
+                f"✅ **Payment Confirmed!**\n\n"
                 f"💰 Amount: {amount} KES\n"
-                f"📅 Package: {package_days} Days\n\n"
-                f"🎉 Your profile is now **LIVE** on Blackbook!\n"
-                f"Clients can now find and contact you."
+                f"📅 Package: {package_days} Day(s)\n\n"
+                f"🎉 Your profile is now **LIVE** in **{neighborhood}** until **{expiry_str}**.\n\n"
+                f"Go get them! 🚀"
             )
             
             logger.info(f"✅ Payment SUCCESS: Provider {telegram_id} activated for {package_days} days")

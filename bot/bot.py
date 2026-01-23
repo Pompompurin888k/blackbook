@@ -978,6 +978,7 @@ async def topup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     
     # Show package selection
     keyboard = [
+        [InlineKeyboardButton("🧪 1 Day TEST - 1 KES", callback_data="topup_1")],
         [InlineKeyboardButton("⏰ 3 Days - 400 KES", callback_data="topup_3")],
         [InlineKeyboardButton("🔥 7 Days - 800 KES", callback_data="topup_7")],
     ]
