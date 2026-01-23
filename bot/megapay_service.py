@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 MEGAPAY_API_KEY = os.getenv("MEGAPAY_API_KEY", "YOUR_API_KEY_HERE")
 MEGAPAY_EMAIL = os.getenv("MEGAPAY_EMAIL", "your_email@example.com")
 MEGAPAY_CALLBACK_URL = os.getenv("MEGAPAY_CALLBACK_URL", "https://yourdomain.com/payments/callback")
-# Updated endpoint - main domain path, not subdomain
-MEGAPAY_STK_ENDPOINT = os.getenv("MEGAPAY_STK_ENDPOINT", "https://megapay.co.ke/api/stk/push")
+# Updated endpoint - correct path from working smartinvest app
+MEGAPAY_STK_ENDPOINT = os.getenv("MEGAPAY_STK_ENDPOINT", "https://megapay.co.ke/backend/v1/initiatestk")
 
 # Package pricing
 PACKAGES = {
