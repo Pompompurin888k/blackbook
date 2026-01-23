@@ -11,9 +11,10 @@ logger = logging.getLogger(__name__)
 
 # MegaPay Configuration (loaded from .env)
 MEGAPAY_API_KEY = os.getenv("MEGAPAY_API_KEY", "YOUR_API_KEY_HERE")
-MEGAPAY_MERCHANT_ID = os.getenv("MEGAPAY_MERCHANT_ID", "YOUR_MERCHANT_ID_HERE")
+MEGAPAY_EMAIL = os.getenv("MEGAPAY_EMAIL", "your_email@example.com")
 MEGAPAY_CALLBACK_URL = os.getenv("MEGAPAY_CALLBACK_URL", "https://yourdomain.com/payments/callback")
-MEGAPAY_STK_ENDPOINT = os.getenv("MEGAPAY_STK_ENDPOINT", "https://api.megapay.co.ke/v1/stk/push")
+# Updated endpoint - main domain path, not subdomain
+MEGAPAY_STK_ENDPOINT = os.getenv("MEGAPAY_STK_ENDPOINT", "https://megapay.co.ke/api/stk/push")
 
 # Package pricing
 PACKAGES = {
@@ -41,31 +42,42 @@ async def initiate_stk_push(phone: str, amount: int, telegram_id: int, package_d
     elif phone.startswith("+"):
         phone = phone[1:]
     
-    # Prepare payload
+    # Prepare payload per MegaPay API documentation
     payload = {
         "api_key": MEGAPAY_API_KEY,
-        "merchant_id": MEGAPAY_MERCHANT_ID,
-        "phone_number": phone,
-        "amount": amount,
-        "account_reference": f"BB_{telegram_id}_{package_days}",  # BB_123456789_3
-        "transaction_desc": f"Blackbook {package_days} Day Listing",
-        "callback_url": MEGAPAY_CALLBACK_URL,
+        "email": MEGAPAY_EMAIL,
+        "amount": str(amount),
+        "msisdn": phone,
+        "reference": f"BB_{telegram_id}_{package_days}",  # BB_123456789_3
     }
     
     logger.info(f"📱 Initiating STK Push: {phone} - {amount} KES - {package_days} days")
+    logger.info(f"📡 Endpoint: {MEGAPAY_STK_ENDPOINT}")
     
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(MEGAPAY_STK_ENDPOINT, json=payload)
             
+            logger.info(f"📬 Response status: {response.status_code}")
+            logger.info(f"📬 Response body: {response.text}")
+            
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"✅ STK Push sent successfully: {data}")
-                return {
-                    "success": True,
-                    "message": "STK Push sent! Check your phone for the M-Pesa prompt.",
-                    "data": data
-                }
+                # Check if MegaPay returned success
+                if data.get("success") == "200" or data.get("ResponseCode") == 0:
+                    logger.info(f"✅ STK Push sent successfully: {data}")
+                    return {
+                        "success": True,
+                        "message": "STK Push sent! Check your phone for the M-Pesa prompt.",
+                        "data": data
+                    }
+                else:
+                    logger.error(f"❌ STK Push API error: {data}")
+                    return {
+                        "success": False,
+                        "message": f"Payment request failed: {data.get('massage', data.get('ResponseDescription', 'Unknown error'))}",
+                        "error": data
+                    }
             else:
                 logger.error(f"❌ STK Push failed: {response.status_code} - {response.text}")
                 return {
