@@ -14,5 +14,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the code
 COPY . .
 
-# Run the bot
-CMD ["python", "bot.py"]
+# Run the bot (using new modular entry point)
+CMD ["python", "main.py"]
