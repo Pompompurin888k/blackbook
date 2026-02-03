@@ -540,6 +540,16 @@
             fill: #ef4444;
             stroke: #ef4444;
         }
+        
+        /* More images overlay */
+        #more-images-overlay {
+            transition: opacity 0.3s ease;
+        }
+        
+        #more-images-overlay:hover {
+            backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.5);
+        }
 
         /* Share menu */
         .share-menu {
@@ -555,10 +565,14 @@
             z-index: 900;
             transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+            visibility: hidden;
+            opacity: 0;
         }
 
         .share-menu.active {
             bottom: 0;
+            visibility: visible;
+            opacity: 1;
         }
 
         .share-backdrop {
@@ -566,11 +580,14 @@
             inset: 0;
             background: rgba(0, 0, 0, 0.5);
             z-index: 899;
-            display: none;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
         }
 
         .share-backdrop.active {
-            display: block;
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .no-scrollbar {
@@ -934,11 +951,18 @@
                             loading="lazy">
                     </div>
                     <div
-                        class="aspect-[3/4] overflow-hidden rounded-lg md:rounded-xl bg-zinc-900 border border-white/5 shadow-2xl cursor-pointer"
-                        onclick="openImageZoom(5)">
+                        class="relative aspect-[3/4] overflow-hidden rounded-lg md:rounded-xl bg-zinc-900 border border-white/5 shadow-2xl cursor-pointer"
+                        onclick="openAllImages()">
                         <img id="view-img-sub-2" src=""
                             class="w-full h-full object-cover opacity-90 hover:opacity-100 hover:scale-110 transition-all duration-500"
                             loading="lazy">
+                        <!-- More Images Overlay -->
+                        <div id="more-images-overlay" class="hidden absolute inset-0 backdrop-blur-sm bg-black/40 flex items-center justify-center">
+                            <div class="text-center">
+                                <p class="text-white text-5xl md:text-6xl font-bold" id="more-images-count">+4</p>
+                                <p class="text-white/80 text-sm md:text-base mt-2 uppercase tracking-wider">More Photos</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1353,15 +1377,45 @@
                 document.getElementById('view-call-text').innerText = `Call ${firstName}`;
 
 
+                // Simulate multiple photos (in real app, this would come from backend)
+                // For now, create variations of the main image
+                const baseImg = data.img_url;
+                allProviderImages = [
+                    baseImg,
+                    baseImg.replace('w=800', 'w=850'),
+                    baseImg.replace('w=800', 'w=900'),
+                    baseImg.replace('w=800', 'w=750'),
+                    baseImg.replace('w=800', 'w=820'),
+                    baseImg.replace('w=800', 'w=880'),
+                    baseImg.replace('w=800', 'w=920'),
+                    baseImg.replace('w=800', 'w=950')
+                ];
+                
+                // Randomly decide how many photos this provider has (5-8)
+                const photoCount = 5 + Math.floor(Math.random() * 4);
+                allProviderImages = allProviderImages.slice(0, photoCount);
+                
                 // Populate Gallery (use main image + variations)
-                document.getElementById('view-img-1').src = data.img_url;
-                // Create subtle variations by adjusting crop parameters
-                document.getElementById('view-img-2').src = data.img_url.replace('w=800', 'w=850');
-                document.getElementById('view-img-3').src = data.img_url.replace('w=800', 'w=900');
+                document.getElementById('view-img-1').src = allProviderImages[0];
+                document.getElementById('view-img-2').src = allProviderImages[1] || allProviderImages[0];
+                document.getElementById('view-img-3').src = allProviderImages[2] || allProviderImages[0];
 
                 // Populate Sub Grid
-                document.getElementById('view-img-sub-1').src = data.img_url.replace('w=800', 'w=600');
-                document.getElementById('view-img-sub-2').src = data.img_url.replace('w=800', 'w=601');
+                document.getElementById('view-img-sub-1').src = allProviderImages[3] || allProviderImages[0];
+                document.getElementById('view-img-sub-2').src = allProviderImages[4] || allProviderImages[0];
+                
+                // Show "+X more" overlay if there are more than 5 photos
+                const moreOverlay = document.getElementById('more-images-overlay');
+                const moreCount = document.getElementById('more-images-count');
+                
+                if (allProviderImages.length > 5) {
+                    const remaining = allProviderImages.length - 5;
+                    moreCount.textContent = `+${remaining}`;
+                    moreOverlay.classList.remove('hidden');
+                } else {
+                    moreOverlay.classList.add('hidden');
+                }
+                
                 // Reset scroll position
                 document.getElementById('view-gallery').scrollLeft = 0;
 
@@ -1445,6 +1499,7 @@
         
         // ========== IMAGE ZOOM MODAL ==========
         let currentZoomImages = [];
+        let allProviderImages = [];
         
         function openImageZoom(imageNumber) {
             const modal = document.getElementById('image-zoom-modal');
@@ -1461,6 +1516,18 @@
             zoomImg.src = imgSrc;
             modal.classList.add('active');
             document.body.style.overflow = 'hidden'; // Prevent background scroll
+        }
+        
+        function openAllImages() {
+            // Open modal with first image, could be enhanced to show gallery
+            if (allProviderImages.length > 0) {
+                const modal = document.getElementById('image-zoom-modal');
+                const zoomImg = document.getElementById('zoom-image');
+                zoomImg.src = allProviderImages[0];
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+                showToast(`Viewing all ${allProviderImages.length} photos`, 'info');
+            }
         }
         
         function closeImageZoom() {
