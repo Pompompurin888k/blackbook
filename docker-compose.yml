@@ -25,6 +25,8 @@ services:
     env_file:
       - .env
     network_mode: "host" # Bypass Docker DNS issues by using host network
+    volumes:
+      - ./bot:/app
 
   # 3. The Face (Public Website)
   web:
@@ -37,6 +39,9 @@ services:
       - "8080:8080"
     env_file:
       - .env
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+    volumes:
+      - ./web:/app
     networks:
       - blackbook_network
 

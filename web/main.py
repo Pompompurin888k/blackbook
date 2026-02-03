@@ -39,6 +39,8 @@ async def home(
     neighborhood: Optional[str] = Query(None)
 ):
     """Main directory page with optional city and neighborhood filter."""
+    from datetime import datetime
+    
     # Default to Nairobi if no city selected
     if not city:
         city = "Nairobi"
@@ -59,6 +61,7 @@ async def home(
         "neighborhoods": neighborhoods,
         "city_counts": city_counts,
         "total_count": total_count,
+        "now": datetime.now  # Pass datetime for template calculations
     })
 
 
@@ -72,13 +75,70 @@ async def api_grid(
     HTMX endpoint - returns only the provider grid HTML.
     Used for seamless filtering without full page reload.
     """
+    from datetime import datetime
+    
     providers = db.get_active_providers(city, neighborhood)
     
     return templates.TemplateResponse("_grid.html", {
         "request": request,
         "providers": providers,
         "selected_city": city,
+        "now": datetime.now  # Pass datetime for template calculations
     })
+
+
+@app.get("/api/recommendations", response_class=HTMLResponse)
+async def api_recommendations(
+    request: Request,
+    city: str,
+    exclude_id: int
+):
+    """
+    HTMX endpoint - returns smart recommended providers HTML with relevance indicators.
+    """
+    recommendations = db.get_recommendations(city, exclude_id, limit=4)
+    
+    # Get source provider for comparison
+    source_provider = db.get_provider_by_id(exclude_id)
+    
+    # Add relevance hints to each recommendation
+    enriched_recommendations = []
+    for rec in recommendations:
+        rec_dict = dict(rec)
+        hints = []
+        
+        if source_provider:
+            # Same neighborhood
+            if rec.get('neighborhood') == source_provider.get('neighborhood'):
+                hints.append("From your area")
+            # Same build
+            elif rec.get('build') and rec.get('build') == source_provider.get('build'):
+                hints.append("Similar style")
+            # Recently verified
+            elif rec.get('created_at'):
+                from datetime import datetime, timedelta
+                if rec['created_at'] > datetime.now() - timedelta(days=30):
+                    hints.append("Recently verified")
+            # Online
+            if rec.get('is_online'):
+                if not hints:
+                    hints.append("Available now")
+        
+        rec_dict['relevance_hint'] = hints[0] if hints else None
+        enriched_recommendations.append(rec_dict)
+    
+    return templates.TemplateResponse("_recommendations.html", {
+        "request": request,
+        "providers": enriched_recommendations,
+        "selected_city": city
+    })
+
+
+@app.get("/seed")
+async def seed_data():
+    """Seeds the database with test data."""
+    db.seed_test_providers()
+    return {"status": "seeded", "message": "Test providers added."}
 
 
 @app.get("/api/status/{provider_id}", response_class=HTMLResponse)

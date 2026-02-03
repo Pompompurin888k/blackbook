@@ -26,6 +26,9 @@ MEGAPAY_STK_ENDPOINT = os.getenv("MEGAPAY_STK_ENDPOINT", "https://megapay.co.ke/
 # Registration flow
 STAGE_NAME, CITY, NEIGHBORHOOD = range(3)
 
+# Payment/Topup flow
+TOPUP_PHONE, TOPUP_CONFIRM = range(20, 22)
+
 # Verification flow
 # Profile Completion flow
 PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY = range(30, 38)

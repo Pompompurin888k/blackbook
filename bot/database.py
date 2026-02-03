@@ -146,7 +146,7 @@ class Database:
     # ==================== PROVIDER METHODS ====================
     
     def get_provider(self, tg_id):
-        """Fetch a specific provider by Telegram ID."""
+        """Fetch a specific provider by Telegram ID with all profile fields."""
         query = "SELECT * FROM providers WHERE telegram_id = %s"
         with self.conn.cursor() as cur:
             cur.execute(query, (tg_id,))

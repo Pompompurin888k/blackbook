@@ -14,13 +14,7 @@ from telegram.ext import (
 )
 
 from config import (
-    get_admin_verification_keyboard,
-    get_build_keyboard,
-    get_availability_keyboard,
-    get_services_keyboard,
-)
-from config import (
-    STAGE_NAME, CITY, NEIGHBORHOOD, AWAITING_PHOTO,
+    STAGE_NAME, CITY, NEIGHBORHOOD,
     PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, 
     PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY,
     ADMIN_CHAT_ID,

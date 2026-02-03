@@ -15,22 +15,24 @@
 {% for provider in providers %}
 {% set img_url = images[(loop.index0) % 10] %}
 <!-- Provider Card -->
-<div class="group cursor-pointer animate-fade-in-up delay-{{ (loop.index0 % 5) * 100 }}" data-provider='{
-        "id": {{ provider.id }},
-        "name": "{{ provider.display_name }}",
-        "location": "{{ provider.neighborhood or provider.city }}",
-        "telegram_id": "{{ provider.telegram_id }}",
-        "img_url": "{{ img_url }}",
-        "is_online": {{ "true" if provider.is_online else "false" }},
-        "age": {{ provider.age or 24 }},
-        "height": {{ provider.height_cm or 170 }},
-        "weight": {{ provider.weight_kg or 55 }},
-        "build": "{{ provider.build or "Slim" }}",
-        "services": {{ provider.services or "[]" }},
-        "bio": "{{ provider.bio or "I provide a sophisticated, discreet companion experience for high-profile gentlemen." }}",
-        "nearby": "{{ provider.nearby_places or "" }}",
-        "avail": "{{ provider.availability_type or "In-call & Out-call" }}"
-    }' onclick="openProfile(this)">
+<div class="group cursor-pointer animate-fade-in-up delay-{{ (loop.index0 % 5) * 100 }}" data-provider='{{ {
+        "id": provider.id,
+        "name": provider.display_name,
+        "city": provider.city,
+        "phone": provider.phone or "",
+        "location": provider.neighborhood or provider.city,
+        "telegram_id": provider.telegram_id,
+        "img_url": img_url,
+        "is_online": provider.is_online or false,
+        "age": provider.age or 24,
+        "height": provider.height_cm or 170,
+        "weight": provider.weight_kg or 55,
+        "build": provider.build or "Slim",
+        "services": provider.services or [],
+        "bio": provider.bio or "I provide a sophisticated, discreet companion experience for high-profile gentlemen.",
+        "nearby": provider.nearby_places or "",
+        "avail": provider.availability_type or "In-call & Out-call"
+    } | tojson | safe }}' onclick="openProfile(this)">
     <div
         class="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/5 bg-zinc-900 transition-all group-hover:border-[#D4AF37]/50">
         <!-- Profile Image with Lazy Loading + Hover Zoom -->
@@ -39,7 +41,7 @@
             alt="{{ provider.display_name }}" onload="this.classList.add('loaded')"
             style="background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);">
         <!-- Badges Container -->
-        <div class="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+        <div class="absolute top-3 right-3 z-10 flex flex-col gap-1.5 items-end">
             <!-- Live Badge (Only for online providers) -->
             {% if provider.is_online %}
             <div id="live-badge-{{ provider.id }}" hx-get="/api/status/{{ provider.id }}" hx-trigger="every 30s"
@@ -48,6 +50,21 @@
                 <span class="text-[8px] text-green-400 font-bold uppercase">Live</span>
             </div>
             {% endif %}
+            
+            <!-- New/Fresh Badge -->
+            {% if provider.created_at %}
+                {% set days_ago = (now() - provider.created_at).days %}
+                {% if days_ago <= 7 %}
+                <span class="bg-[#D4AF37] text-black px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                    New
+                </span>
+                {% elif days_ago <= 30 %}
+                <span class="glass px-2 py-0.5 rounded-full text-[8px] text-[#D4AF37] font-medium uppercase tracking-wider border border-[#D4AF37]/20">
+                    Fresh
+                </span>
+                {% endif %}
+            {% endif %}
+            
             <!-- Blue Tick Badge -->
             <div class="glass p-1 rounded-full">
                 <svg class="w-3.5 h-3.5 text-[#00A3FF]" fill="currentColor" viewBox="0 0 20 20">
