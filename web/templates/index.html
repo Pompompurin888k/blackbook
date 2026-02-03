@@ -149,6 +149,168 @@
             display: none;
         }
 
+        /* Skeleton Loader */
+        @keyframes skeleton-loading {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .skeleton {
+            background: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0.03) 25%,
+                rgba(255, 255, 255, 0.08) 50%,
+                rgba(255, 255, 255, 0.03) 75%
+            );
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s ease-in-out infinite;
+        }
+
+        /* Image Blur-up Effect */
+        .image-loading {
+            filter: blur(10px);
+            transform: scale(1.1);
+            transition: filter 0.5s ease-out, transform 0.5s ease-out;
+        }
+
+        .image-loaded {
+            filter: blur(0);
+            transform: scale(1);
+        }
+
+        /* Loading Spinner */
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #D4AF37;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* Fade in cards */
+        .card-fade-in {
+            animation: fade-in-up 0.4s ease-out forwards;
+        }
+
+        /* Enhanced Animations */
+        @keyframes slide-in-right {
+            0% {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slide-in-bottom {
+            0% {
+                opacity: 0;
+                transform: translateY(100px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes scale-in {
+            0% {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Profile view slide-in */
+        .profile-slide-in {
+            animation: slide-in-right 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Card hover lift effect */
+        .card-hover-lift {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card-hover-lift:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(212, 175, 55, 0.15);
+        }
+
+        /* Button ripple effect */
+        @keyframes ripple {
+            0% {
+                transform: scale(0);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        .btn-ripple {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-ripple::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            pointer-events: none;
+        }
+
+        .btn-ripple:active::after {
+            animation: ripple 0.6s ease-out;
+        }
+
+        /* Smooth badge entrance */
+        @keyframes badge-pop {
+            0% {
+                transform: scale(0) rotate(-12deg);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1) rotate(3deg);
+            }
+            100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+
+        .badge-animate {
+            animation: badge-pop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        /* Stagger delays extended */
+        .delay-500 { animation-delay: 500ms; }
+        .delay-600 { animation-delay: 600ms; }
+        .delay-700 { animation-delay: 700ms; }
+        .delay-800 { animation-delay: 800ms; }
+
         .no-scrollbar {
             -ms-overflow-style: none;
             scrollbar-width: none;
@@ -267,7 +429,7 @@
     <!-- 1. LANDING PAGE (GATEKEEPER) -->
     <section id="landing-page"
         class="page min-h-screen flex flex-col justify-center items-center text-center p-6 hero-gradient fixed inset-0 z-50">
-        <div class="mb-8 scale-95 opacity-0 transition-all duration-1000 ease-out" id="landing-content">
+        <div class="mb-8 transition-all duration-1000 ease-out" id="landing-content">
             <h2 class="serif text-xs tracking-[0.6em] gold-text mb-4 uppercase">Nairobi • Eldoret • Mombasa</h2>
             <h1 class="serif text-5xl md:text-8xl mb-6 tracking-tighter">B L A C K B O O K</h1>
             <p class="text-gray-400 max-w-md mx-auto font-light leading-relaxed mb-10 text-sm md:text-base">
@@ -275,7 +437,7 @@
                 <span class="block mt-1">Verified identities. Unmatched discretion.</span>
             </p>
             <button onclick="navigateTo('directory')"
-                class="gold-bg text-black px-12 py-4 rounded-full font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(212,175,55,0.3)]">
+                class="btn-ripple gold-bg text-black px-12 py-4 rounded-full font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(212,175,55,0.3)]">
                 Enter The Collection
             </button>
         </div>
@@ -334,17 +496,63 @@
             </div>
         </nav>
 
+        <!-- HERO SECTION WITH STATS -->
+        <div class="py-12 md:py-16 px-4 text-center border-b border-white/5">
+            <h1 class="serif text-3xl md:text-5xl text-white mb-3 md:mb-4 tracking-tight">
+                Nairobi's Premium Directory
+            </h1>
+            <div class="flex items-center justify-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-400 uppercase tracking-[0.3em] mb-6 md:mb-8">
+                <span class="flex items-center gap-1.5">
+                    <svg class="w-3 h-3 md:w-4 md:h-4 text-[#D4AF37]" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                    Verified
+                </span>
+                <span class="text-white/30">•</span>
+                <span>Discreet</span>
+                <span class="text-white/30">•</span>
+                <span>Available 24/7</span>
+            </div>
+            <div class="flex items-center justify-center gap-6 md:gap-8 text-sm md:text-base mb-8 md:mb-10">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl md:text-3xl font-bold text-white">{{ total_verified or 0 }}</span>
+                    <span class="text-gray-500 text-xs md:text-sm">Verified Providers</span>
+                </div>
+                <span class="text-white/20">•</span>
+                <div class="flex items-center gap-2">
+                    <span class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
+                    <span class="text-xl md:text-2xl font-bold text-green-400">{{ total_online or 0 }}</span>
+                    <span class="text-gray-500 text-xs md:text-sm">Online Now</span>
+                </div>
+            </div>
+            
+            <!-- Search Bar -->
+            <div class="max-w-2xl mx-auto">
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="search-input"
+                        placeholder="Search by name, location, or neighborhood..."
+                        class="w-full px-6 py-3 md:py-4 pl-12 md:pl-14 pr-4 bg-white/5 border border-white/10 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37]/50 focus:bg-white/10 transition-all text-sm md:text-base"
+                        oninput="filterProviders()"
+                    />
+                    <svg class="absolute left-4 md:left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
 
         <!-- City Filter (Full Reload) -->
         <div class="flex overflow-x-auto p-4 md:p-6 pb-2 md:pb-3 gap-2 md:gap-3 no-scrollbar md:justify-center bg-black/50"
             id="city-filters">
             <button onclick="window.location.href='/?city=all'"
-                class="filter-btn-city px-5 md:px-8 py-1.5 md:py-2 rounded-full {% if selected_city == 'all' %}gold-bg text-black active-filter{% else %}glass text-gray-400{% endif %} font-bold text-xs md:text-sm transition-all hover:scale-105">
+                class="filter-btn-city btn-ripple px-5 md:px-8 py-1.5 md:py-2 rounded-full {% if selected_city == 'all' %}gold-bg text-black active-filter{% else %}glass text-gray-400{% endif %} font-bold text-xs md:text-sm transition-all hover:scale-105">
                 All
             </button>
             {% for city in cities %}
             <button onclick="window.location.href='/?city={{ city }}'"
-                class="filter-btn-city px-5 md:px-8 py-1.5 md:py-2 rounded-full {% if selected_city == city %}gold-bg text-black active-filter{% else %}glass text-gray-400{% endif %} font-semibold text-xs md:text-sm transition-all hover:scale-105">
+                class="filter-btn-city btn-ripple px-5 md:px-8 py-1.5 md:py-2 rounded-full {% if selected_city == city %}gold-bg text-black active-filter{% else %}glass text-gray-400{% endif %} font-semibold text-xs md:text-sm transition-all hover:scale-105">
                 {{ city }}
             </button>
             {% endfor %}
@@ -373,6 +581,14 @@
 
         <!-- Grid Wrapper for HTMX & Skeletons -->
         <div id="provider-grid-wrapper" class="relative min-h-[500px] p-3 md:px-12 pb-24">
+
+            <!-- Loading Spinner Overlay (For search/filter) -->
+            <div id="search-loading" class="hidden absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                <div class="text-center">
+                    <div class="spinner mx-auto mb-4"></div>
+                    <p class="text-gray-400 text-sm">Searching...</p>
+                </div>
+            </div>
 
             <!-- Skeleton Loader (Shown during HTMX requests) -->
             <div
@@ -550,7 +766,7 @@
                     <div class="mt-6 md:mt-8">
                         <div class="grid grid-cols-2 gap-4">
                             <a id="view-whatsapp-btn" href="#" target="_blank"
-                                class="glass px-4 py-4 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-[#25D366]/20 transition-all border border-white/5 group">
+                                class="btn-ripple glass px-4 py-4 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-[#25D366]/20 hover:scale-105 transition-all border border-white/5 group">
                                 <svg class="w-8 h-8 text-[#25D366] group-hover:scale-110 transition-transform"
                                     fill="currentColor" viewBox="0 0 24 24">
                                     <path
@@ -560,7 +776,7 @@
                                     class="text-xs uppercase tracking-widest text-[#25D366] font-bold">WhatsApp</span>
                             </a>
                             <a id="view-call-btn" href="#"
-                                class="glass px-4 py-4 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-white/10 transition-all border border-white/5 group">
+                                class="btn-ripple glass px-4 py-4 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-white/10 hover:scale-105 transition-all border border-white/5 group">
                                 <svg class="w-8 h-8 text-white group-hover:scale-110 transition-transform" fill="none"
                                     stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
@@ -632,14 +848,8 @@
                 document.getElementById('landing-page').style.display = 'none';
                 document.getElementById('directory-page').classList.remove('hidden-page');
                 document.getElementById('directory-page').style.display = 'block';
-            } else {
-                // Show landing page with animation
-                const content = document.getElementById('landing-content');
-                setTimeout(() => {
-                    content.classList.remove('opacity-0', 'scale-95');
-                    content.classList.add('opacity-100', 'scale-100');
-                }, 300);
             }
+            // Landing page is now visible by default - no animation needed
         });
 
         // SPA Navigation Logic
@@ -651,6 +861,7 @@
             pages.forEach(p => {
                 p.classList.add('hidden-page');
                 p.style.display = 'none';
+                p.classList.remove('profile-slide-in'); // Remove animation class
             });
 
             // Show the target page
@@ -659,6 +870,12 @@
                 console.log('Found page:', activePage);
                 activePage.style.display = 'block';
                 activePage.classList.remove('hidden-page');
+                
+                // Add slide-in animation for profile view
+                if (pageId === 'profile') {
+                    activePage.classList.add('profile-slide-in');
+                }
+                
                 window.scrollTo(0, 0);
             } else {
                 console.error('Page not found:', pageId + '-page');
@@ -701,6 +918,79 @@
                 btn.classList.remove('border-white/10');
                 btn.classList.add('border-[#D4AF37]/50', 'gold-text');
             }
+        }
+
+        // Search Filter Function with Loading State
+        let searchTimeout;
+        function filterProviders() {
+            // Clear previous timeout
+            clearTimeout(searchTimeout);
+            
+            // Show loading spinner
+            const loadingOverlay = document.getElementById('search-loading');
+            const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+            
+            // If there's a search term, show loading
+            if (searchTerm.length > 0) {
+                loadingOverlay.classList.remove('hidden');
+            }
+            
+            // Debounce the search for better UX
+            searchTimeout = setTimeout(() => {
+                const providerCards = document.querySelectorAll('#provider-grid > div[data-provider]');
+                let visibleCount = 0;
+
+                providerCards.forEach(card => {
+                    try {
+                        const providerData = JSON.parse(card.dataset.provider);
+                        const name = (providerData.name || '').toLowerCase();
+                        const location = (providerData.location || '').toLowerCase();
+                        const city = (providerData.city || '').toLowerCase();
+                        
+                        // Match if search term is in name, location, or city
+                        const matches = searchTerm === '' || 
+                                      name.includes(searchTerm) || 
+                                      location.includes(searchTerm) || 
+                                      city.includes(searchTerm);
+                        
+                        if (matches) {
+                            card.style.display = '';
+                            card.classList.add('card-fade-in');
+                            visibleCount++;
+                        } else {
+                            card.style.display = 'none';
+                            card.classList.remove('card-fade-in');
+                        }
+                    } catch (e) {
+                        console.error('Error parsing provider data:', e);
+                    }
+                });
+
+                // Show "no results" message if needed
+                const grid = document.getElementById('provider-grid');
+                let noResultsMsg = document.getElementById('no-search-results');
+                
+                if (visibleCount === 0 && searchTerm !== '') {
+                    if (!noResultsMsg) {
+                        noResultsMsg = document.createElement('div');
+                        noResultsMsg.id = 'no-search-results';
+                        noResultsMsg.className = 'col-span-full text-center py-16 text-gray-500 animate-fade-in-up';
+                        noResultsMsg.innerHTML = `
+                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <p class="text-lg">No providers found for "${searchTerm}"</p>
+                            <p class="text-sm mt-2">Try a different search term</p>
+                        `;
+                        grid.appendChild(noResultsMsg);
+                    }
+                } else if (noResultsMsg) {
+                    noResultsMsg.remove();
+                }
+                
+                // Hide loading overlay
+                loadingOverlay.classList.add('hidden');
+            }, 300); // 300ms debounce
         }
 
         // Open Profile View

@@ -49,6 +49,10 @@ async def home(
     city_counts = db.get_city_counts()
     total_count = sum(city_counts.values())
     
+    # Get stats for hero section
+    total_verified = db.get_total_verified_count()
+    total_online = db.get_online_count()
+    
     # Get neighborhoods for selected city
     neighborhoods = NEIGHBORHOODS.get(city, []) if city else []
     
@@ -61,6 +65,8 @@ async def home(
         "neighborhoods": neighborhoods,
         "city_counts": city_counts,
         "total_count": total_count,
+        "total_verified": total_verified,
+        "total_online": total_online,
         "now": datetime.now  # Pass datetime for template calculations
     })
 

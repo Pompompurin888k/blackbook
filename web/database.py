@@ -106,6 +106,36 @@ class Database:
         except Exception as e:
             logger.error(f"❌ Error getting city counts: {e}")
             return {}
+    
+    def get_total_verified_count(self) -> int:
+        """Gets total count of verified active providers."""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    SELECT COUNT(*) as count
+                    FROM providers
+                    WHERE is_verified = TRUE AND is_active = TRUE
+                """)
+                result = cur.fetchone()
+                return result["count"] if result else 0
+        except Exception as e:
+            logger.error(f"❌ Error getting total verified count: {e}")
+            return 0
+    
+    def get_online_count(self) -> int:
+        """Gets count of providers currently online."""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    SELECT COUNT(*) as count
+                    FROM providers
+                    WHERE is_verified = TRUE AND is_active = TRUE AND is_online = TRUE
+                """)
+                result = cur.fetchone()
+                return result["count"] if result else 0
+        except Exception as e:
+            logger.error(f"❌ Error getting online count: {e}")
+            return 0
 
     def get_provider_by_id(self, provider_id: int) -> Optional[Dict]:
         """Gets a single provider by database ID."""

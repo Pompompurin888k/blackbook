@@ -15,7 +15,7 @@
 {% for provider in providers %}
 {% set img_url = images[(loop.index0) % 10] %}
 <!-- Provider Card -->
-<div class="group cursor-pointer animate-fade-in-up delay-{{ (loop.index0 % 5) * 100 }}" data-provider='{{ {
+<div class="group cursor-pointer animate-fade-in-up delay-{{ (loop.index0 % 5) * 100 }} card-hover-lift" data-provider='{{ {
         "id": provider.id,
         "name": provider.display_name,
         "city": provider.city,
@@ -34,11 +34,12 @@
         "avail": provider.availability_type or "In-call & Out-call"
     } | tojson | safe }}' onclick="openProfile(this)">
     <div
-        class="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/5 bg-zinc-900 transition-all group-hover:border-[#D4AF37]/50">
-        <!-- Profile Image with Lazy Loading + Hover Zoom -->
+        class="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/5 bg-zinc-900 transition-all group-hover:border-[#D4AF37]/50 group-hover:shadow-2xl">
+        <!-- Profile Image with Lazy Loading + Hover Zoom + Blur-up -->
         <img src="{{ img_url }}" loading="lazy"
-            class="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
-            alt="{{ provider.display_name }}" onload="this.classList.add('loaded')"
+            class="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500 image-loading"
+            alt="{{ provider.display_name }}" 
+            onload="this.classList.remove('image-loading'); this.classList.add('image-loaded');"
             style="background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);">
         <!-- Badges Container -->
         <div class="absolute top-3 right-3 z-10 flex flex-col gap-1.5 items-end">
@@ -55,11 +56,11 @@
             {% if provider.created_at %}
                 {% set days_ago = (now() - provider.created_at).days %}
                 {% if days_ago <= 7 %}
-                <span class="bg-[#D4AF37] text-black px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                <span class="bg-[#D4AF37] text-black px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider badge-animate">
                     New
                 </span>
                 {% elif days_ago <= 30 %}
-                <span class="glass px-2 py-0.5 rounded-full text-[8px] text-[#D4AF37] font-medium uppercase tracking-wider border border-[#D4AF37]/20">
+                <span class="glass px-2 py-0.5 rounded-full text-[8px] text-[#D4AF37] font-medium uppercase tracking-wider border border-[#D4AF37]/20 badge-animate">
                     Fresh
                 </span>
                 {% endif %}
