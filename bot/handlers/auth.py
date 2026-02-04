@@ -16,7 +16,8 @@ from telegram.ext import (
 from config import (
     STAGE_NAME, CITY, NEIGHBORHOOD,
     PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, 
-    PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY,
+    PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY, PROFILE_PHOTOS,
+    AWAITING_PHOTO,
     ADMIN_CHAT_ID,
 )
 from utils.keyboards import (
@@ -114,29 +115,24 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await query.edit_message_text(
             "📸 *BLUE TICK VERIFICATION*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "To get verified, you'll need to:\n\n"
-            "1. Receive a unique code\n"
-            "2. Write it on paper\n"
-            "3. Take a live selfie with it\n\n"
+            "To get verified:\n\n"
+            "1. Take a clear live selfie\n"
+            "2. Show your face clearly\n"
+            "3. Admin will review manually\n\n"
             "Ready to begin?",
             reply_markup=get_verification_start_keyboard(),
             parse_mode="Markdown"
         )
     
     elif action == "verify_go":
-        code = generate_verification_code()
-        context.user_data["verification_code"] = code
-        
         await query.edit_message_text(
-            "📸 *YOUR VERIFICATION CODE*\n"
+            "📸 *VERIFICATION PHOTO*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"Your code is: `{code}`\n\n"
             "*INSTRUCTIONS:*\n"
-            "1. Write this code on paper\n"
-            "2. Hold it next to your face\n"
-            "3. Take a *live camera photo*\n"
-            "4. Send it here\n\n"
-            "⚠️ Gallery uploads will be rejected.",
+            "1. Take a *live camera photo* of yourself\n"
+            "2. Make sure your face is clearly visible\n"
+            "3. Send it here\n\n"
+            "⚠️ Gallery uploads may be rejected.",
             reply_markup=get_back_button(),
             parse_mode="Markdown"
         )
@@ -239,7 +235,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # ==================== VERIFICATION CONVERSATION ====================
 
 async def verify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Starts the verification process by giving user a unique code."""
+    """Starts the verification process - simple photo upload for manual review."""
     user = update.effective_user
     db = get_db()
     
@@ -258,18 +254,13 @@ async def verify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         return ConversationHandler.END
     
-    code = generate_verification_code()
-    context.user_data["verification_code"] = code
-    
     await update.message.reply_text(
         "📸 *Blue Tick Verification*\n\n"
-        f"Your unique session code is: `{code}`\n\n"
         "*INSTRUCTIONS:*\n"
-        "1. Write this code clearly on a piece of paper.\n"
-        "2. Take a *Live Selfie* holding the paper.\n"
-        "3. Ensure your face and the code are clearly visible.\n\n"
-        "⚠️ *Security Note:* Gallery uploads and 'View Once' documents are "
-        "automatically blocked to prevent fraud. Use your Telegram camera.",
+        "Take a clear *live selfie* with your face visible.\n\n"
+        "⚠️ *Security Note:* Use Telegram camera, not gallery uploads. "
+        "This helps prevent fraud.\n\n"
+        "Send your verification photo now:",
         parse_mode="Markdown"
     )
     return AWAITING_PHOTO
@@ -291,7 +282,6 @@ async def handle_verification_photo(update: Update, context: ContextTypes.DEFAUL
     photo = update.message.photo[-1]
     photo_file_id = photo.file_id
     
-    code = context.user_data.get("verification_code", "N/A")
     provider = db.get_provider(user.id)
     display_name = provider.get("display_name", "Unknown") if provider else "Unknown"
     
@@ -305,11 +295,11 @@ async def handle_verification_photo(update: Update, context: ContextTypes.DEFAUL
         return ConversationHandler.END
     
     caption = (
-        "🔍 *NEW VETTING REQUEST*\n"
+        "🔍 *NEW VERIFICATION REQUEST*\n"
         "━━━━━━━━━━━━━━━\n"
         f"👤 Provider: {display_name}\n"
         f"📍 City: {provider.get('city', 'N/A') if provider else 'N/A'}\n"
-        f"🔑 Code: `{code}`\n"
+        f"🆔 User ID: `{user.id}`\n"
     )
     
     await context.bot.send_photo(
@@ -321,10 +311,9 @@ async def handle_verification_photo(update: Update, context: ContextTypes.DEFAUL
     )
     
     await update.message.reply_text(
-        "✅ *Encrypted Upload Complete.*\n\n"
-        "Your verification is in the queue. Our team will review the match "
-        "between your profile and live photo.\n\n"
-        "_Review time: 15–120 minutes._",
+        "✅ *Photo Uploaded Successfully*\n\n"
+        "Your verification is in queue for manual review.\n\n"
+        "_Review time: Usually within 2-4 hours._",
         parse_mode="Markdown"
     )
     
@@ -359,8 +348,8 @@ async def complete_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await update.message.reply_text(
         "✨ *Professional Portfolio Builder*\n\n"
         "Let's make your profile stand out to high-value clients.\n"
-        "We'll add your physical stats, services, and bio.\n\n"
-        "**Step 1/8: Age**\n"
+        "We'll collect your stats, services, bio, and photos.\n\n"
+        "*Step 1/8: Age*\n"
         "Please enter your age (e.g., 24):",
         parse_mode="Markdown"
     )
@@ -502,8 +491,73 @@ async def profile_bio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return PROFILE_NEARBY
 
 async def profile_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Stores nearby places and saves everything to DB."""
+    """Stores nearby places and asks for photos."""
     nearby = update.message.text.strip()
+    context.user_data["p_nearby"] = nearby
+    
+    await update.message.reply_text(
+        "📸 *Step 8/8: Profile Photos*\n\n"
+        "Upload *3 photos minimum* (you can send up to 5).\n\n"
+        "Tips:\n"
+        "• Use good lighting\n"
+        "• Show variety (full body, face, different angles)\n"
+        "• Professional quality attracts premium clients\n\n"
+        "Send your first photo now:",
+        parse_mode="Markdown"
+    )
+    context.user_data["p_photos"] = []
+    return PROFILE_PHOTOS
+
+async def profile_photos(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handles photo uploads for profile."""
+    user = update.effective_user
+    db = get_db()
+    
+    if not update.message.photo:
+        await update.message.reply_text(
+            "❌ Please send a photo, not text. Use the 📷 camera or gallery.",
+            parse_mode="Markdown"
+        )
+        return PROFILE_PHOTOS
+    
+    photo = update.message.photo[-1]
+    photo_file_id = photo.file_id
+    
+    photos = context.user_data.get("p_photos", [])
+    photos.append(photo_file_id)
+    context.user_data["p_photos"] = photos
+    
+    photo_count = len(photos)
+    
+    if photo_count < 3:
+        await update.message.reply_text(
+            f"✅ Photo {photo_count}/3 received.\n\n"
+            f"Send {3 - photo_count} more photo(s) (minimum 3 required):",
+            parse_mode="Markdown"
+        )
+        return PROFILE_PHOTOS
+    elif photo_count == 3:
+        await update.message.reply_text(
+            "✅ Minimum photos received!\n\n"
+            "You can:\n"
+            "• Send 2 more photos (recommended for better visibility)\n"
+            "• Or type /done to finish",
+            parse_mode="Markdown"
+        )
+        return PROFILE_PHOTOS
+    elif photo_count < 5:
+        await update.message.reply_text(
+            f"✅ Photo {photo_count}/5 received.\n\n"
+            f"Send {5 - photo_count} more or type /done to finish:",
+            parse_mode="Markdown"
+        )
+        return PROFILE_PHOTOS
+    else:
+        # 5 photos reached, auto-save
+        return await save_complete_profile(update, context)
+
+async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Saves the complete profile to database."""
     user = update.effective_user
     db = get_db()
     
@@ -517,20 +571,46 @@ async def profile_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         "availability_type": context.user_data["p_avail"],
         "services": json.dumps(context.user_data["p_services"]),
         "bio": context.user_data["p_bio"],
-        "nearby_places": nearby
+        "nearby_places": context.user_data["p_nearby"]
     }
     
     db.update_provider_profile(user.id, data)
     
+    # Save photos (store as JSON array of file_ids)
+    photos = context.user_data["p_photos"]
+    db.save_provider_photos(user.id, photos)
+    
+    photo_count = len(photos)
+    bonus_msg = ""
+    if photo_count >= 5:
+        bonus_msg = "\n\n🌟 *5-Photo Bonus:* Premium visibility in search results!"
+    
     await update.message.reply_text(
-        "🎉 **Portfolio Complete!**\n\n"
-        "Your profile has been upgraded to **Professional Status**.\n"
-        "Clients will now see your detailed stats and menu.\n\n"
-        "Use /myprofile to view your status.",
+        f"🎉 *Portfolio Complete!*\n\n"
+        f"✅ {photo_count} photos uploaded{bonus_msg}\n\n"
+        "Your profile has been upgraded to *Professional Status*.\n\n"
+        "Next steps:\n"
+        "1. Complete /verify for Blue Tick\n"
+        "2. Use /topup to go live (300 KES for 3 days)\n\n"
+        "Use /myprofile to view your profile.",
         parse_mode="Markdown"
     )
     context.user_data.clear()
     return ConversationHandler.END
+
+async def done_photos(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handles /done command to finish photo upload early."""
+    photos = context.user_data.get("p_photos", [])
+    
+    if len(photos) < 3:
+        await update.message.reply_text(
+            f"❌ You've only uploaded {len(photos)} photo(s).\n"
+            "Minimum 3 photos required. Please send more photos.",
+            parse_mode="Markdown"
+        )
+        return PROFILE_PHOTOS
+    
+    return await save_complete_profile(update, context)
 
 
 # ==================== VERIFICATION CONVERSATION ====================
@@ -636,6 +716,10 @@ def register_handlers(application):
             PROFILE_SERVICES: [CallbackQueryHandler(profile_services, pattern="^service_")],
             PROFILE_BIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_bio)],
             PROFILE_NEARBY: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_nearby)],
+            PROFILE_PHOTOS: [
+                MessageHandler(filters.PHOTO, profile_photos),
+                CommandHandler("done", done_photos),
+            ],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )

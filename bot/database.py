@@ -11,11 +11,11 @@ logger = logging.getLogger(__name__)
 
 class Database:
     def __init__(self):
-        self.host = os.getenv("DB_HOST", "db")
+        self.host = os.getenv("DB_HOST", "localhost")  # Changed from "db" to "localhost" for host network mode
         self.database = os.getenv("DB_NAME", "blackbook_db")
         self.user = os.getenv("DB_USER", "bb_operator")
         self.password = os.getenv("DB_PASSWORD")
-        self.port = os.getenv("DB_PORT", "5432")
+        self.port = os.getenv("DB_PORT", "8291")  # Changed from "5432" to "8291" (mapped port)
         self.conn = self.connect_with_retry()
         self.init_tables()
 
@@ -128,6 +128,9 @@ class Database:
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='nearby_places') THEN
                 ALTER TABLE providers ADD COLUMN nearby_places TEXT;
             END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='profile_photos') THEN
+                ALTER TABLE providers ADD COLUMN profile_photos JSONB;
+            END IF;
         END $$;
         """
         
@@ -230,6 +233,20 @@ class Database:
                 self.conn.commit()
         except Exception as e:
             logger.error(f"❌ Error saving verification photo: {e}")
+            self.conn.rollback()
+    
+    def save_provider_photos(self, tg_id, photo_ids: list):
+        """Saves provider's profile photos as JSON array."""
+        import json
+        photos_json = json.dumps(photo_ids)
+        query = "UPDATE providers SET profile_photos = %s WHERE telegram_id = %s"
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (photos_json, tg_id))
+                self.conn.commit()
+                logger.info(f"✅ Saved {len(photo_ids)} photos for provider {tg_id}")
+        except Exception as e:
+            logger.error(f"❌ Error saving provider photos: {e}")
             self.conn.rollback()
 
     def verify_provider(self, tg_id, verified: bool):

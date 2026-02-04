@@ -30,8 +30,10 @@ STAGE_NAME, CITY, NEIGHBORHOOD = range(3)
 TOPUP_PHONE, TOPUP_CONFIRM = range(20, 22)
 
 # Verification flow
+AWAITING_PHOTO = 10
+
 # Profile Completion flow
-PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY = range(30, 38)
+PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY, PROFILE_PHOTOS = range(30, 39)
 
 # ==================== STATIC DATA ====================
 CITIES = [
@@ -51,8 +53,8 @@ SERVICES = [
 # Package pricing (days: KES)
 PACKAGES = {
     1: 1,     # 1 day = 1 KES (TEST ONLY)
-    3: 400,   # 3 days = 400 KES
-    7: 800,   # 7 days = 800 KES
+    3: 300,   # 3 days = 300 KES
+    7: 600,   # 7 days = 600 KES (1 day FREE)
 }
 
 # Session durations (minutes)

@@ -176,8 +176,8 @@ async def topup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         "💰 *Listing Management*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"Active listings receive *400% more engagement*.{status_text}\n\n"
-        "⏰ *3 Days Standard* — 400 KES\n"
-        "🔥 *7 Days Premium* — 800 KES",
+        "⏰ *3 Days Package* — 300 KES\n"
+        "🔥 *7 Days Package* — 600 KES (1 day FREE!)",
         reply_markup=get_package_keyboard(),
         parse_mode="Markdown"
     )
