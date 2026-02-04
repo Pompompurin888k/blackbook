@@ -37,10 +37,13 @@ PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, PROFILE_AVAILABILITY
 
 # ==================== STATIC DATA ====================
 CITIES = [
-    ("Nairobi", "🏙️"),
-    ("Eldoret", "🌆"),
-    ("Mombasa", "🏖️"),
+    ("Nairobi", "🏙️", True),
+    ("Eldoret", "🌆", True),
+    ("Mombasa", "🏖️", False),
+    ("Kisumu", "🌊", False),
+    ("Nakuru", "🦩", False),
 ]
+# Format: (city_name, emoji, is_available)
 
 # Profile Options
 BUILDS = ["Slim", "Athletic", "Curvy", "BBW", "Petite"]

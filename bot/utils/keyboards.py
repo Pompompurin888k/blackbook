@@ -2,8 +2,21 @@
 Blackbook Bot Keyboards
 All InlineKeyboardMarkup and ReplyKeyboardMarkup builders.
 """
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from config import CITIES, PACKAGES, SESSION_DURATIONS, BUILDS, AVAILABILITIES, SERVICES
+
+
+# ==================== PERSISTENT MAIN MENU ====================
+
+def get_persistent_main_menu() -> ReplyKeyboardMarkup:
+    """Returns the persistent bottom menu (always visible)."""
+    keyboard = [
+        [KeyboardButton("👑 The Collection")],
+        [KeyboardButton("👤 My Profile"), KeyboardButton("💰 Top up Balance")],
+        [KeyboardButton("🛡️ Safety Suite"), KeyboardButton("🤝 Affiliate Program")],
+        [KeyboardButton("📞 Support"), KeyboardButton("📋 Rules")]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
 
 
 # ==================== MAIN MENU ====================
@@ -34,10 +47,19 @@ def get_back_button(callback_data: str = "menu_main") -> InlineKeyboardMarkup:
 
 def get_city_keyboard() -> InlineKeyboardMarkup:
     """Returns city selection keyboard."""
-    keyboard = [
-        [InlineKeyboardButton(f"{emoji} {city}", callback_data=f"city_{city}")]
-        for city, emoji in CITIES
-    ]
+    keyboard = []
+    for item in CITIES:
+        if len(item) == 3:
+            city, emoji, is_available = item
+            if is_available:
+                text = f"{emoji} {city}"
+            else:
+                text = f"{emoji} {city} (Coming Soon)"
+        else:
+            # Backwards compatibility
+            city, emoji = item
+            text = f"{emoji} {city}"
+        keyboard.append([InlineKeyboardButton(text, callback_data=f"city_{city}")])
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -59,9 +81,9 @@ def get_profile_keyboard(provider: dict) -> InlineKeyboardMarkup:
 def get_package_keyboard() -> InlineKeyboardMarkup:
     """Returns package selection keyboard."""
     keyboard = [
-        [InlineKeyboardButton("🧪 1 Day TEST - 1 KES", callback_data="topup_1")],
-        [InlineKeyboardButton("⏰ 3 Days - 400 KES", callback_data="topup_3")],
-        [InlineKeyboardButton("🔥 7 Days - 800 KES", callback_data="topup_7")],
+        [InlineKeyboardButton("🧪 1 Day TEST — 1 KES", callback_data="topup_1")],
+        [InlineKeyboardButton("⏰ 3 Days — 300 KES", callback_data="topup_3")],
+        [InlineKeyboardButton("🔥 7 Days (1 FREE!) — 600 KES", callback_data="topup_7")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -69,8 +91,8 @@ def get_package_keyboard() -> InlineKeyboardMarkup:
 def get_menu_package_keyboard() -> InlineKeyboardMarkup:
     """Returns package selection keyboard (menu version with back button)."""
     keyboard = [
-        [InlineKeyboardButton("⏰ 3 Days — 400 KES", callback_data="menu_pay_3")],
-        [InlineKeyboardButton("🔥 7 Days — 800 KES", callback_data="menu_pay_7")],
+        [InlineKeyboardButton("⏰ 3 Days — 300 KES", callback_data="menu_pay_3")],
+        [InlineKeyboardButton("🔥 7 Days (1 FREE!) — 600 KES", callback_data="menu_pay_7")],
         [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")],
     ]
     return InlineKeyboardMarkup(keyboard)

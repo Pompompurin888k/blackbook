@@ -57,30 +57,21 @@ def format_profile_text(provider: dict) -> str:
 def format_welcome_message() -> str:
     """Returns the full welcome message for new users."""
     return (
-        "🎩 *BLACKBOOK: Private Concierge Network*\n"
+        "� *WELCOME TO BLACKBOOK*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "Welcome to the inner circle. This bot is your command center for managing "
-        "your professional presence, safety, and earnings on the Blackbook directory.\n\n"
-        "📜 *How to get started:*\n"
-        "1️⃣ *Register* — Setup your stage name and location.\n"
-        "2️⃣ *Verify* — Complete our anti-catfish protocol to get your Blue Tick ✔️.\n"
-        "3️⃣ *Topup* — Activate your listing to appear on the \"Dark Room\" directory.\n\n"
-        "🛠 *Your Command Reference:*\n\n"
-        "👤 *IDENTITY*\n"
-        "/register — Create or edit your profile.\n"
-        "/verify — Submit proof of identity (Required for listing).\n"
-        "/myprofile — View your status, rating, and expiry.\n\n"
-        "💰 *VISIBILITY*\n"
-        "/topup — Purchase listing credits (3 or 7 days).\n"
-        "/status — Toggle your 'Live Now' 🟢 badge on the website.\n\n"
-        "🛡 *SAFETY SUITE*\n"
-        "/check <number> — Search the national blacklist.\n"
-        "/report <number> <reason> — Flag a dangerous client.\n"
-        "/session <mins> — Start a safety timer before a meeting.\n"
-        "/checkin — Confirm you are safe after a session.\n\n"
-        "🚫 Use /cancel at any time to stop a current process.\n"
+        "Your exclusive command center for managing your premium presence on Kenya's most discreet directory.\n\n"
+        "📜 *Quick Start Guide:*\n\n"
+        "1️⃣ */register* — Create your professional profile\n"
+        "2️⃣ */complete_profile* — Add photos & details\n"
+        "3️⃣ */verify* — Get verified (required)\n"
+        "4️⃣ */topup* — Go live on innbucks.org\n\n"
+        "💎 *Why Blackbook?*\n"
+        "• Verified profiles only\n"
+        "• Premium clientele\n"
+        "• Built-in safety tools\n"
+        "• Professional discretion\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "_Blackbook: Privacy is Power._"
+        "_Use the menu below to navigate_"
     )
 
 
@@ -96,11 +87,14 @@ def format_returning_user_message(provider: dict) -> str:
     time_left = expiry.strftime('%Y-%m-%d') if expiry else "No active subscription"
     
     return (
-        f"Welcome back, *{provider.get('display_name', 'Unknown')}*.\n\n"
-        f"📱 *Current Status:* {badges['status']}\n"
-        f"🛡️ *Trust Level:* {badges['verified']}\n"
-        f"⏱️ *Expires:* {time_left}\n\n"
-        "Use the menu below or type a command:"
+        f"👋 Welcome back, *{provider.get('display_name', 'Unknown')}*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📊 *Status Overview:*\n\n"
+        f"📱 Listing: {badges['status']}\n"
+        f"🛡️ Trust: {badges['verified']}\n"
+        f"⏱️ Expires: {time_left}\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "_Use the menu below to manage your profile_"
     )
 
 

@@ -19,9 +19,11 @@ from config import (
     PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY, PROFILE_PHOTOS,
     AWAITING_PHOTO,
     ADMIN_CHAT_ID,
+    CITIES,
 )
 from utils.keyboards import (
     get_main_menu_keyboard,
+    get_persistent_main_menu,
     get_city_keyboard,
     get_profile_keyboard,
     get_verification_start_keyboard,
@@ -65,18 +67,107 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     if provider:
         logger.info(f"👋 Returning user: {provider.get('display_name', 'Unknown')}")
-        # Existing user - show status with menu
+        # Existing user - show status with persistent menu
         await update.message.reply_text(
             format_returning_user_message(provider),
-            reply_markup=get_main_menu_keyboard(),
+            reply_markup=get_persistent_main_menu(),
             parse_mode="Markdown"
         )
     else:
         logger.info(f"🆕 New user: {user.first_name}")
-        # New user - full welcome
+        # New user - full welcome with persistent menu
         await update.message.reply_text(
             format_welcome_message(),
+            reply_markup=get_persistent_main_menu(),
             parse_mode="Markdown"
+        )
+
+
+# ==================== PERSISTENT MENU HANDLER ====================
+
+async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles text messages from persistent menu buttons."""
+    text = update.message.text
+    user = update.effective_user
+    db = get_db()
+    
+    # Map button text to command handlers
+    if text == "👑 The Collection":
+        await update.message.reply_text(
+            "🌐 *Visit Our Premium Directory*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Browse our exclusive collection of verified providers:\n\n"
+            "🔗 **https://innbucks.org**\n\n"
+            "💎 All profiles are verified\n"
+            "🔒 Discreet & Professional\n"
+            "⭐ Premium Experience Guaranteed",
+            parse_mode="Markdown"
+        )
+    
+    elif text == "👤 My Profile":
+        # Trigger the /myprofile command
+        from handlers.auth import myprofile
+        await myprofile(update, context)
+    
+    elif text == "💰 Top up Balance":
+        # Trigger the topup flow
+        provider = db.get_provider(user.id)
+        if not provider:
+            await update.message.reply_text(
+                "⚠️ Please register first using /register",
+                reply_markup=get_persistent_main_menu()
+            )
+            return
+        
+        # Import and call topup from payment handler
+        from handlers.payment import topup
+        await topup(update, context)
+    
+    elif text == "🛡️ Safety Suite":
+        # Trigger safety menu
+        from handlers.safety import safety_menu
+        await safety_menu(update, context)
+    
+    elif text == "🤝 Affiliate Program":
+        await update.message.reply_text(
+            "💰 *Affiliate Program*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "🚀 Coming Soon!\n\n"
+            "Earn commissions by referring providers to Blackbook.\n\n"
+            "Stay tuned for launch details.",
+            parse_mode="Markdown",
+            reply_markup=get_persistent_main_menu()
+        )
+    
+    elif text == "📞 Support":
+        admin_contact = ADMIN_CHAT_ID if ADMIN_CHAT_ID else "Admin"
+        await update.message.reply_text(
+            "📞 *Customer Support*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Need help? We're here for you.\n\n"
+            f"📱 Contact: @{admin_contact}\n"
+            "⏰ Response Time: Within 2-4 hours\n\n"
+            "For urgent safety issues, use the 🛡️ Safety Suite.",
+            parse_mode="Markdown",
+            reply_markup=get_persistent_main_menu()
+        )
+    
+    elif text == "📋 Rules":
+        await update.message.reply_text(
+            "📋 *Blackbook Rules & Guidelines*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "✅ *Allowed:*\n"
+            "• Professional, verified providers only\n"
+            "• Accurate photos and information\n"
+            "• Respectful communication\n\n"
+            "❌ *Prohibited:*\n"
+            "• Fake photos or catfishing\n"
+            "• Unprofessional behavior\n"
+            "• Harassment of clients\n\n"
+            "⚠️ Violations result in immediate ban.\n\n"
+            "📜 By using Blackbook, you agree to maintain professionalism and discretion.",
+            parse_mode="Markdown",
+            reply_markup=get_persistent_main_menu()
         )
 
 
@@ -113,12 +204,12 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # === VERIFY PROMPTS ===
     elif action == "verify_start":
         await query.edit_message_text(
-            "📸 *BLUE TICK VERIFICATION*\n"
+            "📸 *Profile Verification*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "To get verified:\n\n"
-            "1. Take a clear live selfie\n"
-            "2. Show your face clearly\n"
-            "3. Admin will review manually\n\n"
+            "1. Upload your profile pictures\n"
+            "2. We'll review your photos\n"
+            "3. Approval in 2-4 hours\n\n"
             "Ready to begin?",
             reply_markup=get_verification_start_keyboard(),
             parse_mode="Markdown"
@@ -126,13 +217,11 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     
     elif action == "verify_go":
         await query.edit_message_text(
-            "📸 *VERIFICATION PHOTO*\n"
+            "📸 *Profile Verification*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "*INSTRUCTIONS:*\n"
-            "1. Take a *live camera photo* of yourself\n"
-            "2. Make sure your face is clearly visible\n"
-            "3. Send it here\n\n"
-            "⚠️ Gallery uploads may be rejected.",
+            "Upload the pictures you will be using on your profile.\n\n"
+            "Our team will review and approve within *2-4 hours*.\n\n"
+            "📷 Send your photo now:",
             reply_markup=get_back_button(),
             parse_mode="Markdown"
         )
@@ -186,6 +275,18 @@ async def city_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await query.answer()
     
     city = query.data.replace("city_", "")
+    
+    # Check if city is available
+    city_info = next((c for c in CITIES if c[0] == city), None)
+    if city_info and len(city_info) == 3:
+        _, _, is_available = city_info
+        if not is_available:
+            await query.answer(
+                f"⚠️ {city} is launching soon! Choose Nairobi or Eldoret for now.",
+                show_alert=True
+            )
+            return CITY
+    
     context.user_data["city"] = city
     
     await query.edit_message_text(
@@ -255,12 +356,10 @@ async def verify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
     
     await update.message.reply_text(
-        "📸 *Blue Tick Verification*\n\n"
-        "*INSTRUCTIONS:*\n"
-        "Take a clear *live selfie* with your face visible.\n\n"
-        "⚠️ *Security Note:* Use Telegram camera, not gallery uploads. "
-        "This helps prevent fraud.\n\n"
-        "Send your verification photo now:",
+        "📸 *Profile Verification*\n\n"
+        "Upload the pictures you will be using on your profile.\n\n"
+        "Our team will review and approve within *2-4 hours*.\n\n"
+        "📷 Send your photo now:",
         parse_mode="Markdown"
     )
     return AWAITING_PHOTO
@@ -273,8 +372,8 @@ async def handle_verification_photo(update: Update, context: ContextTypes.DEFAUL
     
     if not update.message.photo:
         await update.message.reply_text(
-            "❌ Please send a **photo taken with your camera**, not a file or document.\n"
-            "Use the camera icon 📷 to take a live photo.",
+            "❌ Please send a photo, not text or file.\n\n"
+            "Use the 📷 camera or gallery to send your picture.",
             parse_mode="Markdown"
         )
         return AWAITING_PHOTO
@@ -767,3 +866,9 @@ def register_handlers(application):
         menu_callback,
         pattern="^menu_(main|profile|verify_start|verify_go)$"
     ))
+    
+    # Persistent menu button handler (add at lower priority to not interfere with conversations)
+    application.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        handle_menu_buttons
+    ), group=1)
