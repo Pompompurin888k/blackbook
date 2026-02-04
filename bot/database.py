@@ -11,11 +11,11 @@ logger = logging.getLogger(__name__)
 
 class Database:
     def __init__(self):
-        self.host = os.getenv("DB_HOST", "localhost")  # Changed from "db" to "localhost" for host network mode
+        self.host = os.getenv("DB_HOST", "db")
         self.database = os.getenv("DB_NAME", "blackbook_db")
         self.user = os.getenv("DB_USER", "bb_operator")
         self.password = os.getenv("DB_PASSWORD")
-        self.port = os.getenv("DB_PORT", "8291")  # Changed from "5432" to "8291" (mapped port)
+        self.port = os.getenv("DB_PORT", "5432")
         self.conn = self.connect_with_retry()
         self.init_tables()
 
