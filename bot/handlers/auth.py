@@ -444,9 +444,12 @@ async def complete_profile_from_button(update: Update, context: ContextTypes.DEF
     user = query.from_user
     db = get_db()
     
+    logger.info(f"🔘 Complete profile button clicked by user {user.id}")
+    
     provider = db.get_provider(user.id)
     if not provider:
         await query.answer("❌ You need to /register first.", show_alert=True)
+        logger.warning(f"❌ User {user.id} not registered")
         return ConversationHandler.END
     
     await query.message.reply_text(
@@ -457,6 +460,7 @@ async def complete_profile_from_button(update: Update, context: ContextTypes.DEF
         "Please enter your age (e.g., 24):",
         parse_mode="Markdown"
     )
+    logger.info(f"→ Conversation started, waiting for age input in PROFILE_AGE state")
     return PROFILE_AGE
 
 
@@ -482,7 +486,10 @@ async def complete_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def profile_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stores age and asks for height."""
+    logger.info(f"📊 profile_age handler called for user {update.effective_user.id}")
+    
     text = update.message.text.strip()
+    logger.info(f"📝 Received text: {text}")
     
     # Allow user to exit by clicking menu buttons
     menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
@@ -492,11 +499,13 @@ async def profile_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     
     try:
         age = int(text)
+        logger.info(f"✅ Parsed age: {age}")
         if age < 18 or age > 60:
             await update.message.reply_text("⚠️ Age must be between 18 and 60. Try again.")
             return PROFILE_AGE
         context.user_data["p_age"] = age
     except ValueError:
+        logger.warning(f"❌ Failed to parse age from: {text}")
         await update.message.reply_text("⚠️ Please enter a valid number (e.g., 24).")
         return PROFILE_AGE
         
@@ -504,6 +513,7 @@ async def profile_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         "📏 **Step 2/8: Height**\n"
         "Enter your height in cm (e.g., 170):"
     )
+    logger.info(f"→ Moving to PROFILE_HEIGHT state")
     return PROFILE_HEIGHT
 
 async def profile_height(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
