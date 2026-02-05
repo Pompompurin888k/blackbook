@@ -94,6 +94,21 @@ async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     user = update.effective_user
     db = get_db()
     
+    # Define valid menu buttons
+    valid_buttons = [
+        "👑 The Collection",
+        "👤 My Profile",
+        "💰 Top up Balance",
+        "🛡️ Safety Suite",
+        "🤝 Affiliate Program",
+        "📞 Support",
+        "📋 Rules"
+    ]
+    
+    # Only process if text is a menu button - otherwise let ConversationHandlers handle it
+    if text not in valid_buttons:
+        return
+    
     # Map button text to command handlers
     if text == "👑 The Collection":
         await update.message.reply_text(
