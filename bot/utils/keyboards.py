@@ -3,7 +3,7 @@ Blackbook Bot Keyboards
 All InlineKeyboardMarkup and ReplyKeyboardMarkup builders.
 """
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from config import CITIES, PACKAGES, SESSION_DURATIONS, BUILDS, AVAILABILITIES, SERVICES
+from config import CITIES, PACKAGES, SESSION_DURATIONS, BUILDS, AVAILABILITIES, SERVICES, LANGUAGES
 
 
 # ==================== PERSISTENT MAIN MENU ====================
@@ -250,5 +250,34 @@ def get_services_keyboard(selected_services=None) -> InlineKeyboardMarkup:
         
     # Add Done button
     keyboard.append([InlineKeyboardButton("✅ Done / Continue", callback_data="service_done")])
+    
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_languages_keyboard(selected_languages=None) -> InlineKeyboardMarkup:
+    """Returns multi-select languages keyboard."""
+    if selected_languages is None:
+        selected_languages = []
+        
+    keyboard = []
+    row = []
+    for language in LANGUAGES:
+        # Show checkmark if selected
+        text = f"✅ {language}" if language in selected_languages else language
+        # Toggle logic in callback data
+        # Use language without emoji for callback
+        lang_code = language.split()[0]  # Get "English" from "English 🇬🇧"
+        callback = f"lang_{lang_code}"
+        row.append(InlineKeyboardButton(text, callback_data=callback))
+        
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    
+    if row:
+        keyboard.append(row)
+        
+    # Add Done button
+    keyboard.append([InlineKeyboardButton("✅ Done / Continue", callback_data="lang_done")])
     
     return InlineKeyboardMarkup(keyboard)

@@ -148,6 +148,11 @@ class Database:
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='rate_overnight') THEN
                 ALTER TABLE providers ADD COLUMN rate_overnight INT;
             END IF;
+            
+            -- LANGUAGES SPOKEN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='languages') THEN
+                ALTER TABLE providers ADD COLUMN languages JSONB;
+            END IF;
         END $$;
         """
         

@@ -33,7 +33,7 @@ TOPUP_PHONE, TOPUP_CONFIRM = range(20, 22)
 AWAITING_PHOTO = 10
 
 # Profile Completion flow
-PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY, PROFILE_PHOTOS, PROFILE_RATES = range(30, 40)
+PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY, PROFILE_PHOTOS, PROFILE_RATES, PROFILE_LANGUAGES = range(30, 41)
 
 # ==================== STATIC DATA ====================
 CITIES = [
@@ -60,6 +60,18 @@ RATE_DURATIONS = [
     ("2hr", "2 Hours"),
     ("3hr", "3 Hours"),
     ("overnight", "Overnight (8+ hrs)")
+]
+
+# Languages
+LANGUAGES = [
+    "English 🇬🇧",
+    "Swahili 🇰🇪",
+    "French 🇫🇷",
+    "Arabic 🇸🇦",
+    "German 🇩🇪",
+    "Italian 🇮🇹",
+    "Spanish 🇪🇸",
+    "Chinese 🇨🇳"
 ]
 
 # Package pricing (days: KES)

@@ -16,11 +16,12 @@ from telegram.ext import (
 from config import (
     STAGE_NAME, CITY, NEIGHBORHOOD,
     PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, 
-    PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY, PROFILE_PHOTOS, PROFILE_RATES,
+    PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY, PROFILE_PHOTOS, PROFILE_RATES, PROFILE_LANGUAGES,
     AWAITING_PHOTO,
     ADMIN_CHAT_ID,
     CITIES,
     RATE_DURATIONS,
+    LANGUAGES,
 )
 from utils.keyboards import (
     get_main_menu_keyboard,
@@ -30,6 +31,7 @@ from utils.keyboards import (
     get_verification_start_keyboard,
     get_back_button,
     get_admin_verification_keyboard,
+    get_languages_keyboard,
 )
 from utils.formatters import (
     generate_verification_code,
@@ -720,7 +722,7 @@ async def profile_rates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     # Store rates
     context.user_data.update(rates)
     
-    # Show confirmation and save
+    # Show confirmation and move to languages
     await update.message.reply_text(
         "✅ *Rates Saved!*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -729,11 +731,63 @@ async def profile_rates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         f"💵 2 hours: {rates['rate_2hr']:,} KES\n"
         f"💵 3 hours: {rates['rate_3hr']:,} KES\n"
         f"💵 Overnight: {rates['rate_overnight']:,} KES\n\n"
-        "Saving your complete profile...",
+        "Almost done! One more step...",
         parse_mode="Markdown"
     )
     
-    return await save_complete_profile(update, context)
+    # Ask for languages
+    await update.message.reply_text(
+        "🌍 *Languages You Speak*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Select all languages you can communicate in.\n"
+        "This helps attract international clients!\n\n"
+        "Tap to select/deselect:",
+        reply_markup=get_languages_keyboard(),
+        parse_mode="Markdown"
+    )
+    context.user_data["p_languages"] = []
+    return PROFILE_LANGUAGES
+
+
+async def profile_languages(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handles language selection (multi-select)."""
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data
+    current_languages = context.user_data.get("p_languages", [])
+    
+    if data == "lang_done":
+        if not current_languages:
+            await query.answer("⚠️ Select at least one language", show_alert=True)
+            return PROFILE_LANGUAGES
+            
+        await query.edit_message_text(
+            f"✅ Languages: {', '.join(current_languages)}\n\n"
+            "Saving your complete profile...",
+            parse_mode="Markdown"
+        )
+        return await save_complete_profile(update, context)
+        
+    # Extract language name from callback
+    language_code = data.replace("lang_", "")
+    # Find full language name with emoji
+    full_language = next((lang for lang in LANGUAGES if lang.startswith(language_code)), None)
+    
+    if full_language:
+        if full_language in current_languages:
+            current_languages.remove(full_language)
+        else:
+            current_languages.append(full_language)
+        
+        context.user_data["p_languages"] = current_languages
+        
+        # Update keyboard to show checks
+        await query.edit_message_reply_markup(
+            reply_markup=get_languages_keyboard(current_languages)
+        )
+    
+    return PROFILE_LANGUAGES
 
 async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Saves the complete profile to database."""
@@ -742,6 +796,7 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
     
     # Pack data
     import json
+    languages_list = context.user_data.get("p_languages", [])
     data = {
         "age": context.user_data["p_age"],
         "height_cm": context.user_data["p_height"],
@@ -756,6 +811,7 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
         "rate_2hr": context.user_data.get("rate_2hr"),
         "rate_3hr": context.user_data.get("rate_3hr"),
         "rate_overnight": context.user_data.get("rate_overnight"),
+        "languages": json.dumps(languages_list),
     }
     
     db.update_provider_profile(user.id, data)
@@ -769,10 +825,12 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
     if photo_count >= 5:
         bonus_msg = "\n\n🌟 *5-Photo Bonus:* Premium visibility in search results!"
     
+    lang_count = len(languages_list)
     await update.message.reply_text(
         f"🎉 *Portfolio Complete!*\n\n"
         f"✅ {photo_count} photos uploaded{bonus_msg}\n"
-        f"💰 Hourly rates set\n\n"
+        f"💰 Hourly rates set\n"
+        f"🌍 {lang_count} language(s) added\n\n"
         "Your profile has been upgraded to *Professional Status*.\n\n"
         "Next steps:\n"
         "1. Complete /verify for Blue Tick\n"
@@ -913,6 +971,7 @@ def register_handlers(application):
                 CommandHandler("done", done_photos),
             ],
             PROFILE_RATES: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_rates)],
+            PROFILE_LANGUAGES: [CallbackQueryHandler(profile_languages, pattern="^lang_")],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )

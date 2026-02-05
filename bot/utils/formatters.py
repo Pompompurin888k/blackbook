@@ -59,6 +59,17 @@ def format_profile_text(provider: dict) -> str:
         if rates_lines:
             rates_section = "\n💰 *Hourly Rates:*\n" + "\n".join(rates_lines)
     
+    # Format languages if available
+    languages_section = ""
+    if provider.get("languages"):
+        import json
+        try:
+            languages = json.loads(provider.get("languages"))
+            if languages:
+                languages_section = f"\n🌍 *Languages:* {', '.join(languages)}"
+        except:
+            pass
+    
     return (
         f"👤 *YOUR PROFILE*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -67,7 +78,8 @@ def format_profile_text(provider: dict) -> str:
         f"🛡️ *Trust Level:* {badges['verified']}\n"
         f"📱 *Listing Status:* {badges['status']}\n"
         f"🌐 *Website Badge:* {badges['online']}\n"
-        f"{rates_section}\n"
+        f"{rates_section}"
+        f"{languages_section}\n"
         f"⏱️ *Expires:* {expiry_text}\n"
         "━━━━━━━━━━━━━━━━━━━━━━"
     )
