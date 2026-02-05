@@ -108,8 +108,7 @@ async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
     
     elif text == "👤 My Profile":
-        # Trigger the /myprofile command
-        from handlers.auth import myprofile
+        # Trigger the /myprofile command directly
         await myprofile(update, context)
     
     elif text == "💰 Top up Balance":
