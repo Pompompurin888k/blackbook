@@ -68,6 +68,16 @@ def get_city_keyboard() -> InlineKeyboardMarkup:
 def get_profile_keyboard(provider: dict) -> InlineKeyboardMarkup:
     """Returns profile action buttons based on provider state."""
     buttons = []
+    
+    # Check if profile is incomplete
+    profile_fields = ['age', 'height_cm', 'weight_kg', 'build', 'services', 'bio', 'nearby_places', 'profile_photos']
+    is_incomplete = any(not provider.get(field) for field in profile_fields)
+    
+    if is_incomplete:
+        buttons.append([InlineKeyboardButton("✏️ Complete Profile", callback_data="menu_complete_profile")])
+    else:
+        buttons.append([InlineKeyboardButton("✏️ Edit Profile", callback_data="menu_complete_profile")])
+    
     if not provider.get("is_verified"):
         buttons.append([InlineKeyboardButton("📸 Get Verified", callback_data="menu_verify_start")])
     if not provider.get("is_active"):

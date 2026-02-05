@@ -228,6 +228,22 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             parse_mode="Markdown"
         )
         context.user_data["awaiting_verification_photo"] = True
+    
+    # === COMPLETE PROFILE ===
+    elif action == "complete_profile":
+        if not provider:
+            await query.answer("⚠️ Please register first!", show_alert=True)
+            return
+        
+        # Prompt user to use the command (ConversationHandlers need command entry points)
+        await query.message.reply_text(
+            "✏️ *Complete Your Profile*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "To complete or edit your profile, use the command:\n\n"
+            "/complete_profile\n\n"
+            "This will guide you through 8 steps to build your premium profile.",
+            parse_mode="Markdown"
+        )
 
 
 # ==================== REGISTRATION CONVERSATION ====================
@@ -984,6 +1000,7 @@ async def myprofile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         format_profile_text(provider) + "\n\n"
         "_Use /status to toggle your Live badge._\n"
         "_Use /topup to extend your subscription._",
+        reply_markup=get_profile_keyboard(provider),
         parse_mode="Markdown"
     )
 
@@ -1060,7 +1077,7 @@ def register_handlers(application):
     # Menu callbacks (auth section)
     application.add_handler(CallbackQueryHandler(
         menu_callback,
-        pattern="^menu_(main|profile|verify_start|verify_go)$"
+        pattern="^menu_(main|profile|verify_start|verify_go|complete_profile)$"
     ))
     
     # Persistent menu button handler (add at lower priority to not interfere with conversations)
