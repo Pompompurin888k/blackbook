@@ -32,6 +32,9 @@ from utils.keyboards import (
     get_back_button,
     get_admin_verification_keyboard,
     get_languages_keyboard,
+    get_build_keyboard,
+    get_availability_keyboard,
+    get_services_keyboard,
 )
 from utils.formatters import (
     generate_verification_code,
@@ -556,7 +559,10 @@ async def profile_height(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def profile_weight(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stores weight and asks for build."""
+    logger.info(f"📊 profile_weight handler called for user {update.effective_user.id}")
+    
     text = update.message.text.strip()
+    logger.info(f"📝 Received text: {text}")
     
     # Allow user to exit by clicking menu buttons
     menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
@@ -566,16 +572,20 @@ async def profile_weight(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     try:
         weight = int(text)
+        logger.info(f"✅ Parsed weight: {weight}")
         context.user_data["p_weight"] = weight
     except ValueError:
+        logger.warning(f"❌ Failed to parse weight from: {text}")
         await update.message.reply_text("⚠️ Please enter a valid number (e.g., 55).")
         return PROFILE_WEIGHT
         
+    logger.info(f"→ Sending build keyboard and moving to PROFILE_BUILD state")
     await update.message.reply_text(
         "🧘‍♀️ **Step 4/8: Body Build**\n"
         "Select your body type:",
         reply_markup=get_build_keyboard()
     )
+    logger.info(f"✅ Build keyboard sent successfully")
     return PROFILE_BUILD
 
 async def profile_build(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
