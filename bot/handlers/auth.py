@@ -929,15 +929,23 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
     
     lang_count = len(languages_list)
     await update.message.reply_text(
-        f"🎉 *Portfolio Complete!*\n\n"
-        f"✅ {photo_count} photos uploaded{bonus_msg}\n"
-        f"💰 Hourly rates set\n"
-        f"🌍 {lang_count} language(s) added\n\n"
-        "Your profile has been upgraded to *Professional Status*.\n\n"
-        "Next steps:\n"
-        "1. Complete /verify for Blue Tick\n"
-        "2. Use /topup to go live (300 KES for 3 days)\n\n"
-        "Use /myprofile to view your profile.",
+        f"✅ *Profile Information Saved!*\n\n"
+        f"📊 Your profile has been saved to the database:\n"
+        f"• {photo_count} photos uploaded{bonus_msg}\n"
+        f"• Hourly rates configured\n"
+        f"• {lang_count} language(s) added\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📝 *You can view and edit your profile anytime using:*\n"
+        "👤 My Profile → ✏️ Edit Profile\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "🚀 *To Go Live on innbucks.org:*\n\n"
+        "1️⃣ *Get Verified* (Blue Tick)\n"
+        "   → Use: 👤 My Profile → 📸 Get Verified\n"
+        "   → Admin reviews within 2-4 hours\n\n"
+        "2️⃣ *Activate Subscription*\n"
+        "   → Use: 💰 Top up Balance\n"
+        "   → 300 KES for 3 days\n\n"
+        "💡 Once verified and paid, your profile goes live automatically!",
         parse_mode="Markdown",
         reply_markup=get_persistent_main_menu()
     )
@@ -988,13 +996,36 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
     if action == "approve":
         db.verify_provider(provider_id, True)
         
-        await context.bot.send_message(
-            chat_id=provider_id,
-            text="🎉 *Status: VERIFIED*\n\n"
-                 "You now have the Blue Tick ✔️. Your trust score has increased.\n\n"
-                 "Use /topup to appear in the 'Collection.'",
-            parse_mode="Markdown"
-        )
+        # Check if they have an active subscription
+        is_active = provider.get("is_active", False) if provider else False
+        
+        if is_active:
+            # Already paid - they're now live
+            await context.bot.send_message(
+                chat_id=provider_id,
+                text="🎉 *VERIFIED! You're Now Live!*\n\n"
+                     "✅ Blue Tick status granted\n"
+                     "✅ Profile is active on innbucks.org\n\n"
+                     "Your profile is now visible to premium clients!\n\n"
+                     "🌐 View your listing at: *https://innbucks.org*",
+                parse_mode="Markdown"
+            )
+        else:
+            # Not paid yet - verified but need subscription
+            await context.bot.send_message(
+                chat_id=provider_id,
+                text="✅ *Verification Approved!*\n\n"
+                     "🎉 You now have the Blue Tick ✔️\n\n"
+                     "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                     "📋 *Your profile is saved but not yet live.*\n\n"
+                     "To appear on innbucks.org and start receiving clients:\n\n"
+                     "💰 *Activate Subscription*\n"
+                     "→ Click: 💰 Top up Balance\n"
+                     "→ 300 KES for 3 days\n"
+                     "→ 600 KES for 7 days (1 FREE!)\n\n"
+                     "💡 Once you pay, your profile goes live instantly!",
+                parse_mode="Markdown"
+            )
         
         await query.edit_message_caption(
             caption=f"✅ **APPROVED**\n\n"
