@@ -228,22 +228,6 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             parse_mode="Markdown"
         )
         context.user_data["awaiting_verification_photo"] = True
-    
-    # === COMPLETE PROFILE ===
-    elif action == "complete_profile":
-        if not provider:
-            await query.answer("⚠️ Please register first!", show_alert=True)
-            return
-        
-        # Prompt user to use the command (ConversationHandlers need command entry points)
-        await query.message.reply_text(
-            "✏️ *Complete Your Profile*\n"
-            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "To complete or edit your profile, use the command:\n\n"
-            "/complete_profile\n\n"
-            "This will guide you through 8 steps to build your premium profile.",
-            parse_mode="Markdown"
-        )
 
 
 # ==================== REGISTRATION CONVERSATION ====================
@@ -451,6 +435,30 @@ async def handle_document_rejection(update: Update, context: ContextTypes.DEFAUL
 
 
 # ==================== PROFILE COMPLETION CONVERSATION ====================
+
+async def complete_profile_from_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Starts the profile completion flow from button click."""
+    query = update.callback_query
+    await query.answer()
+    
+    user = query.from_user
+    db = get_db()
+    
+    provider = db.get_provider(user.id)
+    if not provider:
+        await query.answer("❌ You need to /register first.", show_alert=True)
+        return ConversationHandler.END
+    
+    await query.message.reply_text(
+        "✨ *Professional Portfolio Builder*\n\n"
+        "Let's make your profile stand out to high-value clients.\n"
+        "We'll collect your stats, services, bio, and photos.\n\n"
+        "*Step 1/8: Age*\n"
+        "Please enter your age (e.g., 24):",
+        parse_mode="Markdown"
+    )
+    return PROFILE_AGE
+
 
 async def complete_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the profile completion flow."""
@@ -1016,7 +1024,10 @@ def register_handlers(application):
     
     # Profile Completion Conversation
     profile_handler = ConversationHandler(
-        entry_points=[CommandHandler("complete_profile", complete_profile)],
+        entry_points=[
+            CommandHandler("complete_profile", complete_profile),
+            CallbackQueryHandler(complete_profile_from_button, pattern="^menu_complete_profile$")
+        ],
         states={
             PROFILE_AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_age)],
             PROFILE_HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_height)],
@@ -1077,7 +1088,7 @@ def register_handlers(application):
     # Menu callbacks (auth section)
     application.add_handler(CallbackQueryHandler(
         menu_callback,
-        pattern="^menu_(main|profile|verify_start|verify_go|complete_profile)$"
+        pattern="^menu_(main|profile|verify_start|verify_go)$"
     ))
     
     # Persistent menu button handler (add at lower priority to not interfere with conversations)
