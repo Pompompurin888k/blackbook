@@ -131,6 +131,23 @@ class Database:
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='profile_photos') THEN
                 ALTER TABLE providers ADD COLUMN profile_photos JSONB;
             END IF;
+            
+            -- HOURLY RATES
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='rate_30min') THEN
+                ALTER TABLE providers ADD COLUMN rate_30min INT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='rate_1hr') THEN
+                ALTER TABLE providers ADD COLUMN rate_1hr INT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='rate_2hr') THEN
+                ALTER TABLE providers ADD COLUMN rate_2hr INT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='rate_3hr') THEN
+                ALTER TABLE providers ADD COLUMN rate_3hr INT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='rate_overnight') THEN
+                ALTER TABLE providers ADD COLUMN rate_overnight INT;
+            END IF;
         END $$;
         """
         

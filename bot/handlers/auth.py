@@ -16,10 +16,11 @@ from telegram.ext import (
 from config import (
     STAGE_NAME, CITY, NEIGHBORHOOD,
     PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, 
-    PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY, PROFILE_PHOTOS,
+    PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY, PROFILE_PHOTOS, PROFILE_RATES,
     AWAITING_PHOTO,
     ADMIN_CHAT_ID,
     CITIES,
+    RATE_DURATIONS,
 )
 from utils.keyboards import (
     get_main_menu_keyboard,
@@ -652,8 +653,87 @@ async def profile_photos(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         return PROFILE_PHOTOS
     else:
-        # 5 photos reached, auto-save
-        return await save_complete_profile(update, context)
+        # 5 photos reached, move to rates
+        await update.message.reply_text(
+            "✅ All 5 photos received! Looking great! 📸\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Next: Set your hourly rates...",
+            parse_mode="Markdown"
+        )
+        return await ask_rates(update, context)
+
+
+async def ask_rates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Asks for hourly rates."""
+    await update.message.reply_text(
+        "💰 *Set Your Hourly Rates*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Please provide your pricing in KES for each duration.\n\n"
+        "Send them in this exact format (one message):\n\n"
+        "`30min: 2000`\n"
+        "`1hr: 3500`\n"
+        "`2hr: 6000`\n"
+        "`3hr: 8000`\n"
+        "`overnight: 15000`\n\n"
+        "💡 *Example:*\n"
+        "```\n30min: 3000\n1hr: 5000\n2hr: 8500\n3hr: 12000\novernight: 20000```\n\n"
+        "⚠️ Copy the format above and just change the numbers.",
+        parse_mode="Markdown"
+    )
+    return PROFILE_RATES
+
+
+async def profile_rates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Parses and stores hourly rates."""
+    text = update.message.text.strip()
+    
+    # Parse rates from text
+    rates = {}
+    lines = text.split('\n')
+    
+    expected_keys = ['30min', '1hr', '2hr', '3hr', 'overnight']
+    
+    for line in lines:
+        if ':' not in line:
+            continue
+        parts = line.split(':')
+        if len(parts) != 2:
+            continue
+        key = parts[0].strip().lower()
+        try:
+            value = int(parts[1].strip().replace(',', '').replace('KES', '').replace('kes', ''))
+            if key in expected_keys:
+                rates[f'rate_{key}'] = value
+        except ValueError:
+            continue
+    
+    # Validate we got all rates
+    if len(rates) != 5:
+        await update.message.reply_text(
+            "❌ Invalid format. Please provide all 5 rates.\n\n"
+            "Copy this template and change the numbers:\n\n"
+            "```\n30min: 3000\n1hr: 5000\n2hr: 8500\n3hr: 12000\novernight: 20000```",
+            parse_mode="Markdown"
+        )
+        return PROFILE_RATES
+    
+    # Store rates
+    context.user_data.update(rates)
+    
+    # Show confirmation and save
+    await update.message.reply_text(
+        "✅ *Rates Saved!*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"💵 30 min: {rates['rate_30min']:,} KES\n"
+        f"💵 1 hour: {rates['rate_1hr']:,} KES\n"
+        f"💵 2 hours: {rates['rate_2hr']:,} KES\n"
+        f"💵 3 hours: {rates['rate_3hr']:,} KES\n"
+        f"💵 Overnight: {rates['rate_overnight']:,} KES\n\n"
+        "Saving your complete profile...",
+        parse_mode="Markdown"
+    )
+    
+    return await save_complete_profile(update, context)
 
 async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Saves the complete profile to database."""
@@ -670,7 +750,12 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
         "availability_type": context.user_data["p_avail"],
         "services": json.dumps(context.user_data["p_services"]),
         "bio": context.user_data["p_bio"],
-        "nearby_places": context.user_data["p_nearby"]
+        "nearby_places": context.user_data["p_nearby"],
+        "rate_30min": context.user_data.get("rate_30min"),
+        "rate_1hr": context.user_data.get("rate_1hr"),
+        "rate_2hr": context.user_data.get("rate_2hr"),
+        "rate_3hr": context.user_data.get("rate_3hr"),
+        "rate_overnight": context.user_data.get("rate_overnight"),
     }
     
     db.update_provider_profile(user.id, data)
@@ -686,13 +771,15 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
     
     await update.message.reply_text(
         f"🎉 *Portfolio Complete!*\n\n"
-        f"✅ {photo_count} photos uploaded{bonus_msg}\n\n"
+        f"✅ {photo_count} photos uploaded{bonus_msg}\n"
+        f"💰 Hourly rates set\n\n"
         "Your profile has been upgraded to *Professional Status*.\n\n"
         "Next steps:\n"
         "1. Complete /verify for Blue Tick\n"
         "2. Use /topup to go live (300 KES for 3 days)\n\n"
         "Use /myprofile to view your profile.",
-        parse_mode="Markdown"
+        parse_mode="Markdown",
+        reply_markup=get_persistent_main_menu()
     )
     context.user_data.clear()
     return ConversationHandler.END
@@ -709,7 +796,13 @@ async def done_photos(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         )
         return PROFILE_PHOTOS
     
-    return await save_complete_profile(update, context)
+    await update.message.reply_text(
+        f"✅ {len(photos)} photos saved!\n\n"
+        "Moving to rates setup...",
+        parse_mode="Markdown"
+    )
+    
+    return await ask_rates(update, context)
 
 
 # ==================== VERIFICATION CONVERSATION ====================
@@ -819,6 +912,7 @@ def register_handlers(application):
                 MessageHandler(filters.PHOTO, profile_photos),
                 CommandHandler("done", done_photos),
             ],
+            PROFILE_RATES: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_rates)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )

@@ -41,6 +41,24 @@ def format_profile_text(provider: dict) -> str:
     
     expiry_text = format_expiry_date(provider.get("expiry_date"))
     
+    # Format rates if available
+    rates_section = ""
+    if provider.get("rate_1hr"):
+        rates_lines = []
+        if provider.get('rate_30min'):
+            rates_lines.append(f"   30 min: {provider.get('rate_30min'):,} KES")
+        if provider.get('rate_1hr'):
+            rates_lines.append(f"   1 hour: {provider.get('rate_1hr'):,} KES")
+        if provider.get('rate_2hr'):
+            rates_lines.append(f"   2 hours: {provider.get('rate_2hr'):,} KES")
+        if provider.get('rate_3hr'):
+            rates_lines.append(f"   3 hours: {provider.get('rate_3hr'):,} KES")
+        if provider.get('rate_overnight'):
+            rates_lines.append(f"   Overnight: {provider.get('rate_overnight'):,} KES")
+        
+        if rates_lines:
+            rates_section = "\n💰 *Hourly Rates:*\n" + "\n".join(rates_lines)
+    
     return (
         f"👤 *YOUR PROFILE*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -48,7 +66,8 @@ def format_profile_text(provider: dict) -> str:
         f"📍 *Location:* {neighborhood}, {city}\n\n"
         f"🛡️ *Trust Level:* {badges['verified']}\n"
         f"📱 *Listing Status:* {badges['status']}\n"
-        f"🌐 *Website Badge:* {badges['online']}\n\n"
+        f"🌐 *Website Badge:* {badges['online']}\n"
+        f"{rates_section}\n"
         f"⏱️ *Expires:* {expiry_text}\n"
         "━━━━━━━━━━━━━━━━━━━━━━"
     )

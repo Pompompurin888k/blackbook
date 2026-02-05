@@ -33,7 +33,7 @@ TOPUP_PHONE, TOPUP_CONFIRM = range(20, 22)
 AWAITING_PHOTO = 10
 
 # Profile Completion flow
-PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY, PROFILE_PHOTOS = range(30, 39)
+PROFILE_AGE, PROFILE_HEIGHT, PROFILE_WEIGHT, PROFILE_BUILD, PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY, PROFILE_PHOTOS, PROFILE_RATES = range(30, 40)
 
 # ==================== STATIC DATA ====================
 CITIES = [
@@ -51,6 +51,15 @@ AVAILABILITIES = ["Incall", "Outcall", "Both"]
 SERVICES = [
     "GFE", "Massage", "Dinner Date", "Travel", 
     "Parties", "Overnight", "Couples", "Fetish"
+]
+
+# Rate durations (for pricing)
+RATE_DURATIONS = [
+    ("30min", "30 Minutes"),
+    ("1hr", "1 Hour"),
+    ("2hr", "2 Hours"),
+    ("3hr", "3 Hours"),
+    ("overnight", "Overnight (8+ hrs)")
 ]
 
 # Package pricing (days: KES)
