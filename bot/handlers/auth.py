@@ -458,8 +458,16 @@ async def complete_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def profile_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stores age and asks for height."""
+    text = update.message.text.strip()
+    
+    # Allow user to exit by clicking menu buttons
+    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
+    if text in menu_buttons or text.startswith("/"):
+        await update.message.reply_text("❌ Profile completion cancelled. Use /complete_profile to start again.")
+        return ConversationHandler.END
+    
     try:
-        age = int(update.message.text.strip())
+        age = int(text)
         if age < 18 or age > 60:
             await update.message.reply_text("⚠️ Age must be between 18 and 60. Try again.")
             return PROFILE_AGE
@@ -476,8 +484,16 @@ async def profile_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 async def profile_height(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stores height and asks for weight."""
+    text = update.message.text.strip()
+    
+    # Allow user to exit by clicking menu buttons
+    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
+    if text in menu_buttons or text.startswith("/"):
+        await update.message.reply_text("❌ Profile completion cancelled. Use /complete_profile to start again.")
+        return ConversationHandler.END
+    
     try:
-        height = int(update.message.text.strip())
+        height = int(text)
         context.user_data["p_height"] = height
     except ValueError:
         await update.message.reply_text("⚠️ Please enter a valid number (e.g., 170).")
@@ -491,8 +507,16 @@ async def profile_height(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def profile_weight(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stores weight and asks for build."""
+    text = update.message.text.strip()
+    
+    # Allow user to exit by clicking menu buttons
+    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
+    if text in menu_buttons or text.startswith("/"):
+        await update.message.reply_text("❌ Profile completion cancelled. Use /complete_profile to start again.")
+        return ConversationHandler.END
+    
     try:
-        weight = int(update.message.text.strip())
+        weight = int(text)
         context.user_data["p_weight"] = weight
     except ValueError:
         await update.message.reply_text("⚠️ Please enter a valid number (e.g., 55).")
@@ -578,6 +602,13 @@ async def profile_services(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def profile_bio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stores bio and asks for nearby places."""
     bio = update.message.text.strip()
+    
+    # Allow user to exit by clicking menu buttons
+    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
+    if bio in menu_buttons or bio.startswith("/"):
+        await update.message.reply_text("❌ Profile completion cancelled. Use /complete_profile to start again.")
+        return ConversationHandler.END
+    
     if len(bio) < 20:
         await update.message.reply_text("⚠️ Too short. Please write at least one full sentence.")
         return PROFILE_BIO
@@ -594,6 +625,13 @@ async def profile_bio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 async def profile_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stores nearby places and asks for photos."""
     nearby = update.message.text.strip()
+    
+    # Allow user to exit by clicking menu buttons
+    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
+    if nearby in menu_buttons or nearby.startswith("/"):
+        await update.message.reply_text("❌ Profile completion cancelled. Use /complete_profile to start again.")
+        return ConversationHandler.END
+    
     context.user_data["p_nearby"] = nearby
     
     await update.message.reply_text(
@@ -687,6 +725,12 @@ async def ask_rates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def profile_rates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Parses and stores hourly rates."""
     text = update.message.text.strip()
+    
+    # Allow user to exit by clicking menu buttons
+    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
+    if text in menu_buttons or text.startswith("/"):
+        await update.message.reply_text("❌ Profile completion cancelled. Use /complete_profile to start again.")
+        return ConversationHandler.END
     
     # Parse rates from text
     rates = {}
