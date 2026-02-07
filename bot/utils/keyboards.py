@@ -3,7 +3,7 @@ Blackbook Bot Keyboards
 All InlineKeyboardMarkup and ReplyKeyboardMarkup builders.
 """
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from config import CITIES, PACKAGES, SESSION_DURATIONS, BUILDS, AVAILABILITIES, SERVICES, LANGUAGES
+from config import CITIES, PACKAGES, SESSION_DURATIONS, BUILDS, AVAILABILITIES, SERVICES, LANGUAGES, NAIROBI_NEIGHBORHOODS, ELDORET_NEIGHBORHOODS
 
 
 # ==================== PERSISTENT MAIN MENU ====================
@@ -291,3 +291,107 @@ def get_languages_keyboard(selected_languages=None) -> InlineKeyboardMarkup:
     keyboard.append([InlineKeyboardButton("✅ Done / Continue", callback_data="lang_done")])
     
     return InlineKeyboardMarkup(keyboard)
+
+
+# ==================== NEIGHBORHOOD SELECTION ====================
+
+def get_neighborhood_keyboard(city: str, page: int = 0) -> InlineKeyboardMarkup:
+    """Returns paginated neighborhood keyboard for a city."""
+    neighborhoods = []
+    if city == "Nairobi":
+        neighborhoods = NAIROBI_NEIGHBORHOODS
+    elif city == "Eldoret":
+        neighborhoods = ELDORET_NEIGHBORHOODS
+    else:
+        # Fallback - allow freeform text input
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("📝 Type my neighborhood", callback_data="hood_custom")]
+        ])
+    
+    # Pagination: 15 items per page (5 rows of 3)
+    items_per_page = 15
+    total_pages = (len(neighborhoods) + items_per_page - 1) // items_per_page
+    start_idx = page * items_per_page
+    end_idx = min(start_idx + items_per_page, len(neighborhoods))
+    page_items = neighborhoods[start_idx:end_idx]
+    
+    keyboard = []
+    row = []
+    for hood in page_items:
+        row.append(InlineKeyboardButton(hood, callback_data=f"hood_{hood}"))
+        if len(row) == 3:
+            keyboard.append(row)
+            row = []
+    
+    if row:
+        keyboard.append(row)
+    
+    # Navigation buttons
+    nav_row = []
+    if page > 0:
+        nav_row.append(InlineKeyboardButton("⬅️ Back", callback_data=f"hood_page_{page - 1}"))
+    if page < total_pages - 1:
+        nav_row.append(InlineKeyboardButton("➡️ More", callback_data=f"hood_page_{page + 1}"))
+    
+    if nav_row:
+        keyboard.append(nav_row)
+    
+    # Custom option
+    keyboard.append([InlineKeyboardButton("📝 Other (type it)", callback_data="hood_custom")])
+    
+    return InlineKeyboardMarkup(keyboard)
+
+
+# ==================== PHOTO MANAGEMENT ====================
+
+def get_photo_management_keyboard(photo_count: int) -> InlineKeyboardMarkup:
+    """Returns photo management keyboard."""
+    keyboard = []
+    
+    if photo_count > 0:
+        keyboard.append([InlineKeyboardButton(f"📸 View Photos ({photo_count})", callback_data="photos_view")])
+        keyboard.append([InlineKeyboardButton("🗑️ Delete Photo", callback_data="photos_delete")])
+        if photo_count > 1:
+            keyboard.append([InlineKeyboardButton("🔄 Reorder Photos", callback_data="photos_reorder")])
+    
+    keyboard.append([InlineKeyboardButton("➕ Add More Photos", callback_data="photos_add")])
+    keyboard.append([InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")])
+    
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_photo_delete_keyboard(photos: list) -> InlineKeyboardMarkup:
+    """Returns keyboard to select which photo to delete."""
+    keyboard = []
+    for i, _ in enumerate(photos):
+        keyboard.append([InlineKeyboardButton(f"🗑️ Delete Photo #{i + 1}", callback_data=f"photo_del_{i}")])
+    
+    keyboard.append([InlineKeyboardButton("🔙 Cancel", callback_data="photos_manage")])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_photo_reorder_keyboard(photos: list) -> InlineKeyboardMarkup:
+    """Returns keyboard to reorder photos (move to first position)."""
+    keyboard = []
+    for i, _ in enumerate(photos):
+        if i > 0:  # Can't move first photo to first position
+            keyboard.append([InlineKeyboardButton(f"⬆️ Move Photo #{i + 1} to First", callback_data=f"photo_first_{i}")])
+    
+    keyboard.append([InlineKeyboardButton("🔙 Cancel", callback_data="photos_manage")])
+    return InlineKeyboardMarkup(keyboard)
+
+
+# ==================== ONLINE STATUS ====================
+
+def get_online_toggle_keyboard(is_online: bool) -> InlineKeyboardMarkup:
+    """Returns online status toggle keyboard with current status."""
+    status_text = "🟢 ONLINE" if is_online else "⚫ OFFLINE"
+    toggle_text = "Go Offline 🔴" if is_online else "Go Online 🟢"
+    
+    keyboard = [
+        [InlineKeyboardButton(f"Current: {status_text}", callback_data="noop")],
+        [InlineKeyboardButton(toggle_text, callback_data="toggle_online")],
+        [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+

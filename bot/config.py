@@ -45,6 +45,26 @@ CITIES = [
 ]
 # Format: (city_name, emoji, is_available)
 
+# Neighborhoods per city for inline keyboard selection
+NAIROBI_NEIGHBORHOODS = [
+    "Allsops", "Athi River", "Banana", "Buru Buru", "Chokaa", "Dagoretti",
+    "Dandora", "Donholm", "Eastlands", "Eastleigh", "Embakasi", "Garden City",
+    "Githurai 44", "Githurai 45", "Homeland", "Hurlingham", "Huruma", "Imara Daima",
+    "Jamhuri", "Joska", "Juja", "Kabete", "Kahawa Sukari", "Kahawa Wendani",
+    "Kahawa West", "Kamulu", "Kangemi", "Karen", "Kariobangi", "Kasarani",
+    "Kawangware", "Kayole", "Kenyatta Road", "Kibera", "Kikuyu", "Kileleshwa",
+    "Kilimani", "Kitengela", "Kitisuru", "Komarock", "Langata", "Lavington",
+    "Loresho", "Madaraka", "Makadara", "Malaa", "Mathare", "Milimani",
+    "Mlolongo", "Muthaiga", "Muthangari", "Muthurwa", "Mwiki", "Nairobi Town",
+    "Nairobi West", "Ndenderu", "Ngara", "Ngong", "Ngumba", "Njiru",
+    "Ongata Rongai", "Pangani", "Parklands", "Roasters", "Roysambu", "Ruai",
+    "Ruaka", "Ruaraka", "Ruiru", "Runda", "Saika", "South B", "South C",
+    "Syokimau", "Thika", "Thogoto", "Thome", "Umoja", "Upper Hill",
+    "Utawala", "Uthiru", "Westlands"
+]
+
+ELDORET_NEIGHBORHOODS = ["Town Centre", "Elgon View", "Langas", "Kapsoya"]
+
 # Profile Options
 BUILDS = ["Slim", "Athletic", "Curvy", "BBW", "Petite"]
 AVAILABILITIES = ["Incall", "Outcall", "Both"]
