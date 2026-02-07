@@ -148,3 +148,96 @@ def format_main_menu_header(provider: dict) -> str:
         f"⏱️ *Expires:* {time_left}\n\n"
         "Select an option below:"
     )
+
+
+def format_full_profile_text(provider: dict) -> str:
+    """Formats the complete profile with ALL data for the My Profile view."""
+    import json
+    
+    name = provider.get("display_name", "Not set")
+    city = provider.get("city", "Not set")
+    neighborhood = provider.get("neighborhood", "Not set")
+    
+    badges = format_status_badge(
+        provider.get("is_online", False),
+        provider.get("is_active", False),
+        provider.get("is_verified", False)
+    )
+    
+    expiry_text = format_expiry_date(provider.get("expiry_date"))
+    
+    # Basic stats
+    age = provider.get("age", "—")
+    height = provider.get("height_cm", "—")
+    weight = provider.get("weight_kg", "—")
+    build = provider.get("build", "—")
+    
+    # Bio
+    bio = provider.get("bio", "Not set")
+    if bio and len(bio) > 100:
+        bio = bio[:97] + "..."
+    
+    # Nearby places
+    nearby = provider.get("nearby_places", "Not set")
+    if nearby and len(nearby) > 50:
+        nearby = nearby[:47] + "..."
+    
+    # Services
+    services = provider.get("services") or "Not set"
+    if isinstance(services, str) and services.startswith("["):
+        try:
+            services = ", ".join(json.loads(services))
+        except:
+            pass
+    
+    # Photos count
+    photos = provider.get("profile_photos") or []
+    if isinstance(photos, str):
+        try:
+            photos = json.loads(photos)
+        except:
+            photos = []
+    photo_count = len(photos)
+    
+    # Rates
+    rates_lines = []
+    if provider.get('rate_30min'):
+        rates_lines.append(f"30min: {provider.get('rate_30min'):,}")
+    if provider.get('rate_1hr'):
+        rates_lines.append(f"1hr: {provider.get('rate_1hr'):,}")
+    if provider.get('rate_2hr'):
+        rates_lines.append(f"2hr: {provider.get('rate_2hr'):,}")
+    if provider.get('rate_3hr'):
+        rates_lines.append(f"3hr: {provider.get('rate_3hr'):,}")
+    if provider.get('rate_overnight'):
+        rates_lines.append(f"overnight: {provider.get('rate_overnight'):,}")
+    rates_text = " | ".join(rates_lines) if rates_lines else "Not set"
+    
+    # Languages
+    languages = provider.get("languages")
+    if languages:
+        try:
+            languages = ", ".join(json.loads(languages))
+        except:
+            pass
+    else:
+        languages = "Not set"
+    
+    return (
+        f"👤 *{name}*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📍 {neighborhood}, {city}\n"
+        f"{badges['online']} • {badges['verified']}\n\n"
+        "📊 *Stats*\n"
+        f"Age: {age} • Height: {height}cm • Weight: {weight}kg\n"
+        f"Build: {build}\n\n"
+        f"💬 *Bio:* {bio}\n\n"
+        f"📌 *Nearby:* {nearby}\n\n"
+        f"✨ *Services:* {services}\n\n"
+        f"💰 *Rates (KES):* {rates_text}\n\n"
+        f"🌍 *Languages:* {languages}\n\n"
+        f"📸 *Photos:* {photo_count} uploaded\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"⏱️ Subscription: {expiry_text}"
+    )
+

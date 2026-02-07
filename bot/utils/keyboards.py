@@ -65,8 +65,47 @@ def get_city_keyboard() -> InlineKeyboardMarkup:
 
 # ==================== PROFILE ====================
 
+def get_full_profile_keyboard(provider: dict) -> InlineKeyboardMarkup:
+    """Returns profile keyboard with section edit buttons."""
+    buttons = []
+    
+    # Online toggle (only if active)
+    if provider.get("is_active"):
+        is_online = provider.get("is_online", False)
+        toggle_text = "🟢 Online" if is_online else "⚫ Offline"
+        buttons.append([InlineKeyboardButton(f"{toggle_text} (tap to toggle)", callback_data="toggle_online")])
+    
+    # Edit sections row 1
+    buttons.append([
+        InlineKeyboardButton("📝 Basic Info", callback_data="edit_basic"),
+        InlineKeyboardButton("📏 Stats", callback_data="edit_stats"),
+    ])
+    
+    # Edit sections row 2
+    buttons.append([
+        InlineKeyboardButton("💬 Bio", callback_data="edit_bio"),
+        InlineKeyboardButton("✨ Services", callback_data="edit_services"),
+    ])
+    
+    # Edit sections row 3
+    buttons.append([
+        InlineKeyboardButton("💰 Rates", callback_data="edit_rates"),
+        InlineKeyboardButton("📸 Photos", callback_data="photos_manage"),
+    ])
+    
+    # Verification (if not verified)
+    if not provider.get("is_verified"):
+        buttons.append([InlineKeyboardButton("✅ Get Verified", callback_data="menu_verify_start")])
+    
+    # Go live (if not active)
+    if not provider.get("is_active"):
+        buttons.append([InlineKeyboardButton("💳 Go Live Now", callback_data="menu_topup")])
+    
+    return InlineKeyboardMarkup(buttons)
+
+
 def get_profile_keyboard(provider: dict) -> InlineKeyboardMarkup:
-    """Returns profile action buttons based on provider state."""
+    """Returns profile action buttons based on provider state (legacy)."""
     buttons = []
     
     # Check if profile is incomplete

@@ -40,6 +40,7 @@ from utils.keyboards import (
     get_photo_delete_keyboard,
     get_photo_reorder_keyboard,
     get_online_toggle_keyboard,
+    get_full_profile_keyboard,
 )
 from utils.formatters import (
     generate_verification_code,
@@ -47,6 +48,7 @@ from utils.formatters import (
     format_returning_user_message,
     format_profile_text,
     format_main_menu_header,
+    format_full_profile_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -131,7 +133,21 @@ async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
     
     elif text == "👤 My Profile":
-        # Trigger the /myprofile command directly
+        provider = db.get_provider(user.id)
+        if not provider:
+            # Start registration for new users
+            await update.message.reply_text(
+                "👋 *Welcome to Blackbook!*\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                "Let's create your premium profile.\n\n"
+                "Please enter your *Stage Name*\n"
+                "_(The name clients will see on the website)_:",
+                parse_mode="Markdown"
+            )
+            # Set conversation state for registration
+            context.user_data["registering"] = True
+            return
+        # Trigger the /myprofile command for existing users
         await myprofile(update, context)
     
     elif text == "💰 Top up Balance":
@@ -356,19 +372,16 @@ async def neighborhood(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     
     db.update_provider_profile(user.id, {"city": city, "neighborhood": neighborhood_input})
     
+    # Continue to profile completion
     await update.message.reply_text(
-        "✨ *Profile Initialized!*\n\n"
-        "━━━━━━━━━━━━━━━\n"
-        f"👤 Name: {stage_name}\n"
-        f"📍 Area: {neighborhood_input}, {city}\n"
-        "━━━━━━━━━━━━━━━\n\n"
-        "⚠️ *Note:* Your profile is currently *HIDDEN*.\n"
-        "Next step: Use /verify to prove your identity and unlock listing features.",
+        "✨ *Great!* Location saved.\n\n"
+        f"📍 {neighborhood_input}, {city}\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "*Step 3 of 8* — Now let's add your details\n\n"
+        "How old are you? (Enter your age):",
         parse_mode="Markdown"
     )
-    
-    context.user_data.clear()
-    return ConversationHandler.END
+    return PROFILE_AGE
 
 
 async def neighborhood_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -407,19 +420,16 @@ async def neighborhood_callback(update: Update, context: ContextTypes.DEFAULT_TY
     neighborhood_selected = data.replace("hood_", "")
     db.update_provider_profile(user.id, {"city": city, "neighborhood": neighborhood_selected})
     
+    # Continue to profile completion
     await query.edit_message_text(
-        "✨ *Profile Initialized!*\n\n"
-        "━━━━━━━━━━━━━━━\n"
-        f"👤 Name: {stage_name}\n"
-        f"📍 Area: {neighborhood_selected}, {city}\n"
-        "━━━━━━━━━━━━━━━\n\n"
-        "⚠️ *Note:* Your profile is currently *HIDDEN*.\n"
-        "Next step: Use /verify to prove your identity and unlock listing features.",
+        "✨ *Great!* Location saved.\n\n"
+        f"📍 {neighborhood_selected}, {city}\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "*Step 3 of 8* — Now let's add your details\n\n"
+        "How old are you? (Enter your age):",
         parse_mode="Markdown"
     )
-    
-    context.user_data.clear()
-    return ConversationHandler.END
+    return PROFILE_AGE
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -1340,25 +1350,135 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
 # ==================== MY PROFILE COMMAND ====================
 
 async def myprofile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Shows the provider's current profile status."""
+    """Shows the provider's full profile with edit options."""
     user = update.effective_user
     db = get_db()
     
     provider = db.get_provider(user.id)
     if not provider:
         await update.message.reply_text(
-            "❌ You're not registered yet. Use /register to get started.",
-            parse_mode="Markdown"
+            "❌ You're not registered yet.\n\n"
+            "Tap 👤 My Profile in the menu below to get started!",
+            parse_mode="Markdown",
+            reply_markup=get_persistent_main_menu()
         )
         return
     
-    await update.message.reply_text(
-        format_profile_text(provider) + "\n\n"
-        "_Use /status to toggle your Live badge._\n"
-        "_Use /topup to extend your subscription._",
-        reply_markup=get_profile_keyboard(provider),
-        parse_mode="Markdown"
-    )
+    # Check if this is a new registration that needs completion
+    profile_fields = ['age', 'height_cm', 'weight_kg', 'build', 'services', 'bio', 'profile_photos']
+    is_incomplete = any(not provider.get(field) for field in profile_fields)
+    
+    if is_incomplete:
+        # Prompt to complete profile
+        await update.message.reply_text(
+            "👤 *Complete Your Profile*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"Welcome, *{provider.get('display_name', 'there')}*!\n\n"
+            "Your profile needs a few more details before you can go live.\n\n"
+            "Tap below to complete your profile:",
+            reply_markup=get_profile_keyboard(provider),
+            parse_mode="Markdown"
+        )
+    else:
+        # Show full profile with edit options
+        await update.message.reply_text(
+            format_full_profile_text(provider),
+            reply_markup=get_full_profile_keyboard(provider),
+            parse_mode="Markdown"
+        )
+
+
+# ==================== PROFILE EDIT SECTION HANDLERS ====================
+
+async def edit_section_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles edit section button callbacks for individual profile sections."""
+    query = update.callback_query
+    await query.answer()
+    
+    user = query.from_user
+    db = get_db()
+    data = query.data
+    
+    provider = db.get_provider(user.id)
+    if not provider:
+        await query.edit_message_text("❌ Profile not found. Please /register first.")
+        return
+    
+    # Handle each edit section
+    if data == "edit_basic":
+        await query.edit_message_text(
+            "📝 *Edit Basic Info*\n\n"
+            f"Current name: *{provider.get('display_name', 'Not set')}*\n"
+            f"Location: *{provider.get('neighborhood', '')}, {provider.get('city', '')}*\n\n"
+            "Send your new stage name to update it:\n"
+            "_(or send 'skip' to keep current)_",
+            parse_mode="Markdown"
+        )
+        context.user_data["editing"] = "name"
+        return
+    
+    elif data == "edit_stats":
+        await query.edit_message_text(
+            "📏 *Edit Stats*\n\n"
+            f"Age: {provider.get('age', '—')}\n"
+            f"Height: {provider.get('height_cm', '—')} cm\n"
+            f"Weight: {provider.get('weight_kg', '—')} kg\n"
+            f"Build: {provider.get('build', '—')}\n\n"
+            "Send your new age to start updating:\n"
+            "_(or send 'skip' to keep current)_",
+            parse_mode="Markdown"
+        )
+        context.user_data["editing"] = "age"
+        return
+    
+    elif data == "edit_bio":
+        current_bio = provider.get('bio', 'Not set')
+        if current_bio and len(current_bio) > 100:
+            current_bio = current_bio[:97] + "..."
+        await query.edit_message_text(
+            "💬 *Edit Bio*\n\n"
+            f"Current: _{current_bio}_\n\n"
+            "Send your new bio:\n"
+            "_(or send 'cancel' to go back)_",
+            parse_mode="Markdown"
+        )
+        context.user_data["editing"] = "bio"
+        return
+    
+    elif data == "edit_services":
+        await query.edit_message_text(
+            "✨ *Edit Services*\n\n"
+            "Select the services you offer:",
+            reply_markup=get_services_keyboard(context.user_data.get("selected_services", [])),
+            parse_mode="Markdown"
+        )
+        context.user_data["editing"] = "services"
+        return
+    
+    elif data == "edit_rates":
+        await query.edit_message_text(
+            "💰 *Edit Rates*\n\n"
+            "Enter your rates in this format:\n"
+            "`30min: 3000`\n"
+            "`1hr: 5000`\n"
+            "`2hr: 8500`\n"
+            "`3hr: 12000`\n"
+            "`overnight: 20000`\n\n"
+            "_(or send 'cancel' to go back)_",
+            parse_mode="Markdown"
+        )
+        context.user_data["editing"] = "rates"
+        return
+    
+    elif data == "edit_location":
+        await query.edit_message_text(
+            "📍 *Edit Location*\n\n"
+            "Select your city:",
+            reply_markup=get_city_keyboard(),
+            parse_mode="Markdown"
+        )
+        context.user_data["editing"] = "location"
+        return
 
 
 # ==================== HANDLER REGISTRATION ====================
@@ -1402,10 +1522,11 @@ def register_handlers(application):
     )
     application.add_handler(profile_handler)
     
-    # Registration conversation (with neighborhood keyboard support)
+    # Registration conversation - UNIFIED FLOW (name → city → neighborhood → profile details)
     registration_handler = ConversationHandler(
         entry_points=[CommandHandler("register", register)],
         states={
+            # Basic registration
             STAGE_NAME: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, stage_name)
             ],
@@ -1416,6 +1537,21 @@ def register_handlers(application):
                 CallbackQueryHandler(neighborhood_callback, pattern="^hood_"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, neighborhood)
             ],
+            # Profile completion states (continues from neighborhood)
+            PROFILE_AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_age)],
+            PROFILE_HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_height)],
+            PROFILE_WEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_weight)],
+            PROFILE_BUILD: [CallbackQueryHandler(profile_build, pattern="^build_")],
+            PROFILE_AVAILABILITY: [CallbackQueryHandler(profile_availability, pattern="^avail_")],
+            PROFILE_SERVICES: [CallbackQueryHandler(profile_services, pattern="^service_")],
+            PROFILE_BIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_bio)],
+            PROFILE_NEARBY: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_nearby)],
+            PROFILE_PHOTOS: [
+                MessageHandler(filters.PHOTO, profile_photos),
+                CommandHandler("done", done_photos),
+            ],
+            PROFILE_RATES: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_rates)],
+            PROFILE_LANGUAGES: [CallbackQueryHandler(profile_languages, pattern="^lang_")],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
@@ -1450,6 +1586,12 @@ def register_handlers(application):
     application.add_handler(CallbackQueryHandler(
         photos_callback,
         pattern="^(photos_|photo_del_|photo_first_)"
+    ))
+    
+    # Edit section callbacks
+    application.add_handler(CallbackQueryHandler(
+        edit_section_callback,
+        pattern="^edit_(basic|stats|bio|services|rates|location)$"
     ))
     
     # Menu callbacks (auth section)
