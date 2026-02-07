@@ -43,6 +43,15 @@ def get_back_button(callback_data: str = "menu_main") -> InlineKeyboardMarkup:
     ])
 
 
+def get_skip_cancel_keyboard(skip_to: str = None) -> InlineKeyboardMarkup:
+    """Returns skip and cancel buttons for edit prompts."""
+    buttons = []
+    if skip_to:
+        buttons.append([InlineKeyboardButton("⏭️ Skip", callback_data=skip_to)])
+    buttons.append([InlineKeyboardButton("❌ Cancel", callback_data="menu_profile")])
+    return InlineKeyboardMarkup(buttons)
+
+
 # ==================== REGISTRATION ====================
 
 def get_city_keyboard() -> InlineKeyboardMarkup:
@@ -417,6 +426,32 @@ def get_photo_reorder_keyboard(photos: list) -> InlineKeyboardMarkup:
             keyboard.append([InlineKeyboardButton(f"⬆️ Move Photo #{i + 1} to First", callback_data=f"photo_first_{i}")])
     
     keyboard.append([InlineKeyboardButton("🔙 Cancel", callback_data="photos_manage")])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_photo_viewer_keyboard(current_idx: int, total: int) -> InlineKeyboardMarkup:
+    """Returns photo viewer keyboard with navigation and delete."""
+    keyboard = []
+    
+    # Navigation row
+    nav_row = []
+    if current_idx > 0:
+        nav_row.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"photo_view_{current_idx - 1}"))
+    nav_row.append(InlineKeyboardButton(f"{current_idx + 1}/{total}", callback_data="noop"))
+    if current_idx < total - 1:
+        nav_row.append(InlineKeyboardButton("➡️ Next", callback_data=f"photo_view_{current_idx + 1}"))
+    keyboard.append(nav_row)
+    
+    # Delete and set as primary row
+    action_row = []
+    action_row.append(InlineKeyboardButton("🗑️ Delete This", callback_data=f"photo_del_{current_idx}"))
+    if current_idx > 0:
+        action_row.append(InlineKeyboardButton("⭐ Set Primary", callback_data=f"photo_first_{current_idx}"))
+    keyboard.append(action_row)
+    
+    # Back button
+    keyboard.append([InlineKeyboardButton("🔙 Back to Gallery", callback_data="photos_manage")])
+    
     return InlineKeyboardMarkup(keyboard)
 
 

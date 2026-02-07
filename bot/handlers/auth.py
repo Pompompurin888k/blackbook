@@ -41,6 +41,8 @@ from utils.keyboards import (
     get_photo_reorder_keyboard,
     get_online_toggle_keyboard,
     get_full_profile_keyboard,
+    get_photo_viewer_keyboard,
+    get_skip_cancel_keyboard,
 )
 from utils.formatters import (
     generate_verification_code,
@@ -551,17 +553,33 @@ async def photos_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         except:
             photos = []
     
-    # View photos
-    if data == "photos_view":
+    # View photos (first photo or specific index)
+    if data == "photos_view" or data.startswith("photo_view_"):
         if not photos:
             await query.answer("No photos to view!", show_alert=True)
             return
         
-        # Send the first photo with caption
+        # Get photo index
+        if data == "photos_view":
+            idx = 0
+        else:
+            idx = int(data.replace("photo_view_", ""))
+        
+        if idx >= len(photos):
+            idx = 0
+        
+        # Send the photo with navigation keyboard
+        try:
+            await query.message.delete()
+        except:
+            pass
+        
         await context.bot.send_photo(
             chat_id=user.id,
-            photo=photos[0],
-            caption=f"📸 Photo 1 of {len(photos)}\n\nUse /photos to manage your gallery."
+            photo=photos[idx],
+            caption=f"📸 *Photo {idx + 1} of {len(photos)}*",
+            reply_markup=get_photo_viewer_keyboard(idx, len(photos)),
+            parse_mode="Markdown"
         )
         return
     
@@ -1585,7 +1603,7 @@ def register_handlers(application):
     # Photo management callbacks
     application.add_handler(CallbackQueryHandler(
         photos_callback,
-        pattern="^(photos_|photo_del_|photo_first_)"
+        pattern="^(photos_|photo_del_|photo_first_|photo_view_)"
     ))
     
     # Edit section callbacks
