@@ -3,7 +3,7 @@ Blackbook Bot - Admin Handlers
 Handles: /partner, /maintenance, /broadcast
 """
 import logging
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler,
     ContextTypes,
@@ -172,11 +172,237 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info(f"📢 Broadcast sent by admin to {success_count} providers")
 
 
+# ==================== /ADMIN PANEL ====================
+
+async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin panel - shows management options."""
+    user = update.effective_user
+    db = get_db()
+    
+    if not is_admin(user.id):
+        await update.message.reply_text(
+            "🚫 *Access Denied*\n\nAdmin only.",
+            parse_mode="Markdown"
+        )
+        return
+    
+    # Get counts
+    unverified = db.get_provider_count_by_status('unverified')
+    active = db.get_provider_count_by_status('active')
+    inactive = db.get_provider_count_by_status('inactive')
+    total = db.get_provider_count_by_status('all')
+    
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"❓ Unverified ({unverified})", callback_data="admin_list_unverified")],
+        [InlineKeyboardButton(f"🟢 Listed/Active ({active})", callback_data="admin_list_active")],
+        [InlineKeyboardButton(f"⚫ Unlisted ({inactive})", callback_data="admin_list_inactive")],
+        [InlineKeyboardButton(f"📋 All Providers ({total})", callback_data="admin_list_all")],
+    ])
+    
+    await update.message.reply_text(
+        "🛠️ *Admin Panel*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Select a category to manage:\n",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+
+
+async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles admin panel callback queries."""
+    query = update.callback_query
+    await query.answer()
+    
+    user = query.from_user
+    db = get_db()
+    data = query.data
+    
+    if not is_admin(user.id):
+        await query.answer("Access denied!", show_alert=True)
+        return
+    
+    # List providers by status
+    if data.startswith("admin_list_"):
+        status = data.replace("admin_list_", "")
+        page = context.user_data.get("admin_page", 0)
+        
+        providers = db.get_providers_by_status(status, limit=5, offset=page * 5)
+        total = db.get_provider_count_by_status(status)
+        
+        if not providers:
+            await query.edit_message_text(
+                f"📋 *No {status} providers found.*\n\n"
+                "Use the button below to go back.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 Back to Panel", callback_data="admin_back")]
+                ]),
+                parse_mode="Markdown"
+            )
+            return
+        
+        status_labels = {
+            'unverified': '❓ Unverified',
+            'active': '🟢 Listed/Active',
+            'inactive': '⚫ Unlisted',
+            'all': '📋 All'
+        }
+        
+        text = f"*{status_labels.get(status, status)} Providers*\n"
+        text += f"Showing {page * 5 + 1}-{min((page + 1) * 5, total)} of {total}\n"
+        text += "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        
+        keyboard = []
+        for p in providers:
+            name = p.get('display_name', 'Unknown')
+            city = p.get('city', '?')
+            verified = "✔️" if p.get('is_verified') else "❓"
+            listed = "🟢" if p.get('is_active') else "⚫"
+            
+            text += f"{verified}{listed} *{name}* ({city})\n"
+            
+            # Action buttons for each provider
+            pid = p.get('telegram_id')
+            actions = []
+            if not p.get('is_verified'):
+                actions.append(InlineKeyboardButton("✅ Verify", callback_data=f"admin_verify_{pid}"))
+            if p.get('is_active'):
+                actions.append(InlineKeyboardButton("⚫ Unlist", callback_data=f"admin_unlist_{pid}"))
+            else:
+                actions.append(InlineKeyboardButton("🟢 List", callback_data=f"admin_list_{pid}"))
+            
+            if actions:
+                keyboard.append(actions)
+        
+        # Pagination
+        nav_row = []
+        if page > 0:
+            nav_row.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"admin_page_{status}_{page - 1}"))
+        if (page + 1) * 5 < total:
+            nav_row.append(InlineKeyboardButton("➡️ Next", callback_data=f"admin_page_{status}_{page + 1}"))
+        if nav_row:
+            keyboard.append(nav_row)
+        
+        keyboard.append([InlineKeyboardButton("🔙 Back to Panel", callback_data="admin_back")])
+        
+        await query.edit_message_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+        return
+    
+    # Pagination
+    if data.startswith("admin_page_"):
+        parts = data.split("_")
+        status = parts[2]
+        page = int(parts[3])
+        context.user_data["admin_page"] = page
+        # Trigger the list again
+        query.data = f"admin_list_{status}"
+        return await admin_callback(update, context)
+    
+    # Verify provider
+    if data.startswith("admin_verify_"):
+        pid = int(data.replace("admin_verify_", ""))
+        db.verify_provider(pid, True)
+        
+        # Notify the provider
+        provider = db.get_provider(pid)
+        try:
+            await context.bot.send_message(
+                chat_id=pid,
+                text="✅ *Verification Approved!*\n\n"
+                     "🎉 You now have the Blue Tick ✔️\n\n"
+                     "Your profile has been verified by admin.",
+                parse_mode="Markdown"
+            )
+        except:
+            pass
+        
+        await query.answer(f"✅ Verified {provider.get('display_name', 'Unknown')}!", show_alert=True)
+        
+        # Refresh the list
+        query.data = "admin_list_unverified"
+        return await admin_callback(update, context)
+    
+    # List provider (set active)
+    if data.startswith("admin_list_") and "_" in data[11:]:
+        pid = int(data.replace("admin_list_", ""))
+        db.set_provider_active_status(pid, True)
+        
+        provider = db.get_provider(pid)
+        try:
+            await context.bot.send_message(
+                chat_id=pid,
+                text="🟢 *You're Now Listed!*\n\n"
+                     "Your profile is now visible on the website.",
+                parse_mode="Markdown"
+            )
+        except:
+            pass
+        
+        await query.answer(f"🟢 Listed {provider.get('display_name', 'Unknown')}!", show_alert=True)
+        query.data = "admin_list_inactive"
+        return await admin_callback(update, context)
+    
+    # Unlist provider
+    if data.startswith("admin_unlist_"):
+        pid = int(data.replace("admin_unlist_", ""))
+        db.set_provider_active_status(pid, False)
+        
+        provider = db.get_provider(pid)
+        try:
+            await context.bot.send_message(
+                chat_id=pid,
+                text="⚫ *Profile Unlisted*\n\n"
+                     "Your profile has been removed from the website by admin.",
+                parse_mode="Markdown"
+            )
+        except:
+            pass
+        
+        await query.answer(f"⚫ Unlisted {provider.get('display_name', 'Unknown')}!", show_alert=True)
+        query.data = "admin_list_active"
+        return await admin_callback(update, context)
+    
+    # Back to panel
+    if data == "admin_back":
+        context.user_data["admin_page"] = 0
+        unverified = db.get_provider_count_by_status('unverified')
+        active = db.get_provider_count_by_status('active')
+        inactive = db.get_provider_count_by_status('inactive')
+        total = db.get_provider_count_by_status('all')
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton(f"❓ Unverified ({unverified})", callback_data="admin_list_unverified")],
+            [InlineKeyboardButton(f"🟢 Listed/Active ({active})", callback_data="admin_list_active")],
+            [InlineKeyboardButton(f"⚫ Unlisted ({inactive})", callback_data="admin_list_inactive")],
+            [InlineKeyboardButton(f"📋 All Providers ({total})", callback_data="admin_list_all")],
+        ])
+        
+        await query.edit_message_text(
+            "🛠️ *Admin Panel*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Select a category to manage:\n",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+
+
 # ==================== HANDLER REGISTRATION ====================
 
 def register_handlers(application):
     """Registers all admin-related handlers with the application."""
+    from telegram.ext import CallbackQueryHandler
     
     application.add_handler(CommandHandler("partner", partner))
     application.add_handler(CommandHandler("maintenance", maintenance))
     application.add_handler(CommandHandler("broadcast", broadcast))
+    application.add_handler(CommandHandler("admin", admin_panel))
+    
+    # Admin callbacks
+    application.add_handler(CallbackQueryHandler(
+        admin_callback,
+        pattern="^admin_"
+    ))
+

@@ -528,3 +528,93 @@ class Database:
         except Exception as e:
             logger.error(f"❌ Error getting provider IDs: {e}")
             return []
+    
+    # ==================== ADMIN FUNCTIONS ====================
+    
+    def get_providers_by_status(self, status_type: str, limit: int = 10, offset: int = 0):
+        """
+        Gets providers filtered by status type.
+        status_type: 'unverified', 'verified', 'active', 'inactive', 'all'
+        Returns list of provider dicts with basic info.
+        """
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                if status_type == 'unverified':
+                    cur.execute("""
+                        SELECT telegram_id, display_name, city, is_verified, is_active, created_at
+                        FROM providers 
+                        WHERE is_verified = FALSE
+                        ORDER BY created_at DESC
+                        LIMIT %s OFFSET %s
+                    """, (limit, offset))
+                elif status_type == 'verified':
+                    cur.execute("""
+                        SELECT telegram_id, display_name, city, is_verified, is_active, created_at
+                        FROM providers 
+                        WHERE is_verified = TRUE
+                        ORDER BY created_at DESC
+                        LIMIT %s OFFSET %s
+                    """, (limit, offset))
+                elif status_type == 'active':
+                    cur.execute("""
+                        SELECT telegram_id, display_name, city, is_verified, is_active, created_at
+                        FROM providers 
+                        WHERE is_active = TRUE
+                        ORDER BY created_at DESC
+                        LIMIT %s OFFSET %s
+                    """, (limit, offset))
+                elif status_type == 'inactive':
+                    cur.execute("""
+                        SELECT telegram_id, display_name, city, is_verified, is_active, created_at
+                        FROM providers 
+                        WHERE is_active = FALSE
+                        ORDER BY created_at DESC
+                        LIMIT %s OFFSET %s
+                    """, (limit, offset))
+                else:  # 'all'
+                    cur.execute("""
+                        SELECT telegram_id, display_name, city, is_verified, is_active, created_at
+                        FROM providers 
+                        ORDER BY created_at DESC
+                        LIMIT %s OFFSET %s
+                    """, (limit, offset))
+                
+                return cur.fetchall()
+        except Exception as e:
+            logger.error(f"❌ Error getting providers by status: {e}")
+            return []
+    
+    def get_provider_count_by_status(self, status_type: str):
+        """Gets total count of providers by status type."""
+        try:
+            with self.conn.cursor() as cur:
+                if status_type == 'unverified':
+                    cur.execute("SELECT COUNT(*) FROM providers WHERE is_verified = FALSE")
+                elif status_type == 'verified':
+                    cur.execute("SELECT COUNT(*) FROM providers WHERE is_verified = TRUE")
+                elif status_type == 'active':
+                    cur.execute("SELECT COUNT(*) FROM providers WHERE is_active = TRUE")
+                elif status_type == 'inactive':
+                    cur.execute("SELECT COUNT(*) FROM providers WHERE is_active = FALSE")
+                else:
+                    cur.execute("SELECT COUNT(*) FROM providers")
+                
+                return cur.fetchone()[0]
+        except Exception as e:
+            logger.error(f"❌ Error getting provider count: {e}")
+            return 0
+    
+    def set_provider_active_status(self, tg_id, is_active: bool):
+        """Sets provider's is_active status (list/unlist from site)."""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE providers SET is_active = %s WHERE telegram_id = %s",
+                    (is_active, tg_id)
+                )
+                self.conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"❌ Error setting active status: {e}")
+            return False
+
