@@ -52,7 +52,7 @@ class Database:
                 if city and city.lower() != "all" and neighborhood:
                     cur.execute("""
                         SELECT id, telegram_id, display_name, city, neighborhood, is_online, phone,
-                               age, height_cm, weight_kg, build, services, bio, created_at
+                               age, height_cm, weight_kg, build, services, bio, created_at, profile_photos
                         FROM providers
                         WHERE is_verified = TRUE AND is_active = TRUE 
                               AND city = %s AND neighborhood = %s
@@ -64,7 +64,7 @@ class Database:
                 elif city and city.lower() != "all":
                     cur.execute("""
                         SELECT id, telegram_id, display_name, city, neighborhood, is_online, phone,
-                               age, height_cm, weight_kg, build, services, bio, created_at
+                               age, height_cm, weight_kg, build, services, bio, created_at, profile_photos
                         FROM providers
                         WHERE is_verified = TRUE AND is_active = TRUE AND city = %s
                         ORDER BY 
@@ -76,7 +76,7 @@ class Database:
                 else:
                     cur.execute("""
                         SELECT id, telegram_id, display_name, city, neighborhood, is_online, phone,
-                               age, height_cm, weight_kg, build, services, bio, created_at
+                               age, height_cm, weight_kg, build, services, bio, created_at, profile_photos
                         FROM providers
                         WHERE is_verified = TRUE AND is_active = TRUE
                         ORDER BY 
@@ -143,7 +143,7 @@ class Database:
             with self.conn.cursor() as cur:
                 cur.execute("""
                     SELECT id, telegram_id, display_name, city, neighborhood, is_online,
-                           age, height_cm, weight_kg, build, services, bio, nearby_places
+                           age, height_cm, weight_kg, build, services, bio, nearby_places, profile_photos
                     FROM providers
                     WHERE id = %s AND is_verified = TRUE AND is_active = TRUE
                 """, (provider_id,))

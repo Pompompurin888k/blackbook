@@ -21,6 +21,60 @@ db = Database()
 # Telegram Bot Token for sending notifications
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
+# Photo cache (in-memory for now, consider Redis for production)
+photo_url_cache = {}
+
+
+@app.get("/photo/{file_id}")
+async def get_photo(file_id: str):
+    """
+    Proxy endpoint to serve Telegram photos.
+    Fetches file path from Telegram API and redirects to the actual file URL.
+    Caches results to minimize API calls.
+    """
+    # Check cache first
+    if file_id in photo_url_cache:
+        return RedirectResponse(url=photo_url_cache[file_id], status_code=302)
+    
+    if not TELEGRAM_BOT_TOKEN:
+        logger.warning("⚠️ TELEGRAM_TOKEN not set, cannot fetch photo")
+        # Return a placeholder image
+        return RedirectResponse(
+            url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800",
+            status_code=302
+        )
+    
+    try:
+        # Get file path from Telegram
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile",
+                params={"file_id": file_id}
+            )
+            data = response.json()
+            
+            if data.get("ok") and data.get("result", {}).get("file_path"):
+                file_path = data["result"]["file_path"]
+                file_url = f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
+                
+                # Cache the URL
+                photo_url_cache[file_id] = file_url
+                
+                return RedirectResponse(url=file_url, status_code=302)
+            else:
+                logger.warning(f"⚠️ Failed to get file path for {file_id}: {data}")
+                return RedirectResponse(
+                    url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800",
+                    status_code=302
+                )
+    except Exception as e:
+        logger.error(f"❌ Error fetching photo {file_id}: {e}")
+        return RedirectResponse(
+            url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800",
+            status_code=302
+        )
+
+
 # Available cities and neighborhoods
 CITIES = ["Nairobi", "Eldoret", "Mombasa"]
 

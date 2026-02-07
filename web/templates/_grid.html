@@ -1,4 +1,4 @@
-{% set images = [
+{% set fallback_images = [
 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=800',
 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=800',
 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800',
@@ -13,7 +13,14 @@
 
 {% if providers %}
 {% for provider in providers %}
-{% set img_url = images[(loop.index0) % 10] %}
+{# Use real photo if available, otherwise use fallback placeholder #}
+{% if provider.profile_photos and provider.profile_photos|length > 0 %}
+{% set img_url = '/photo/' ~ provider.profile_photos[0] %}
+{% set all_photos = provider.profile_photos %}
+{% else %}
+{% set img_url = fallback_images[(loop.index0) % 10] %}
+{% set all_photos = [] %}
+{% endif %}
 <!-- Provider Card -->
 <div class="group cursor-pointer animate-fade-in-up delay-{{ (loop.index0 % 5) * 100 }} card-hover-lift" data-provider='{{ {
         "id": provider.id,
@@ -23,6 +30,7 @@
         "location": provider.neighborhood or provider.city,
         "telegram_id": provider.telegram_id,
         "img_url": img_url,
+        "photos": all_photos,
         "is_online": provider.is_online or false,
         "age": provider.age or 24,
         "height": provider.height_cm or 170,
@@ -38,9 +46,9 @@
         <!-- Profile Image with Lazy Loading + Hover Zoom + Blur-up -->
         <img src="{{ img_url }}" loading="lazy"
             class="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500 image-loading"
-            alt="{{ provider.display_name }}" 
+            alt="{{ provider.display_name }}"
             onload="this.classList.remove('image-loading'); this.classList.add('image-loaded');"
-            style="background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);">
+            style="background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%)">
         <!-- Badges Container -->
         <div class="absolute top-3 right-3 z-10 flex flex-col gap-1.5 items-end">
             <!-- Live Badge (Only for online providers) -->
@@ -51,29 +59,29 @@
                 <span class="text-[8px] text-green-400 font-bold uppercase">Live</span>
             </div>
             {% endif %}
-            
+
             <!-- New/Fresh Badge -->
             {% if provider.created_at %}
-                {% set days_ago = (now() - provider.created_at).days %}
-                {% if days_ago <= 7 %}
-                <span class="bg-[#D4AF37] text-black px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider badge-animate">
-                    New
+            {% set days_ago = (now() - provider.created_at).days %}
+            {% if days_ago <= 7 %} <span
+                class="bg-[#D4AF37] text-black px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider badge-animate">
+                New
                 </span>
-                {% elif days_ago <= 30 %}
-                <span class="glass px-2 py-0.5 rounded-full text-[8px] text-[#D4AF37] font-medium uppercase tracking-wider border border-[#D4AF37]/20 badge-animate">
+                {% elif days_ago <= 30 %} <span
+                    class="glass px-2 py-0.5 rounded-full text-[8px] text-[#D4AF37] font-medium uppercase tracking-wider border border-[#D4AF37]/20 badge-animate">
                     Fresh
-                </span>
-                {% endif %}
-            {% endif %}
-            
-            <!-- Blue Tick Badge -->
-            <div class="glass p-1 rounded-full">
-                <svg class="w-3.5 h-3.5 text-[#00A3FF]" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293l-4 4a1 1 0 01-1.414 0l-2-2a1 1 0 111.414-1.414L9 10.586l3.293-3.293a1 1 0 011.414 1.414z">
-                    </path>
-                </svg>
-            </div>
+                    </span>
+                    {% endif %}
+                    {% endif %}
+
+                    <!-- Blue Tick Badge -->
+                    <div class="glass p-1 rounded-full">
+                        <svg class="w-3.5 h-3.5 text-[#00A3FF]" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293l-4 4a1 1 0 01-1.414 0l-2-2a1 1 0 111.414-1.414L9 10.586l3.293-3.293a1 1 0 011.414 1.414z">
+                            </path>
+                        </svg>
+                    </div>
         </div>
         <!-- Content Overlay -->
         <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/80 to-transparent">
