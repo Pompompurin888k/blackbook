@@ -268,7 +268,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             if p.get('is_active'):
                 actions.append(InlineKeyboardButton("⚫ Unlist", callback_data=f"admin_unlist_{pid}"))
             else:
-                actions.append(InlineKeyboardButton("🟢 List", callback_data=f"admin_list_{pid}"))
+                actions.append(InlineKeyboardButton("🟢 List", callback_data=f"admin_activate_{pid}"))
             
             if actions:
                 keyboard.append(actions)
@@ -325,9 +325,9 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         query.data = "admin_list_unverified"
         return await admin_callback(update, context)
     
-    # List provider (set active)
-    if data.startswith("admin_list_") and "_" in data[11:]:
-        pid = int(data.replace("admin_list_", ""))
+    # List/Activate provider (set active)
+    if data.startswith("admin_activate_"):
+        pid = int(data.replace("admin_activate_", ""))
         db.set_provider_active_status(pid, True)
         
         provider = db.get_provider(pid)
