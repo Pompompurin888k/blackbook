@@ -3,7 +3,7 @@ Blackbook Bot - Authentication Handlers
 Handles: /start, /register, /verify, /myprofile, verification callbacks
 """
 import logging
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler,
     MessageHandler,
@@ -1239,23 +1239,19 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
     
     lang_count = len(languages_list)
     await update.message.reply_text(
-        f"✅ *Profile Information Saved!*\n\n"
-        f"📊 Your profile has been saved to the database:\n"
-        f"• {photo_count} photos uploaded{bonus_msg}\n"
-        f"• Hourly rates configured\n"
-        f"• {lang_count} language(s) added\n\n"
+        f"✅ *Profile Saved Successfully!*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "📝 *You can view and edit your profile anytime using:*\n"
-        "👤 My Profile → ✏️ Edit Profile\n\n"
+        f"📸 {photo_count} photos uploaded{bonus_msg}\n"
+        f"💰 Rates configured\n"
+        f"🌍 {lang_count} language(s) set\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "🚀 *To Go Live on innbucks.org:*\n\n"
-        "1️⃣ *Get Verified* (Blue Tick)\n"
-        "   → Use: 👤 My Profile → 📸 Get Verified\n"
-        "   → Admin reviews within 2-4 hours\n\n"
-        "2️⃣ *Activate Subscription*\n"
-        "   → Use: 💰 Top up Balance\n"
-        "   → 300 KES for 3 days\n\n"
-        "💡 Once verified and paid, your profile goes live automatically!",
+        "⏳ *Awaiting Admin Approval*\n\n"
+        "Your profile will be reviewed within *30 minutes*.\n"
+        "You'll receive a notification once approved!\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "💡 *While you wait:*\n"
+        "• Use 👤 My Profile to view/edit your info\n"
+        "• Use 💰 Top up Balance to activate your listing",
         parse_mode="Markdown",
         reply_markup=get_persistent_main_menu()
     )
@@ -1428,8 +1424,11 @@ async def edit_section_callback(update: Update, context: ContextTypes.DEFAULT_TY
             "📝 *Edit Basic Info*\n\n"
             f"Current name: *{provider.get('display_name', 'Not set')}*\n"
             f"Location: *{provider.get('neighborhood', '')}, {provider.get('city', '')}*\n\n"
-            "Send your new stage name to update it:\n"
-            "_(or send 'skip' to keep current)_",
+            "Send your new stage name to update it:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("⏭️ Skip", callback_data="edit_cancel")],
+                [InlineKeyboardButton("❌ Cancel", callback_data="edit_cancel")]
+            ]),
             parse_mode="Markdown"
         )
         context.user_data["editing"] = "name"
@@ -1442,8 +1441,10 @@ async def edit_section_callback(update: Update, context: ContextTypes.DEFAULT_TY
             f"Height: {provider.get('height_cm', '—')} cm\n"
             f"Weight: {provider.get('weight_kg', '—')} kg\n"
             f"Build: {provider.get('build', '—')}\n\n"
-            "Send your new age to start updating:\n"
-            "_(or send 'skip' to keep current)_",
+            "Send your new age to start updating:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("❌ Cancel", callback_data="edit_cancel")]
+            ]),
             parse_mode="Markdown"
         )
         context.user_data["editing"] = "age"
@@ -1456,8 +1457,10 @@ async def edit_section_callback(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text(
             "💬 *Edit Bio*\n\n"
             f"Current: _{current_bio}_\n\n"
-            "Send your new bio:\n"
-            "_(or send 'cancel' to go back)_",
+            "Send your new bio:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("❌ Cancel", callback_data="edit_cancel")]
+            ]),
             parse_mode="Markdown"
         )
         context.user_data["editing"] = "bio"
@@ -1481,8 +1484,10 @@ async def edit_section_callback(update: Update, context: ContextTypes.DEFAULT_TY
             "`1hr: 5000`\n"
             "`2hr: 8500`\n"
             "`3hr: 12000`\n"
-            "`overnight: 20000`\n\n"
-            "_(or send 'cancel' to go back)_",
+            "`overnight: 20000`",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("❌ Cancel", callback_data="edit_cancel")]
+            ]),
             parse_mode="Markdown"
         )
         context.user_data["editing"] = "rates"
@@ -1499,7 +1504,143 @@ async def edit_section_callback(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
 
-# ==================== HANDLER REGISTRATION ====================
+async def handle_edit_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles text input when user is editing a profile section."""
+    editing = context.user_data.get("editing")
+    
+    if not editing:
+        return  # Not in edit mode, let other handlers process
+    
+    user = update.effective_user
+    db = get_db()
+    text = update.message.text.strip()
+    
+    # Handle cancel
+    if text.lower() == "cancel" or text.lower() == "skip":
+        context.user_data.pop("editing", None)
+        provider = db.get_provider(user.id)
+        await update.message.reply_text(
+            format_full_profile_text(provider),
+            reply_markup=get_full_profile_keyboard(provider),
+            parse_mode="Markdown"
+        )
+        return
+    
+    # Process based on what we're editing
+    if editing == "name":
+        db.update_provider_profile(user.id, {"display_name": text})
+        await update.message.reply_text(
+            f"✅ *Name Updated!*\n\nYour stage name is now: *{text}*",
+            parse_mode="Markdown"
+        )
+    
+    elif editing == "bio":
+        db.update_provider_profile(user.id, {"bio": text})
+        await update.message.reply_text(
+            f"✅ *Bio Updated!*\n\nYour new bio has been saved.",
+            parse_mode="Markdown"
+        )
+    
+    elif editing == "age":
+        try:
+            age = int(text)
+            if age < 18 or age > 65:
+                await update.message.reply_text("⚠️ Age must be between 18-65. Try again:")
+                return
+            db.update_provider_profile(user.id, {"age": age})
+            await update.message.reply_text(
+                f"✅ *Age Updated!*\n\nNow send your height in cm (e.g. 165):",
+                parse_mode="Markdown"
+            )
+            context.user_data["editing"] = "height"
+            return
+        except ValueError:
+            await update.message.reply_text("⚠️ Please enter a valid number for age:")
+            return
+    
+    elif editing == "height":
+        try:
+            height = int(text)
+            db.update_provider_profile(user.id, {"height_cm": height})
+            await update.message.reply_text(
+                f"✅ *Height Updated!*\n\nNow send your weight in kg:",
+                parse_mode="Markdown"
+            )
+            context.user_data["editing"] = "weight"
+            return
+        except ValueError:
+            await update.message.reply_text("⚠️ Please enter a valid number for height:")
+            return
+    
+    elif editing == "weight":
+        try:
+            weight = int(text)
+            db.update_provider_profile(user.id, {"weight_kg": weight})
+            await update.message.reply_text(
+                f"✅ *Stats Updated!*\n\nAge, height and weight have been saved.",
+                parse_mode="Markdown"
+            )
+        except ValueError:
+            await update.message.reply_text("⚠️ Please enter a valid number for weight:")
+            return
+    
+    elif editing == "rates":
+        import re
+        lines = text.split("\n")
+        rates = {}
+        for line in lines:
+            match = re.match(r"(\w+):\s*(\d+)", line)
+            if match:
+                period, amount = match.groups()
+                if "30" in period:
+                    rates["rate_30min"] = int(amount)
+                elif "1" in period:
+                    rates["rate_1hr"] = int(amount)
+                elif "2" in period:
+                    rates["rate_2hr"] = int(amount)
+                elif "3" in period:
+                    rates["rate_3hr"] = int(amount)
+                elif "over" in period.lower():
+                    rates["rate_overnight"] = int(amount)
+        
+        if rates:
+            db.update_provider_profile(user.id, rates)
+            await update.message.reply_text(
+                "✅ *Rates Updated!*\n\nYour new rates have been saved.",
+                parse_mode="Markdown"
+            )
+        else:
+            await update.message.reply_text("⚠️ Could not parse rates. Use format:\n`30min: 3000`\n`1hr: 5000`", parse_mode="Markdown")
+            return
+    
+    # Clear editing state and show profile
+    context.user_data.pop("editing", None)
+    provider = db.get_provider(user.id)
+    await update.message.reply_text(
+        format_full_profile_text(provider),
+        reply_markup=get_full_profile_keyboard(provider),
+        parse_mode="Markdown"
+    )
+
+
+async def edit_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles cancel/skip button during edit mode."""
+    query = update.callback_query
+    await query.answer()
+    
+    user = query.from_user
+    db = get_db()
+    
+    context.user_data.pop("editing", None)
+    
+    provider = db.get_provider(user.id)
+    await query.edit_message_text(
+        format_full_profile_text(provider),
+        reply_markup=get_full_profile_keyboard(provider),
+        parse_mode="Markdown"
+    )
+
+
 
 def register_handlers(application):
     """Registers all auth-related handlers with the application."""
@@ -1617,6 +1758,18 @@ def register_handlers(application):
         menu_callback,
         pattern="^menu_(main|profile|verify_start|verify_go|status)$"
     ))
+    
+    # Edit cancel callback
+    application.add_handler(CallbackQueryHandler(
+        edit_cancel_callback,
+        pattern="^edit_cancel$"
+    ))
+    
+    # Edit input handler (catch text when in edit mode - runs before menu handler)
+    application.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        handle_edit_input
+    ), group=0)
     
     # Persistent menu button handler (add at lower priority to not interfere with conversations)
     application.add_handler(MessageHandler(
