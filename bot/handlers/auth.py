@@ -67,7 +67,7 @@ def get_db():
 # ==================== /START COMMAND ====================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handles the /start command with premium welcome message."""
+    """Handles the /start command with premium welcome message and referral deep links."""
     logger.info(f"🚀 /start command received from user {update.effective_user.id}")
     user = update.effective_user
     db = get_db()
@@ -77,11 +77,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("⚠️ System error. Please try again.")
         return
     
+    # Check for referral deep link: /start ref_BBXXXXXX
+    referral_code = None
+    if context.args and len(context.args) > 0:
+        arg = context.args[0]
+        if arg.startswith("ref_"):
+            referral_code = arg.replace("ref_", "").upper()
+            context.user_data["referral_code"] = referral_code
+            logger.info(f"🤝 Referral code detected: {referral_code}")
+    
     logger.info(f"📊 Looking up provider for user {user.id}")
     provider = db.get_provider(user.id)
     
     if provider:
         logger.info(f"👋 Returning user: {provider.get('display_name', 'Unknown')}")
+        # Update stored username in case it changed
+        if user.username and provider.get("telegram_username") != user.username:
+            db.update_provider_profile(user.id, {"telegram_username": user.username})
         # Existing user - show status with persistent menu
         await update.message.reply_text(
             format_returning_user_message(provider),
@@ -91,8 +103,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         logger.info(f"🆕 New user: {user.first_name}")
         # New user - full welcome with persistent menu
+        welcome_extra = ""
+        if referral_code:
+            referrer = db.get_referrer_by_code(referral_code)
+            if referrer:
+                welcome_extra = f"\n\n🤝 _Referred by {referrer.get('display_name', 'a friend')}_"
+        
         await update.message.reply_text(
-            format_welcome_message(),
+            format_welcome_message() + welcome_extra,
             reply_markup=get_persistent_main_menu(),
             parse_mode="Markdown"
         )
@@ -172,12 +190,33 @@ async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await safety_menu(update, context)
     
     elif text == "🤝 Affiliate Program":
+        provider = db.get_provider(user.id)
+        if not provider:
+            await update.message.reply_text(
+                "⚠️ Please register first to access the Affiliate Program.",
+                reply_markup=get_persistent_main_menu()
+            )
+            return
+        
+        # Generate or retrieve referral code
+        ref_code = db.generate_referral_code(user.id)
+        stats = db.get_referral_stats(user.id)
+        
+        bot_username = (await context.bot.get_me()).username
+        ref_link = f"https://t.me/{bot_username}?start=ref_{ref_code}"
+        
         await update.message.reply_text(
             "💰 *Affiliate Program*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "🚀 Coming Soon!\n\n"
-            "Earn commissions by referring providers to Blackbook.\n\n"
-            "Stay tuned for launch details.",
+            "Earn rewards by referring new providers!\n\n"
+            "🎁 *Your Rewards:*\n"
+            "• 1 free day added per signup\n"
+            "• 20% commission credit on their first payment\n\n"
+            f"🔗 *Your Referral Link:*\n"
+            f"`{ref_link}`\n\n"
+            f"👥 *Total Referrals:* {stats.get('total_referred', 0)}\n"
+            f"💰 *Credits Earned:* {stats.get('credits', 0)} KES\n\n"
+            "_Share your link — earn every time they subscribe!_",
             parse_mode="Markdown",
             reply_markup=get_persistent_main_menu()
         )
@@ -324,6 +363,18 @@ async def stage_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     
     context.user_data["stage_name"] = stage_name_input
     db.add_provider(user.id, stage_name_input)
+    
+    # Store Telegram username for contact links on the website
+    if user.username:
+        db.update_provider_profile(user.id, {"telegram_username": user.username})
+    
+    # Apply referral if they came via a referral link
+    referral_code = context.user_data.pop("referral_code", None)
+    if referral_code:
+        referrer = db.get_referrer_by_code(referral_code)
+        if referrer and referrer["telegram_id"] != user.id:
+            db.set_referred_by(user.id, referrer["telegram_id"])
+            logger.info(f"🤝 User {user.id} referred by {referrer['telegram_id']}")
     
     await update.message.reply_text(
         f"✅ Excellent, *{stage_name_input}*.\n\n"

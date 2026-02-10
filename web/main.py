@@ -275,13 +275,17 @@ async def contact_direct(provider_id: int):
         return RedirectResponse(url="/", status_code=302)
     
     telegram_id = provider.get("telegram_id")
+    username = provider.get("telegram_username")
     name = provider.get("display_name", "")
     message = f"Hi {name}, I found you on Blackbook. Are you available?"
     
     logger.info(f"📲 Direct contact: {provider_id} ({name})")
-    # Note: t.me/ links require a username, not a numeric ID.
-    # Using the numeric ID won't open a chat. Consider storing usernames.
-    return RedirectResponse(url=f"https://t.me/{telegram_id}?text={message.replace(' ', '%20')}", status_code=302)
+    
+    if username:
+        return RedirectResponse(url=f"https://t.me/{username}?text={message.replace(' ', '%20')}", status_code=302)
+    else:
+        # Fallback: tg://user deep link (works on mobile/desktop Telegram)
+        return RedirectResponse(url=f"tg://openmessage?user_id={telegram_id}", status_code=302)
 
 
 @app.get("/contact/{provider_id}/discreet")
@@ -293,12 +297,17 @@ async def contact_discreet(provider_id: int):
         return RedirectResponse(url="/", status_code=302)
     
     telegram_id = provider.get("telegram_id")
+    username = provider.get("telegram_username")
     name = provider.get("display_name", "")
     # Discreet message that doesn't mention Blackbook or the nature of service
     message = "Hi, is this a good time to talk?"
     
     logger.info(f"🔒 Discreet contact: {provider_id} ({name})")
-    return RedirectResponse(url=f"https://t.me/{telegram_id}?text={message.replace(' ', '%20')}", status_code=302)
+    
+    if username:
+        return RedirectResponse(url=f"https://t.me/{username}?text={message.replace(' ', '%20')}", status_code=302)
+    else:
+        return RedirectResponse(url=f"tg://openmessage?user_id={telegram_id}", status_code=302)
 
 
 # ==================== PAYMENT CALLBACK ====================
@@ -337,6 +346,29 @@ async def megapay_callback(request: Request):
             # Activate subscription
             db.activate_subscription(telegram_id, package_days)
             db.log_payment(telegram_id, amount, reference, "SUCCESS", package_days)
+            
+            # === REFERRAL REWARD ===
+            # If this provider was referred, reward the referrer
+            provider_data = db.get_provider_by_telegram_id(telegram_id)
+            referrer_id = provider_data.get("referred_by") if provider_data else None
+            if referrer_id:
+                try:
+                    commission = int(float(amount or 0) * 0.20)  # 20% commission as credit
+                    if commission > 0:
+                        db.add_referral_credits(referrer_id, commission)
+                    # Also give 1 free day
+                    db.extend_subscription(referrer_id, 1)
+                    await send_telegram_notification(
+                        referrer_id,
+                        f"🎁 **Referral Reward!**\n\n"
+                        f"Someone you referred just subscribed!\n"
+                        f"💰 +{commission} KES credit added\n"
+                        f"📅 +1 bonus day added\n\n"
+                        f"Keep sharing your link to earn more! 🤝"
+                    )
+                    logger.info(f"🤝 Referral reward: {commission} KES credit + 1 day to {referrer_id}")
+                except Exception as ref_err:
+                    logger.error(f"⚠️ Referral reward error (non-fatal): {ref_err}")
             
             # Fetch provider info for enhanced notification
             provider = db.get_provider_by_telegram_id(telegram_id)

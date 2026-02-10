@@ -53,7 +53,8 @@ class Database:
             credits INT DEFAULT 0,
             expiry_date TIMESTAMP,
             verification_photo_id TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            telegram_username VARCHAR(100)
         );
         """
         
@@ -152,6 +153,31 @@ class Database:
             -- LANGUAGES SPOKEN
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='languages') THEN
                 ALTER TABLE providers ADD COLUMN languages JSONB;
+            END IF;
+            
+            -- TELEGRAM USERNAME
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='telegram_username') THEN
+                ALTER TABLE providers ADD COLUMN telegram_username VARCHAR(100);
+            END IF;
+            
+            -- BUSINESS MODEL COLUMNS
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='subscription_tier') THEN
+                ALTER TABLE providers ADD COLUMN subscription_tier VARCHAR(20) DEFAULT 'none';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='boost_until') THEN
+                ALTER TABLE providers ADD COLUMN boost_until TIMESTAMP;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='referral_code') THEN
+                ALTER TABLE providers ADD COLUMN referral_code VARCHAR(20) UNIQUE;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='referred_by') THEN
+                ALTER TABLE providers ADD COLUMN referred_by BIGINT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='referral_credits') THEN
+                ALTER TABLE providers ADD COLUMN referral_credits INT DEFAULT 0;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='is_premium_verified') THEN
+                ALTER TABLE providers ADD COLUMN is_premium_verified BOOLEAN DEFAULT FALSE;
             END IF;
         END $$;
         """
@@ -322,21 +348,6 @@ class Database:
             return False
 
     # ==================== SUBSCRIPTION METHODS ====================
-
-    def activate_subscription(self, tg_id, days: int):
-        """Activates provider subscription for X days. Sets is_active=TRUE and expiry_date."""
-        expiry = datetime.now() + timedelta(days=days)
-        query = "UPDATE providers SET is_active = TRUE, expiry_date = %s WHERE telegram_id = %s"
-        try:
-            with self.conn.cursor() as cur:
-                cur.execute(query, (expiry, tg_id))
-                self.conn.commit()
-                logger.info(f"✅ Activated subscription for {tg_id} until {expiry}")
-                return True
-        except Exception as e:
-            logger.error(f"❌ Error activating subscription: {e}")
-            self.conn.rollback()
-            return False
 
     def deactivate_expired_subscriptions(self):
         """Deactivates providers whose subscription has expired."""
@@ -627,5 +638,170 @@ class Database:
                 return True
         except Exception as e:
             logger.error(f"❌ Error setting active status: {e}")
+            return False
+
+    # ==================== BOOST METHODS ====================
+
+    def boost_provider(self, tg_id: int, hours: int = 12) -> bool:
+        """Boosts a provider's visibility for X hours."""
+        boost_until = datetime.now() + timedelta(hours=hours)
+        query = "UPDATE providers SET boost_until = %s WHERE telegram_id = %s"
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (boost_until, tg_id))
+                self.conn.commit()
+                logger.info(f"🚀 Provider {tg_id} boosted until {boost_until}")
+                return True
+        except Exception as e:
+            logger.error(f"❌ Error boosting provider: {e}")
+            self.conn.rollback()
+            return False
+
+    def is_boosted(self, tg_id: int) -> bool:
+        """Checks if a provider currently has an active boost."""
+        query = "SELECT boost_until FROM providers WHERE telegram_id = %s"
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (tg_id,))
+                result = cur.fetchone()
+                if result and result.get("boost_until"):
+                    return result["boost_until"] > datetime.now()
+                return False
+        except Exception as e:
+            logger.error(f"❌ Error checking boost: {e}")
+            return False
+
+    # ==================== REFERRAL METHODS ====================
+
+    def generate_referral_code(self, tg_id: int) -> str:
+        """Generates and stores a unique referral code for a provider."""
+        import random
+        import string
+        code = 'BB' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        query = "UPDATE providers SET referral_code = %s WHERE telegram_id = %s AND (referral_code IS NULL OR referral_code = '')"
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (code, tg_id))
+                if cur.rowcount == 0:
+                    # Already has a code, fetch it
+                    cur.execute("SELECT referral_code FROM providers WHERE telegram_id = %s", (tg_id,))
+                    result = cur.fetchone()
+                    self.conn.commit()
+                    return result["referral_code"] if result else code
+                self.conn.commit()
+                return code
+        except Exception as e:
+            logger.error(f"❌ Error generating referral code: {e}")
+            self.conn.rollback()
+            return code
+
+    def get_referrer_by_code(self, code: str):
+        """Finds the provider who owns a referral code."""
+        query = "SELECT telegram_id, display_name FROM providers WHERE referral_code = %s"
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (code.upper(),))
+                return cur.fetchone()
+        except Exception as e:
+            logger.error(f"❌ Error looking up referral code: {e}")
+            return None
+
+    def set_referred_by(self, tg_id: int, referrer_tg_id: int) -> bool:
+        """Records who referred this provider."""
+        query = "UPDATE providers SET referred_by = %s WHERE telegram_id = %s AND referred_by IS NULL"
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (referrer_tg_id, tg_id))
+                self.conn.commit()
+                return cur.rowcount > 0
+        except Exception as e:
+            logger.error(f"❌ Error setting referral: {e}")
+            self.conn.rollback()
+            return False
+
+    def add_referral_credits(self, tg_id: int, credits: int) -> bool:
+        """Adds referral credits (in KES) to a provider."""
+        query = "UPDATE providers SET referral_credits = COALESCE(referral_credits, 0) + %s WHERE telegram_id = %s"
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (credits, tg_id))
+                self.conn.commit()
+                logger.info(f"🎁 Added {credits} KES credit to provider {tg_id}")
+                return True
+        except Exception as e:
+            logger.error(f"❌ Error adding referral credits: {e}")
+            self.conn.rollback()
+            return False
+
+    def get_referral_stats(self, tg_id: int) -> dict:
+        """Gets referral statistics for a provider."""
+        stats = {"referral_code": None, "total_referred": 0, "credits": 0}
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("SELECT referral_code, referral_credits FROM providers WHERE telegram_id = %s", (tg_id,))
+                result = cur.fetchone()
+                if result:
+                    stats["referral_code"] = result.get("referral_code")
+                    stats["credits"] = result.get("referral_credits", 0) or 0
+                
+                cur.execute("SELECT COUNT(*) as count FROM providers WHERE referred_by = %s", (tg_id,))
+                result = cur.fetchone()
+                stats["total_referred"] = result["count"] if result else 0
+            return stats
+        except Exception as e:
+            logger.error(f"❌ Error getting referral stats: {e}")
+            return stats
+
+    def use_referral_credits(self, tg_id: int, amount: int) -> bool:
+        """Deducts referral credits. Returns False if insufficient."""
+        query = """UPDATE providers 
+                   SET referral_credits = referral_credits - %s 
+                   WHERE telegram_id = %s AND referral_credits >= %s"""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (amount, tg_id, amount))
+                self.conn.commit()
+                return cur.rowcount > 0
+        except Exception as e:
+            logger.error(f"❌ Error using referral credits: {e}")
+            self.conn.rollback()
+            return False
+
+    # ==================== PREMIUM VERIFICATION ====================
+
+    def set_premium_verified(self, tg_id: int) -> bool:
+        """Grants premium verification badge."""
+        query = "UPDATE providers SET is_premium_verified = TRUE WHERE telegram_id = %s"
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (tg_id,))
+                self.conn.commit()
+                logger.info(f"⭐ Premium verification granted to {tg_id}")
+                return True
+        except Exception as e:
+            logger.error(f"❌ Error setting premium verified: {e}")
+            self.conn.rollback()
+            return False
+
+    # ==================== SUBSCRIPTION TIER ====================
+
+    def activate_subscription(self, tg_id, days: int):
+        """Activates provider subscription for X days with tier name."""
+        from config import TIERS
+        expiry = datetime.now() + timedelta(days=days)
+        tier_info = TIERS.get(days, {})
+        tier_name = tier_info.get("name", "Bronze").lower()
+        query = """UPDATE providers 
+                   SET is_active = TRUE, expiry_date = %s, subscription_tier = %s 
+                   WHERE telegram_id = %s"""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (expiry, tier_name, tg_id))
+                self.conn.commit()
+                logger.info(f"✅ Activated {tier_name} subscription for {tg_id} until {expiry}")
+                return True
+        except Exception as e:
+            logger.error(f"❌ Error activating subscription: {e}")
+            self.conn.rollback()
             return False
 

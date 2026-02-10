@@ -96,10 +96,30 @@ LANGUAGES = [
 
 # Package pricing (days: KES)
 PACKAGES = {
-    1: 1,     # 1 day = 1 KES (TEST ONLY)
-    3: 300,   # 3 days = 300 KES
-    7: 600,   # 7 days = 600 KES (1 day FREE)
+    3: 300,    # Bronze — 3 days = 300 KES
+    7: 600,    # Silver — 7 days = 600 KES
+    30: 1500,  # Gold   — 30 days = 1,500 KES
+    90: 4000,  # Platinum — 90 days = 4,000 KES
 }
+
+# Tier names and perks
+TIERS = {
+    3:  {"name": "Bronze",   "emoji": "🥉", "perks": "Basic listing, text-only"},
+    7:  {"name": "Silver",   "emoji": "🥈", "perks": "Photos, live badge, neighborhood SEO"},
+    30: {"name": "Gold",     "emoji": "🥇", "perks": "Priority placement, Featured badge, recommendation boost"},
+    90: {"name": "Platinum", "emoji": "💎", "perks": "Top of search, homepage spotlight, analytics"},
+}
+
+# Boost pricing
+BOOST_PRICE = 100       # KES per boost
+BOOST_DURATION_HOURS = 12  # Hours of boost visibility
+
+# Referral rewards
+REFERRAL_REWARD_DAYS = 1      # Free days given to referrer per signup
+REFERRAL_COMMISSION_PCT = 20  # % commission on referred user's first payment (as credit)
+
+# Premium verification
+PREMIUM_VERIFY_PRICE = 500  # KES one-time for premium verification badge
 
 # Session durations (minutes)
 SESSION_DURATIONS = [30, 60, 90, 120]

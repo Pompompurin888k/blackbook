@@ -55,46 +55,52 @@ class Database:
         Fetches verified and active providers with smart ordering.
         Filters by city and/or neighborhood for high performance.
         Includes is_online for Live badge display.
-        Smart ordering: Online first, recently verified next, then alphabetical.
+        Smart ordering: Boosted first, then by tier (platinum>gold>silver>bronze),
+        online first within each tier, recently verified next, then alphabetical.
         """
         self._ensure_connection()
+        
+        # Common SELECT columns (includes tier/boost/premium fields)
+        cols = """id, telegram_id, display_name, city, neighborhood, is_online, phone,
+                  age, height_cm, weight_kg, build, services, bio, created_at, profile_photos,
+                  subscription_tier, boost_until, is_premium_verified"""
+        
+        # Smart ordering: boosted > tier priority > online > new > alphabetical
+        order = """
+            CASE WHEN boost_until > NOW() THEN 0 ELSE 1 END,
+            CASE subscription_tier
+                WHEN 'platinum' THEN 0
+                WHEN 'gold' THEN 1
+                WHEN 'silver' THEN 2
+                ELSE 3
+            END,
+            is_online DESC,
+            CASE WHEN created_at > NOW() - INTERVAL '30 days' THEN 0 ELSE 1 END,
+            display_name"""
+        
         try:
             with self.conn.cursor() as cur:
                 if city and city.lower() != "all" and neighborhood:
-                    cur.execute("""
-                        SELECT id, telegram_id, display_name, city, neighborhood, is_online, phone,
-                               age, height_cm, weight_kg, build, services, bio, created_at, profile_photos
+                    cur.execute(f"""
+                        SELECT {cols}
                         FROM providers
                         WHERE is_verified = TRUE AND is_active = TRUE 
                               AND city = %s AND neighborhood = %s
-                        ORDER BY 
-                            is_online DESC,
-                            CASE WHEN created_at > NOW() - INTERVAL '30 days' THEN 0 ELSE 1 END,
-                            display_name
+                        ORDER BY {order}
                     """, (city, neighborhood))
                 elif city and city.lower() != "all":
-                    cur.execute("""
-                        SELECT id, telegram_id, display_name, city, neighborhood, is_online, phone,
-                               age, height_cm, weight_kg, build, services, bio, created_at, profile_photos
+                    cur.execute(f"""
+                        SELECT {cols}
                         FROM providers
                         WHERE is_verified = TRUE AND is_active = TRUE AND city = %s
-                        ORDER BY 
-                            is_online DESC,
-                            CASE WHEN created_at > NOW() - INTERVAL '30 days' THEN 0 ELSE 1 END,
-                            neighborhood,
-                            display_name
+                        ORDER BY {order}
                     """, (city,))
                 else:
-                    cur.execute("""
-                        SELECT id, telegram_id, display_name, city, neighborhood, is_online, phone,
-                               age, height_cm, weight_kg, build, services, bio, created_at, profile_photos
+                    cur.execute(f"""
+                        SELECT {cols}
                         FROM providers
                         WHERE is_verified = TRUE AND is_active = TRUE
-                        ORDER BY 
-                            is_online DESC,
-                            CASE WHEN created_at > NOW() - INTERVAL '30 days' THEN 0 ELSE 1 END,
-                            city,
-                            display_name
+                        ORDER BY {order}
                     """)
                 return cur.fetchall()
         except Exception as e:
@@ -154,7 +160,8 @@ class Database:
             with self.conn.cursor() as cur:
                 cur.execute("""
                     SELECT id, telegram_id, display_name, city, neighborhood, is_online,
-                           age, height_cm, weight_kg, build, services, bio, nearby_places, profile_photos
+                           age, height_cm, weight_kg, build, services, bio, nearby_places, 
+                           profile_photos, telegram_username
                     FROM providers
                     WHERE id = %s AND is_verified = TRUE AND is_active = TRUE
                 """, (provider_id,))
@@ -179,17 +186,66 @@ class Database:
             return None
     
     def activate_subscription(self, tg_id: int, days: int) -> bool:
-        """Activates provider subscription for X days. Sets is_active=TRUE and expiry_date."""
+        """Activates provider subscription for X days with tier name."""
         expiry = datetime.now() + timedelta(days=days)
-        query = "UPDATE providers SET is_active = TRUE, expiry_date = %s WHERE telegram_id = %s"
+        # Map days to tier name
+        tier_map = {3: "bronze", 7: "silver", 30: "gold", 90: "platinum"}
+        tier_name = tier_map.get(days, "bronze")
+        query = """UPDATE providers 
+                   SET is_active = TRUE, expiry_date = %s, subscription_tier = %s 
+                   WHERE telegram_id = %s"""
         try:
             with self.conn.cursor() as cur:
-                cur.execute(query, (expiry, tg_id))
+                cur.execute(query, (expiry, tier_name, tg_id))
                 self.conn.commit()
-                logger.info(f"✅ Activated subscription for {tg_id} until {expiry}")
+                logger.info(f"✅ Activated {tier_name} subscription for {tg_id} until {expiry}")
                 return True
         except Exception as e:
             logger.error(f"❌ Error activating subscription: {e}")
+            self.conn.rollback()
+            return False
+
+    def extend_subscription(self, tg_id: int, days: int) -> bool:
+        """Extends an existing subscription by X days (for referral rewards)."""
+        query = """UPDATE providers 
+                   SET expiry_date = CASE 
+                       WHEN expiry_date > NOW() THEN expiry_date + INTERVAL '%s days'
+                       ELSE NOW() + INTERVAL '%s days'
+                   END,
+                   is_active = TRUE
+                   WHERE telegram_id = %s"""
+        try:
+            with self.conn.cursor() as cur:
+                # Can't use %s for INTERVAL, use string formatting for days
+                cur.execute(
+                    """UPDATE providers 
+                       SET expiry_date = CASE 
+                           WHEN expiry_date > NOW() THEN expiry_date + (%s || ' days')::INTERVAL
+                           ELSE NOW() + (%s || ' days')::INTERVAL
+                       END,
+                       is_active = TRUE
+                       WHERE telegram_id = %s""",
+                    (str(days), str(days), tg_id)
+                )
+                self.conn.commit()
+                logger.info(f"📅 Extended subscription for {tg_id} by {days} days")
+                return True
+        except Exception as e:
+            logger.error(f"❌ Error extending subscription: {e}")
+            self.conn.rollback()
+            return False
+
+    def add_referral_credits(self, tg_id: int, credits: int) -> bool:
+        """Adds referral credits (in KES) to a provider."""
+        query = "UPDATE providers SET referral_credits = COALESCE(referral_credits, 0) + %s WHERE telegram_id = %s"
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (credits, tg_id))
+                self.conn.commit()
+                logger.info(f"🎁 Added {credits} KES credit to provider {tg_id}")
+                return True
+        except Exception as e:
+            logger.error(f"❌ Error adding referral credits: {e}")
             self.conn.rollback()
             return False
 

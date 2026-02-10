@@ -13,7 +13,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import TOPUP_PHONE, TOPUP_CONFIRM, get_package_price, PACKAGES
+from config import TOPUP_PHONE, TOPUP_CONFIRM, get_package_price, PACKAGES, TIERS, BOOST_PRICE, BOOST_DURATION_HOURS, PREMIUM_VERIFY_PRICE
 from utils.keyboards import (
     get_package_keyboard,
     get_menu_package_keyboard,
@@ -21,6 +21,7 @@ from utils.keyboards import (
     get_topup_phone_confirm_keyboard,
     get_payment_failed_keyboard,
     get_back_button,
+    get_boost_keyboard,
 )
 from services.metapay import initiate_stk_push
 
@@ -48,15 +49,25 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
     # === TOPUP / GO LIVE SCREEN ===
     if action == "topup":
         status_text = ""
+        tier_text = ""
         if provider and provider.get("is_active"):
             expiry = provider.get("expiry_date")
+            tier = provider.get("subscription_tier", "none")
             if expiry:
-                status_text = f"\n\n📅 Current subscription expires: {expiry.strftime('%Y-%m-%d')}"
+                status_text = f"\n📅 Expires: {expiry.strftime('%Y-%m-%d')}"
+            if tier and tier != "none":
+                tier_info = next((t for t in TIERS.values() if t["name"].lower() == tier), None)
+                if tier_info:
+                    tier_text = f"\n{tier_info['emoji']} Current tier: *{tier_info['name']}*"
         
         await query.edit_message_text(
             "💰 *LISTING MANAGEMENT*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"Active listings receive *400% more engagement*.{status_text}\n\n"
+            f"Active listings receive *400% more engagement*.{tier_text}{status_text}\n\n"
+            "🥉 *Bronze* — 3 days (basic listing)\n"
+            "🥈 *Silver* — 7 days (photos + live badge)\n"
+            "🥇 *Gold* — 30 days (priority + featured)\n"
+            "💎 *Platinum* — 90 days (top of search + spotlight)\n\n"
             "Select your package:",
             reply_markup=get_menu_package_keyboard(),
             parse_mode="Markdown"
@@ -116,6 +127,10 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
     elif action.startswith("pay_"):
         days = int(action.replace("pay_", ""))
         price = get_package_price(days)
+        tier = TIERS.get(days, {})
+        tier_name = tier.get("name", f"{days}d")
+        tier_emoji = tier.get("emoji", "📦")
+        tier_perks = tier.get("perks", "")
         
         context.user_data["topup_days"] = days
         context.user_data["topup_price"] = price
@@ -124,8 +139,9 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
         
         if saved_phone:
             await query.edit_message_text(
-                f"📦 *{days} Day Package — {price} KES*\n"
+                f"{tier_emoji} *{tier_name} Package — {days} Days — {price:,} KES*\n"
                 "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"✨ *Perks:* {tier_perks}\n\n"
                 f"We have your M-Pesa number saved:\n"
                 f"📱 `{saved_phone}`\n\n"
                 "Use this number?",
@@ -134,7 +150,66 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
             )
         else:
             await query.edit_message_text(
-                f"📦 *{days} Day Package — {price} KES*\n"
+                f"{tier_emoji} *{tier_name} Package — {days} Days — {price:,} KES*\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"✨ *Perks:* {tier_perks}\n\n"
+                "Please type your M-Pesa phone number:\n"
+                "_Format: 0712345678_",
+                reply_markup=get_back_button("menu_topup"),
+                parse_mode="Markdown"
+            )
+            context.user_data["awaiting_phone"] = True
+    
+    # === BOOST SCREEN ===
+    elif action == "boost":
+        if not provider or not provider.get("is_active"):
+            await query.edit_message_text(
+                "❌ You need an active subscription to boost.\n"
+                "Go live first, then boost!",
+                reply_markup=get_menu_package_keyboard(),
+                parse_mode="Markdown"
+            )
+            return
+        
+        is_boosted = db.is_boosted(user.id)
+        if is_boosted:
+            await query.edit_message_text(
+                "🚀 Your profile is *already boosted!*\n\n"
+                "You'll be shown at the top of search results.",
+                reply_markup=get_back_button("menu_topup"),
+                parse_mode="Markdown"
+            )
+            return
+        
+        await query.edit_message_text(
+            "🚀 *PROFILE BOOST*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"Boost your profile to the *top of search* for {BOOST_DURATION_HOURS} hours!\n\n"
+            "📈 *3x more views*\n"
+            "⭐ *Featured badge*\n"
+            f"💰 *{BOOST_PRICE} KES*\n",
+            reply_markup=get_boost_keyboard(),
+            parse_mode="Markdown"
+        )
+    
+    # === BOOST CONFIRM ===
+    elif action == "boost_confirm":
+        context.user_data["topup_days"] = 0  # 0 = boost, not subscription
+        context.user_data["topup_price"] = BOOST_PRICE
+        context.user_data["is_boost"] = True
+        
+        saved_phone = db.get_provider_phone(user.id) if provider else None
+        if saved_phone:
+            await query.edit_message_text(
+                f"🚀 *Boost — {BOOST_PRICE} KES*\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"📱 Pay with: `{saved_phone}`?",
+                reply_markup=get_phone_confirm_keyboard(saved_phone),
+                parse_mode="Markdown"
+            )
+        else:
+            await query.edit_message_text(
+                f"🚀 *Boost — {BOOST_PRICE} KES*\n"
                 "━━━━━━━━━━━━━━━━━━━━━━\n\n"
                 "Please type your M-Pesa phone number:\n"
                 "_Format: 0712345678_",
@@ -172,12 +247,16 @@ async def topup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         if expiry:
             status_text = f"\n\n📅 Current subscription expires: {expiry.strftime('%Y-%m-%d %H:%M')}"
     
+    tier_lines = []
+    for days in sorted(PACKAGES.keys()):
+        t = TIERS.get(days, {})
+        tier_lines.append(f"{t.get('emoji', '📦')} *{t.get('name', '')}* — {days} days — {PACKAGES[days]:,} KES\n   _{t.get('perks', '')}_")
+    
     await update.message.reply_text(
         "💰 *Listing Management*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"Active listings receive *400% more engagement*.{status_text}\n\n"
-        "⏰ *3 Days Package* — 300 KES\n"
-        "🔥 *7 Days Package* — 600 KES (1 day FREE!)",
+        + "\n".join(tier_lines),
         reply_markup=get_package_keyboard(),
         parse_mode="Markdown"
     )
@@ -351,5 +430,5 @@ def register_handlers(application):
     # Menu callback handler
     application.add_handler(CallbackQueryHandler(
         payment_menu_callback,
-        pattern="^menu_(topup|pay_confirm|pay_newphone|pay_\\d+)$"
+        pattern="^menu_(topup|pay_confirm|pay_newphone|pay_\\d+|boost|boost_confirm)$"
     ))

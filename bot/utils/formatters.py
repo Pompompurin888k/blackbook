@@ -11,12 +11,28 @@ def generate_verification_code() -> str:
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 
-def format_status_badge(is_online: bool, is_active: bool, is_verified: bool) -> dict:
+# Tier display mapping
+TIER_BADGES = {
+    "platinum": "💎 Platinum",
+    "gold": "🥇 Gold",
+    "silver": "🥈 Silver",
+    "bronze": "🥉 Bronze",
+    "none": "—",
+}
+
+
+def format_tier_badge(tier: str) -> str:
+    """Returns the formatted tier badge string."""
+    return TIER_BADGES.get(tier, "—")
+
+
+def format_status_badge(is_online: bool, is_active: bool, is_verified: bool, tier: str = "none") -> dict:
     """Returns formatted status badges."""
     return {
         "status": "🟢 Active" if is_active else "⚫ Inactive",
         "online": "🟢 Live" if is_online else "⚫ Offline",
         "verified": "✔️ Verified" if is_verified else "❌ Unverified",
+        "tier": format_tier_badge(tier),
     }
 
 
@@ -111,17 +127,23 @@ def format_returning_user_message(provider: dict) -> str:
     badges = format_status_badge(
         provider.get("is_online", False),
         provider.get("is_active", False),
-        provider.get("is_verified", False)
+        provider.get("is_verified", False),
+        provider.get("subscription_tier", "none")
     )
     
     expiry = provider.get("expiry_date")
     time_left = expiry.strftime('%Y-%m-%d') if expiry else "No active subscription"
+    
+    tier_line = ""
+    if badges['tier'] != '—':
+        tier_line = f"👑 Tier: {badges['tier']}\n"
     
     return (
         f"👋 Welcome back, *{provider.get('display_name', 'Unknown')}*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"📊 *Status Overview:*\n\n"
         f"📱 Listing: {badges['status']}\n"
+        f"{tier_line}"
         f"🛡️ Trust: {badges['verified']}\n"
         f"⏱️ Expires: {time_left}\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -238,6 +260,7 @@ def format_full_profile_text(provider: dict) -> str:
         f"🌍 *Languages:* {languages}\n\n"
         f"📸 *Photos:* {photo_count} uploaded\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"⏱️ Subscription: {expiry_text}"
+        f"⏱️ Subscription: {expiry_text}\n"
+        f"👑 Tier: {format_tier_badge(provider.get('subscription_tier', 'none'))}"
     )
 

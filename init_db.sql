@@ -23,7 +23,15 @@ CREATE TABLE IF NOT EXISTS providers (
     bio TEXT,
     nearby_places TEXT,
     availability_type VARCHAR(50),
-    profile_photos JSONB
+    profile_photos JSONB,
+    telegram_username VARCHAR(100),
+    -- Business model columns
+    subscription_tier VARCHAR(20) DEFAULT 'none',
+    boost_until TIMESTAMP,
+    referral_code VARCHAR(20) UNIQUE,
+    referred_by BIGINT,
+    referral_credits INT DEFAULT 0,
+    is_premium_verified BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS payments (

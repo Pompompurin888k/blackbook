@@ -51,6 +51,22 @@
             style="background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%)">
         <!-- Badges Container -->
         <div class="absolute top-3 right-3 z-10 flex flex-col gap-1.5 items-end">
+            <!-- Boost Badge -->
+            {% if provider.boost_until and provider.boost_until > now() %}
+            <div class="bg-gradient-to-r from-purple-600 to-pink-500 px-2 py-0.5 rounded-full flex items-center gap-1 badge-animate">
+                <span class="text-[8px] text-white font-bold uppercase tracking-wider">🚀 Boosted</span>
+            </div>
+            {% endif %}
+
+            <!-- Tier Badge -->
+            {% if provider.subscription_tier and provider.subscription_tier != 'none' and provider.subscription_tier != 'bronze' %}
+            {% set tier_badges = {'platinum': ('💎', 'from-cyan-400 to-blue-500', 'Platinum'), 'gold': ('🥇', 'from-[#D4AF37] to-[#FFD700]', 'Gold'), 'silver': ('🥈', 'from-gray-300 to-gray-400', 'Silver')} %}
+            {% set tb = tier_badges.get(provider.subscription_tier, ('📦', 'from-gray-500 to-gray-600', provider.subscription_tier)) %}
+            <span class="bg-gradient-to-r {{ tb[1] }} text-black px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider badge-animate">
+                {{ tb[0] }} {{ tb[2] }}
+            </span>
+            {% endif %}
+
             <!-- Live Badge (Only for online providers) -->
             {% if provider.is_online %}
             <div id="live-badge-{{ provider.id }}" hx-get="/api/status/{{ provider.id }}" hx-trigger="every 30s"
@@ -86,7 +102,11 @@
         <!-- Content Overlay -->
         <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/80 to-transparent">
             <div class="flex items-center gap-2 mb-0.5">
+                {% if provider.is_premium_verified %}
+                <p class="text-[8px] font-bold uppercase tracking-widest opacity-90 text-cyan-400">⭐ Premium Verified</p>
+                {% else %}
                 <p class="text-[8px] gold-text font-bold uppercase tracking-widest opacity-80">Verified</p>
+                {% endif %}
                 {% if provider.services and provider.services|length > 2 %}
                 <span
                     class="text-[8px] px-1.5 py-0.5 rounded bg-gradient-to-r from-[#D4AF37] to-[#FFD700] text-black font-black uppercase">Premium</span>

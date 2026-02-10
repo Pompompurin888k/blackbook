@@ -3,7 +3,11 @@ Blackbook Bot Keyboards
 All InlineKeyboardMarkup and ReplyKeyboardMarkup builders.
 """
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from config import CITIES, PACKAGES, SESSION_DURATIONS, BUILDS, AVAILABILITIES, SERVICES, LANGUAGES, NAIROBI_NEIGHBORHOODS, ELDORET_NEIGHBORHOODS
+from config import (
+    CITIES, PACKAGES, TIERS, SESSION_DURATIONS, BUILDS, AVAILABILITIES,
+    SERVICES, LANGUAGES, NAIROBI_NEIGHBORHOODS, ELDORET_NEIGHBORHOODS,
+    BOOST_PRICE, BOOST_DURATION_HOURS, PREMIUM_VERIFY_PRICE,
+)
 
 
 # ==================== PERSISTENT MAIN MENU ====================
@@ -137,20 +141,58 @@ def get_profile_keyboard(provider: dict) -> InlineKeyboardMarkup:
 # ==================== PAYMENT ====================
 
 def get_package_keyboard() -> InlineKeyboardMarkup:
-    """Returns package selection keyboard."""
-    keyboard = [
-        [InlineKeyboardButton("🧪 1 Day TEST — 1 KES", callback_data="topup_1")],
-        [InlineKeyboardButton("⏰ 3 Days — 300 KES", callback_data="topup_3")],
-        [InlineKeyboardButton("🔥 7 Days (1 FREE!) — 600 KES", callback_data="topup_7")],
-    ]
+    """Returns tier package selection keyboard."""
+    keyboard = []
+    for days in sorted(PACKAGES.keys()):
+        tier = TIERS.get(days, {})
+        emoji = tier.get("emoji", "📦")
+        name = tier.get("name", f"{days}d")
+        price = PACKAGES[days]
+        keyboard.append([InlineKeyboardButton(
+            f"{emoji} {name} — {days} Days — {price:,} KES",
+            callback_data=f"topup_{days}"
+        )])
     return InlineKeyboardMarkup(keyboard)
 
 
 def get_menu_package_keyboard() -> InlineKeyboardMarkup:
-    """Returns package selection keyboard (menu version with back button)."""
+    """Returns tier package selection keyboard (menu version with extras)."""
+    keyboard = []
+    for days in sorted(PACKAGES.keys()):
+        tier = TIERS.get(days, {})
+        emoji = tier.get("emoji", "📦")
+        name = tier.get("name", f"{days}d")
+        price = PACKAGES[days]
+        keyboard.append([InlineKeyboardButton(
+            f"{emoji} {name} — {days} Days — {price:,} KES",
+            callback_data=f"menu_pay_{days}"
+        )])
+    # Boost option
+    keyboard.append([InlineKeyboardButton(
+        f"🚀 Boost Profile ({BOOST_DURATION_HOURS}h) — {BOOST_PRICE} KES",
+        callback_data="menu_boost"
+    )])
+    keyboard.append([InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_boost_keyboard() -> InlineKeyboardMarkup:
+    """Returns boost confirmation keyboard."""
     keyboard = [
-        [InlineKeyboardButton("⏰ 3 Days — 300 KES", callback_data="menu_pay_3")],
-        [InlineKeyboardButton("🔥 7 Days (1 FREE!) — 600 KES", callback_data="menu_pay_7")],
+        [InlineKeyboardButton(
+            f"🚀 Boost Now — {BOOST_PRICE} KES",
+            callback_data="menu_boost_confirm"
+        )],
+        [InlineKeyboardButton("🔙 Back", callback_data="menu_topup")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_referral_keyboard(referral_code: str) -> InlineKeyboardMarkup:
+    """Returns referral/affiliate info keyboard."""
+    keyboard = [
+        [InlineKeyboardButton("📊 My Referral Stats", callback_data="menu_referral_stats")],
+        [InlineKeyboardButton("📋 Copy My Link", callback_data="menu_referral_copy")],
         [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")],
     ]
     return InlineKeyboardMarkup(keyboard)
