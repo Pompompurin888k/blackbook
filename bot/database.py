@@ -170,8 +170,18 @@ class Database:
 
     # ==================== PROVIDER METHODS ====================
     
+    def _ensure_connection(self):
+        """Checks if the database connection is alive and reconnects if needed."""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("SELECT 1")
+        except (psycopg2.OperationalError, psycopg2.InterfaceError):
+            logger.warning("⚠️ Database connection lost. Reconnecting...")
+            self.conn = self.connect_with_retry()
+
     def get_provider(self, tg_id):
         """Fetch a specific provider by Telegram ID with all profile fields."""
+        self._ensure_connection()
         query = "SELECT * FROM providers WHERE telegram_id = %s"
         with self.conn.cursor() as cur:
             cur.execute(query, (tg_id,))
@@ -589,17 +599,18 @@ class Database:
         try:
             with self.conn.cursor() as cur:
                 if status_type == 'unverified':
-                    cur.execute("SELECT COUNT(*) FROM providers WHERE is_verified = FALSE")
+                    cur.execute("SELECT COUNT(*) as count FROM providers WHERE is_verified = FALSE")
                 elif status_type == 'verified':
-                    cur.execute("SELECT COUNT(*) FROM providers WHERE is_verified = TRUE")
+                    cur.execute("SELECT COUNT(*) as count FROM providers WHERE is_verified = TRUE")
                 elif status_type == 'active':
-                    cur.execute("SELECT COUNT(*) FROM providers WHERE is_active = TRUE")
+                    cur.execute("SELECT COUNT(*) as count FROM providers WHERE is_active = TRUE")
                 elif status_type == 'inactive':
-                    cur.execute("SELECT COUNT(*) FROM providers WHERE is_active = FALSE")
+                    cur.execute("SELECT COUNT(*) as count FROM providers WHERE is_active = FALSE")
                 else:
-                    cur.execute("SELECT COUNT(*) FROM providers")
+                    cur.execute("SELECT COUNT(*) as count FROM providers")
                 
-                return cur.fetchone()[0]
+                result = cur.fetchone()
+                return result["count"] if result else 0
         except Exception as e:
             logger.error(f"❌ Error getting provider count: {e}")
             return 0

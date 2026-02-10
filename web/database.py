@@ -34,11 +34,21 @@ class Database:
                     port=self.port,
                     cursor_factory=RealDictCursor
                 )
+                self.conn.autocommit = False
                 logger.info("✅ Web app connected to database.")
                 return
             except psycopg2.OperationalError:
                 logger.info("⏳ Database is booting up... retrying in 2 seconds.")
                 time.sleep(2)
+
+    def _ensure_connection(self):
+        """Checks if the database connection is alive and reconnects if needed."""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("SELECT 1")
+        except (psycopg2.OperationalError, psycopg2.InterfaceError):
+            logger.warning("⚠️ Database connection lost. Reconnecting...")
+            self._connect()
     
     def get_active_providers(self, city: Optional[str] = None, neighborhood: Optional[str] = None) -> List[Dict]:
         """
@@ -47,6 +57,7 @@ class Database:
         Includes is_online for Live badge display.
         Smart ordering: Online first, recently verified next, then alphabetical.
         """
+        self._ensure_connection()
         try:
             with self.conn.cursor() as cur:
                 if city and city.lower() != "all" and neighborhood:

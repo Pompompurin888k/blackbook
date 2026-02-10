@@ -88,7 +88,7 @@ def format_profile_text(provider: dict) -> str:
 def format_welcome_message() -> str:
     """Returns the full welcome message for new users."""
     return (
-        "� *WELCOME TO BLACKBOOK*\n"
+        "👑 *WELCOME TO BLACKBOOK*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "Your exclusive command center for managing your premium presence on Kenya's most discreet directory.\n\n"
         "📜 *Quick Start Guide:*\n\n"

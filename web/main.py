@@ -279,6 +279,8 @@ async def contact_direct(provider_id: int):
     message = f"Hi {name}, I found you on Blackbook. Are you available?"
     
     logger.info(f"📲 Direct contact: {provider_id} ({name})")
+    # Note: t.me/ links require a username, not a numeric ID.
+    # Using the numeric ID won't open a chat. Consider storing usernames.
     return RedirectResponse(url=f"https://t.me/{telegram_id}?text={message.replace(' ', '%20')}", status_code=302)
 
 

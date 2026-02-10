@@ -301,7 +301,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     
     if MAINTENANCE_MODE:
         await update.message.reply_text(
-            "🛠️ **Maintenance Mode Active**\n\n"
+            "🛠️ *Maintenance Mode Active*\n\n"
             "We're currently performing system updates. "
             "Please try again later.",
             parse_mode="Markdown"
@@ -520,7 +520,7 @@ async def photos_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         import json
         try:
             photos = json.loads(photos)
-        except:
+        except (json.JSONDecodeError, TypeError):
             photos = []
     
     photo_count = len(photos)
@@ -550,7 +550,7 @@ async def photos_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         import json
         try:
             photos = json.loads(photos)
-        except:
+        except (json.JSONDecodeError, TypeError):
             photos = []
     
     # View photos (first photo or specific index)
@@ -820,7 +820,7 @@ async def profile_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     logger.info(f"📝 Received text: {text}")
     
     # Allow user to exit by clicking menu buttons
-    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
+    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Suite", "🤝 Affiliate Program", "📞 Support", "📋 Rules"]
     if text in menu_buttons or text.startswith("/"):
         await update.message.reply_text("❌ Profile completion cancelled. Use /complete_profile to start again.")
         return ConversationHandler.END
@@ -849,7 +849,7 @@ async def profile_height(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     text = update.message.text.strip()
     
     # Allow user to exit by clicking menu buttons
-    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
+    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Suite", "🤝 Affiliate Program", "📞 Support", "📋 Rules"]
     if text in menu_buttons or text.startswith("/"):
         await update.message.reply_text("❌ Profile completion cancelled. Use /complete_profile to start again.")
         return ConversationHandler.END
@@ -875,7 +875,7 @@ async def profile_weight(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     logger.info(f"📝 Received text: {text}")
     
     # Allow user to exit by clicking menu buttons
-    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
+    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Suite", "🤝 Affiliate Program", "📞 Support", "📋 Rules"]
     if text in menu_buttons or text.startswith("/"):
         await update.message.reply_text("❌ Profile completion cancelled. Use /complete_profile to start again.")
         return ConversationHandler.END
@@ -973,7 +973,7 @@ async def profile_bio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     bio = update.message.text.strip()
     
     # Allow user to exit by clicking menu buttons
-    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
+    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Suite", "🤝 Affiliate Program", "📞 Support", "📋 Rules"]
     if bio in menu_buttons or bio.startswith("/"):
         await update.message.reply_text("❌ Profile completion cancelled. Use /complete_profile to start again.")
         return ConversationHandler.END
@@ -985,9 +985,10 @@ async def profile_bio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     context.user_data["p_bio"] = bio
     
     await update.message.reply_text(
-        "🗺️ **Step 8/8: Location Highlights**\n"
+        "🗺️ *Step 7/8: Location Highlights*\n"
         "List popular malls or landmarks near you (for SEO).\n"
-        "e.g., 'Near Yaya Center, Prestige Plaza'"
+        "e.g., 'Near Yaya Center, Prestige Plaza'",
+        parse_mode="Markdown"
     )
     return PROFILE_NEARBY
 
@@ -996,7 +997,7 @@ async def profile_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     nearby = update.message.text.strip()
     
     # Allow user to exit by clicking menu buttons
-    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
+    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Suite", "🤝 Affiliate Program", "📞 Support", "📋 Rules"]
     if nearby in menu_buttons or nearby.startswith("/"):
         await update.message.reply_text("❌ Profile completion cancelled. Use /complete_profile to start again.")
         return ConversationHandler.END
@@ -1004,7 +1005,7 @@ async def profile_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data["p_nearby"] = nearby
     
     await update.message.reply_text(
-        "📸 *Step 8/8: Profile Photos*\n\n"
+        "📸 *Step 8/8: Gallery Photos*\n\n"
         "Upload *3 photos minimum* (you can send up to 5).\n\n"
         "Tips:\n"
         "• Use good lighting\n"
@@ -1096,7 +1097,7 @@ async def profile_rates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     text = update.message.text.strip()
     
     # Allow user to exit by clicking menu buttons
-    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Check", "💰 Affiliate Program", "📞 Support", "📋 Rules"]
+    menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Suite", "🤝 Affiliate Program", "📞 Support", "📋 Rules"]
     if text in menu_buttons or text.startswith("/"):
         await update.message.reply_text("❌ Profile completion cancelled. Use /complete_profile to start again.")
         return ConversationHandler.END

@@ -30,6 +30,23 @@ def get_db():
     return _get_db()
 
 
+# ==================== SAFETY MENU (for persistent menu) ====================
+
+async def safety_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Shows the safety suite menu (called from persistent menu buttons)."""
+    await update.message.reply_text(
+        "🛡️ *SAFETY SUITE*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Your protection tools:\n\n"
+        "📞 *Check* — Screen client numbers\n"
+        "⏱️ *Session* — Start safety timer\n"
+        "🚫 *Report* — Flag dangerous clients\n"
+        "✅ *Check In* — Confirm you're safe",
+        reply_markup=get_safety_menu_keyboard(),
+        parse_mode="Markdown"
+    )
+
+
 # ==================== MENU CALLBACKS ====================
 
 async def safety_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -415,7 +432,8 @@ def register_handlers(application):
     application.add_handler(CommandHandler("report", report_number))
     application.add_handler(CommandHandler("session", start_session))
     application.add_handler(CommandHandler("checkin", checkin))
-    application.add_handler(CommandHandler("status", toggle_status))
+    # NOTE: /status is registered in auth.py to avoid duplicate handler conflicts
+    # application.add_handler(CommandHandler("status", toggle_status))
     
     # Menu callback handler
     application.add_handler(CallbackQueryHandler(

@@ -13,7 +13,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import TOPUP_PHONE, TOPUP_CONFIRM, get_package_price
+from config import TOPUP_PHONE, TOPUP_CONFIRM, get_package_price, PACKAGES
 from utils.keyboards import (
     get_package_keyboard,
     get_menu_package_keyboard,
@@ -115,7 +115,7 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
     # === PAYMENT PACKAGE SELECTION ===
     elif action.startswith("pay_"):
         days = int(action.replace("pay_", ""))
-        price = 400 if days == 3 else 800
+        price = get_package_price(days)
         
         context.user_data["topup_days"] = days
         context.user_data["topup_price"] = price

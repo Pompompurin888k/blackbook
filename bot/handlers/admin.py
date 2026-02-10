@@ -82,7 +82,7 @@ async def maintenance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     
     if not is_admin(user.id):
         await update.message.reply_text(
-            "🚫 **Access Denied**\n\nAdmin only command.",
+            "🚫 *Access Denied*\n\nAdmin only command.",
             parse_mode="Markdown"
         )
         logger.warning(f"⚠️ Unauthorized /maintenance attempt by user {user.id}")
@@ -93,7 +93,7 @@ async def maintenance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     status = "🔴 ON" if config.MAINTENANCE_MODE else "🟢 OFF"
     
     await update.message.reply_text(
-        f"🛠️ **Maintenance Mode: {status}**\n\n"
+        f"🛠️ *Maintenance Mode: {status}*\n\n"
         f"{'New registrations are now BLOCKED.' if config.MAINTENANCE_MODE else 'Registrations are now OPEN.'}",
         parse_mode="Markdown"
     )
@@ -109,7 +109,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     if not is_admin(user.id):
         await update.message.reply_text(
-            "🚫 **Access Denied**\n\nAdmin only command.",
+            "🚫 *Access Denied*\n\nAdmin only command.",
             parse_mode="Markdown"
         )
         logger.warning(f"⚠️ Unauthorized /broadcast attempt by user {user.id}")
