@@ -32,7 +32,9 @@
                 "services": provider.services or [],
                 "bio": provider.bio or "I provide a sophisticated, discreet companion experience for high-profile gentlemen.",
                 "nearby": provider.nearby_places or "",
-                "avail": provider.availability_type or "In-call & Out-call"
+                "avail": provider.availability_type or "In-call & Out-call",
+                "tier": provider.get('subscription_tier', 'none') if provider.get is defined else 'none',
+                "is_premium_verified": provider.get('is_premium_verified', false) if provider.get is defined else false
             } | tojson | safe }}'>
 
             <!-- Image -->

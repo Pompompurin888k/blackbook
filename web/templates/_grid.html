@@ -39,7 +39,10 @@
         "services": provider.services or [],
         "bio": provider.bio or "I provide a sophisticated, discreet companion experience for high-profile gentlemen.",
         "nearby": provider.nearby_places or "",
-        "avail": provider.availability_type or "In-call & Out-call"
+        "avail": provider.availability_type or "In-call & Out-call",
+        "tier": provider.subscription_tier or "none",
+        "is_boosted": (provider.boost_until and provider.boost_until > now()) | default(false, true),
+        "is_premium_verified": provider.is_premium_verified or false
     } | tojson | safe }}' onclick="openProfile(this)">
     <div
         class="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/5 bg-zinc-900 transition-all group-hover:border-[#D4AF37]/50 group-hover:shadow-2xl">

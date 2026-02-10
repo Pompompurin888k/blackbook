@@ -154,6 +154,22 @@ class Database:
             logger.error(f"❌ Error getting online count: {e}")
             return 0
 
+    def get_premium_count(self) -> int:
+        """Gets count of providers with Gold/Platinum tier or boosted."""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    SELECT COUNT(*) as count
+                    FROM providers
+                    WHERE is_verified = TRUE AND is_active = TRUE
+                      AND (subscription_tier IN ('gold', 'platinum') OR boost_until > NOW())
+                """)
+                result = cur.fetchone()
+                return result["count"] if result else 0
+        except Exception as e:
+            logger.error(f"❌ Error getting premium count: {e}")
+            return 0
+
     def get_provider_by_id(self, provider_id: int) -> Optional[Dict]:
         """Gets a single provider by database ID."""
         try:
@@ -161,7 +177,8 @@ class Database:
                 cur.execute("""
                     SELECT id, telegram_id, display_name, city, neighborhood, is_online,
                            age, height_cm, weight_kg, build, services, bio, nearby_places, 
-                           profile_photos, telegram_username
+                           profile_photos, telegram_username,
+                           subscription_tier, boost_until, is_premium_verified
                     FROM providers
                     WHERE id = %s AND is_verified = TRUE AND is_active = TRUE
                 """, (provider_id,))
@@ -176,7 +193,8 @@ class Database:
             with self.conn.cursor() as cur:
                 cur.execute("""
                     SELECT id, telegram_id, display_name, city, neighborhood, is_online, expiry_date,
-                           age, height_cm, weight_kg, build, services, bio, nearby_places
+                           age, height_cm, weight_kg, build, services, bio, nearby_places,
+                           subscription_tier, referred_by, referral_credits
                     FROM providers
                     WHERE telegram_id = %s
                 """, (telegram_id,))

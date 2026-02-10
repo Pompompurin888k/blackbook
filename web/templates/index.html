@@ -844,6 +844,13 @@
                     <span class="text-xl md:text-2xl font-bold text-green-400">{{ total_online or 0 }}</span>
                     <span class="text-gray-500 text-xs md:text-sm">Online Now</span>
                 </div>
+                {% if total_premium and total_premium > 0 %}
+                <span class="text-white/20 hidden md:inline">•</span>
+                <div class="hidden md:flex items-center gap-2">
+                    <span class="text-xl md:text-2xl font-bold text-[#D4AF37]">{{ total_premium }}</span>
+                    <span class="text-gray-500 text-xs md:text-sm">Premium</span>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Search Bar -->
@@ -920,6 +927,34 @@
                 class="provider-grid-content grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                 <!-- Using the same provider card logic as initial render -->
                 {% include '_grid.html' %}
+            </div>
+        </div>
+
+        <!-- FOR PROVIDERS CTA BANNER -->
+        <div class="border-t border-white/5 py-16 md:py-20 px-4 text-center">
+            <div class="max-w-xl mx-auto">
+                <p class="text-[10px] gold-text font-bold uppercase tracking-[0.3em] mb-3">For Providers</p>
+                <h2 class="serif text-2xl md:text-3xl text-white mb-4">Join Nairobi's Most Exclusive Directory</h2>
+                <p class="text-gray-400 text-sm md:text-base mb-8 leading-relaxed">
+                    Get verified, attract premium clients, and manage your presence with our Telegram bot.
+                    Tiered plans starting from 300 KES.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <a href="https://t.me/BlackbookBot" target="_blank"
+                        class="btn-ripple gold-bg text-black px-8 py-3 rounded-full font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all text-sm">
+                        Start on Telegram
+                    </a>
+                    <a href="/safety"
+                        class="btn-ripple glass text-gray-300 px-8 py-3 rounded-full font-semibold uppercase tracking-widest hover:scale-105 transition-all text-sm border border-white/10">
+                        Safety First
+                    </a>
+                </div>
+                <div class="flex items-center justify-center gap-4 md:gap-6 mt-8 text-[10px] text-gray-500 uppercase tracking-widest">
+                    <span>🥉 Bronze</span>
+                    <span>🥈 Silver</span>
+                    <span>🥇 Gold</span>
+                    <span>💎 Platinum</span>
+                </div>
             </div>
         </div>
     </section>
@@ -1016,7 +1051,9 @@
                 <!-- Name & Location (Centered Editorial) -->
                 <div class="flex flex-col items-center text-center gap-2 mb-8 md:mb-10">
                     <div class="flex items-center justify-center gap-3 mb-2 flex-wrap">
-                        <span
+                        <!-- Tier Badge (dynamic) -->
+                        <span id="view-tier-badge" class="hidden text-[10px] text-black px-3 py-1 rounded-full font-bold uppercase tracking-[0.2em]"></span>
+                        <span id="view-verified-badge"
                             class="gold-bg text-[10px] text-black px-3 py-1 rounded-full font-bold uppercase tracking-[0.2em]">Verified</span>
                         <span
                             class="text-[#00A3FF] text-[10px] font-bold flex items-center gap-1 uppercase tracking-widest">
@@ -1026,6 +1063,11 @@
                                 </path>
                             </svg>
                             Confirmed
+                        </span>
+                        <!-- Boosted Badge -->
+                        <span id="view-boost-badge"
+                            class="hidden text-[10px] font-bold flex items-center gap-1 uppercase tracking-widest text-purple-400">
+                            🚀 Boosted
                         </span>
                         <span id="view-online"
                             class="hidden text-green-500 text-[10px] font-bold flex items-center gap-1 uppercase tracking-widest">
@@ -1485,6 +1527,39 @@
                     onlineBadge.classList.remove('hidden');
                 } else {
                     onlineBadge.classList.add('hidden');
+                }
+
+                // Tier Badge Logic
+                const tierBadge = document.getElementById('view-tier-badge');
+                const verifiedBadge = document.getElementById('view-verified-badge');
+                const boostBadge = document.getElementById('view-boost-badge');
+                const tierConfig = {
+                    'platinum': { bg: 'bg-gradient-to-r from-cyan-400 to-blue-500', label: '💎 Platinum' },
+                    'gold': { bg: 'bg-gradient-to-r from-[#D4AF37] to-[#FFD700]', label: '🥇 Gold' },
+                    'silver': { bg: 'bg-gradient-to-r from-gray-300 to-gray-400', label: '🥈 Silver' },
+                };
+                if (data.tier && tierConfig[data.tier]) {
+                    tierBadge.className = `text-[10px] text-black px-3 py-1 rounded-full font-bold uppercase tracking-[0.2em] ${tierConfig[data.tier].bg}`;
+                    tierBadge.textContent = tierConfig[data.tier].label;
+                    tierBadge.classList.remove('hidden');
+                } else {
+                    tierBadge.classList.add('hidden');
+                }
+
+                // Premium Verified Badge
+                if (data.is_premium_verified) {
+                    verifiedBadge.className = 'bg-gradient-to-r from-cyan-400 to-blue-500 text-[10px] text-black px-3 py-1 rounded-full font-bold uppercase tracking-[0.2em]';
+                    verifiedBadge.textContent = '⭐ Premium Verified';
+                } else {
+                    verifiedBadge.className = 'gold-bg text-[10px] text-black px-3 py-1 rounded-full font-bold uppercase tracking-[0.2em]';
+                    verifiedBadge.textContent = 'Verified';
+                }
+
+                // Boost Badge
+                if (data.is_boosted) {
+                    boostBadge.classList.remove('hidden');
+                } else {
+                    boostBadge.classList.add('hidden');
                 }
 
                 // Populate Services (Clear prev, then add new)
