@@ -21,15 +21,56 @@
         }
     </script>
     <link
-        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <style>
+        :root {
+            --gold: #D4AF37;
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Manrope', sans-serif;
+            background:
+                radial-gradient(920px 420px at 0% -10%, rgba(212, 175, 55, 0.1), transparent 52%),
+                radial-gradient(780px 460px at 100% 0%, rgba(0, 163, 255, 0.07), transparent 48%),
+                #0a0a0a;
         }
 
         .logo {
-            font-family: 'Cinzel', serif;
+            font-family: 'Cormorant Garamond', serif;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(14px);
+        }
+
+        @media (max-width: 768px) {
+            .logo {
+                font-size: 1.45rem;
+                letter-spacing: 0.2em;
+            }
+
+            .mobile-nav {
+                padding: max(0.85rem, env(safe-area-inset-top)) 1rem 0.85rem 1rem;
+            }
+
+            .mobile-main {
+                padding: 1.5rem 1rem calc(2rem + env(safe-area-inset-bottom));
+            }
+
+            .mobile-title {
+                font-size: 2.25rem;
+                line-height: 1.02;
+                margin-bottom: 1.25rem;
+            }
+
+            .mobile-card {
+                padding: 1rem;
+                border-radius: 1rem;
+            }
         }
     </style>
 </head>
@@ -37,11 +78,11 @@
 <body class="bg-rich-black min-h-screen text-white">
 
     <!-- Header -->
-    <nav class="p-6 flex justify-between items-center border-b border-gray-900">
+    <nav class="mobile-nav p-6 flex justify-between items-center border-b border-white/10 glass sticky top-0 z-40">
         <a href="/" class="logo text-2xl font-bold tracking-[0.3em] text-gold">BLACKBOOK</a>
         <!-- Quick Exit -->
         <a href="https://www.linkedin.com"
-            class="bg-red-500/10 hover:bg-red-500/20 p-2.5 rounded-full border border-red-500/30 transition-colors"
+            class="bg-red-500/10 hover:bg-red-500/20 p-2.5 rounded-full border border-red-500/40 transition-colors"
             title="Quick Exit">
             <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -49,8 +90,8 @@
         </a>
     </nav>
 
-    <main class="max-w-2xl mx-auto px-6 py-12">
-        <h1 class="text-3xl font-bold text-gold mb-8">Safety & Trust</h1>
+    <main class="mobile-main max-w-3xl mx-auto px-6 py-12">
+        <h1 class="mobile-title serif text-5xl md:text-6xl font-semibold text-gold mb-8 tracking-wide">Safety & Trust</h1>
 
         <section class="mb-10">
             <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -61,7 +102,7 @@
                 </svg>
                 Verification Process
             </h2>
-            <div class="bg-deep-grey rounded-xl p-6 border border-gray-800">
+            <div class="mobile-card glass rounded-2xl p-6">
                 <p class="text-gray-400 leading-relaxed">
                     Every professional on Blackbook undergoes a <span class="text-white font-semibold">live photo
                         verification</span>.
@@ -87,7 +128,7 @@
                 </svg>
                 Zero Tolerance
             </h2>
-            <div class="bg-deep-grey rounded-xl p-6 border border-gray-800">
+            <div class="mobile-card glass rounded-2xl p-6">
                 <p class="text-gray-400 leading-relaxed">
                     Blackbook maintains a strict <span class="text-red-400 font-semibold">zero tolerance policy</span>
                     against scams, fake profiles, and theft.
@@ -98,19 +139,19 @@
 
         <section>
             <h2 class="text-xl font-semibold mb-4">Report an Issue</h2>
-            <div class="bg-deep-grey rounded-xl p-6 border border-gray-800">
+            <div class="mobile-card glass rounded-2xl p-6">
                 <p class="text-gray-400 mb-4">
                     Encountered a problem? Report it to our admin team via Telegram.
                 </p>
                 <a href="https://t.me/workratew"
-                    class="inline-block bg-gold text-black px-6 py-3 rounded-lg font-bold text-sm hover:bg-gold/90 transition-colors">
+                    class="inline-block bg-gold text-black px-6 py-3 rounded-lg font-bold text-sm hover:bg-gold/90 transition-all hover:-translate-y-0.5 shadow-[0_10px_24px_rgba(212,175,55,0.35)]">
                     Contact Admin
                 </a>
             </div>
         </section>
     </main>
 
-    <footer class="py-8 px-4 border-t border-gray-900 mt-12">
+    <footer class="py-8 px-4 border-t border-white/10 mt-12">
         <div class="max-w-6xl mx-auto flex justify-between items-center text-xs text-gray-600">
             <span>© 2026 Blackbook</span>
             <a href="/" class="hover:text-gold transition-colors">Back to Directory</a>

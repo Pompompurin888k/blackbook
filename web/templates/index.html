@@ -19,33 +19,58 @@
                         }
                     },
                     fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        serif: ['Cinzel', 'serif']
+                        sans: ['Manrope', 'sans-serif'],
+                        serif: ['Cormorant Garamond', 'serif']
                     }
                 }
             }
         }
     </script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
     <style>
         :root {
             --gold: #D4AF37;
-            --black: #050505;
+            --gold-soft: #f2d57c;
+            --black: #070707;
             --zinc: #121212;
+            --ink: #eceae6;
             --blue-tick: #00A3FF;
+            --surface: rgba(255, 255, 255, 0.045);
+            --surface-border: rgba(255, 255, 255, 0.12);
+            --shadow-soft: 0 12px 36px rgba(0, 0, 0, 0.45);
+        }
+
+        html {
+            background: #050505;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--black);
-            color: white;
+            font-family: 'Manrope', sans-serif;
+            background:
+                radial-gradient(1100px 560px at 10% -10%, rgba(212, 175, 55, 0.08), transparent 55%),
+                radial-gradient(900px 520px at 90% 0%, rgba(0, 163, 255, 0.07), transparent 50%),
+                var(--black);
+            color: var(--ink);
             margin: 0;
         }
 
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.35;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 36px 36px;
+        }
+
         .serif {
-            font-family: 'Cinzel', serif;
+            font-family: 'Cormorant Garamond', serif;
         }
 
         .gold-text {
@@ -57,13 +82,67 @@
         }
 
         .glass {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: var(--surface);
+            backdrop-filter: blur(16px) saturate(1.2);
+            border: 1px solid var(--surface-border);
+            box-shadow: var(--shadow-soft);
         }
 
         .hero-gradient {
-            background: radial-gradient(circle at center, #1a1a1a 0%, #050505 100%);
+            background:
+                radial-gradient(circle at 20% 10%, rgba(212, 175, 55, 0.16) 0%, transparent 42%),
+                radial-gradient(circle at 80% 0%, rgba(0, 163, 255, 0.13) 0%, transparent 38%),
+                linear-gradient(180deg, #121212 0%, #050505 70%);
+        }
+
+        .nav-shell {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .section-shell {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+        }
+
+        .metric-chip {
+            padding: 0.6rem 0.9rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+        }
+
+        .search-shell {
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+        }
+
+        .search-input {
+            background: transparent;
+        }
+
+        .search-input:focus {
+            box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.12);
+        }
+
+        .filter-strip {
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .filter-btn-city,
+        .filter-btn-hood {
+            letter-spacing: 0.12em;
+        }
+
+        .filter-btn-city:hover,
+        .filter-btn-hood:hover {
+            transform: translateY(-1px);
+        }
+
+        .active-filter {
+            box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.45), 0 8px 22px rgba(212, 175, 55, 0.22);
         }
 
         /* Smooth Page Transitions */
@@ -357,8 +436,87 @@
 
         /* Touch ripple effect for mobile */
         @media (max-width: 768px) {
+            body {
+                padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
+            }
+
+            .nav-shell {
+                padding-top: max(0.65rem, env(safe-area-inset-top));
+                padding-bottom: 0.65rem;
+            }
+
             .card-hover-lift:active {
                 transform: scale(0.98);
+            }
+
+            .metric-chip {
+                padding: 0.5rem 0.7rem;
+                width: 100%;
+                justify-content: center;
+            }
+
+            #search-input {
+                font-size: 16px;
+                /* Prevent iOS zoom on focus */
+            }
+
+            .search-shell {
+                border-radius: 16px;
+            }
+
+            #city-filters,
+            #hood-filters {
+                justify-content: flex-start !important;
+                padding-left: 0.9rem;
+                padding-right: 0.9rem;
+                scroll-snap-type: x mandatory;
+            }
+
+            #city-filters button,
+            #hood-filters button {
+                min-height: 40px;
+                flex: 0 0 auto;
+                scroll-snap-align: start;
+            }
+
+            #provider-grid-wrapper {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+                padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+            }
+
+            #provider-grid {
+                gap: 0.7rem;
+            }
+
+            .provider-grid-content,
+            .skeleton-loader {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            #profile-page .fixed.top-6.left-6 {
+                top: 0.75rem;
+                left: 0.75rem;
+            }
+
+            #profile-page .fixed.top-6.right-6 {
+                top: 0.75rem;
+                right: 0.75rem;
+                gap: 0.5rem;
+            }
+
+            #profile-page #view-name {
+                font-size: 2.15rem;
+                line-height: 0.95;
+                word-break: break-word;
+            }
+
+            #profile-page #view-location {
+                font-size: 0.78rem;
+            }
+
+            #profile-page .max-w-5xl {
+                padding-bottom: calc(8rem + env(safe-area-inset-bottom));
             }
         }
 
@@ -422,6 +580,23 @@
             #city-filters {
                 padding-bottom: 12px;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            }
+
+            #scroll-to-top {
+                right: 14px;
+                bottom: calc(18px + env(safe-area-inset-bottom));
+                width: 44px;
+                height: 44px;
+            }
+
+            .toast {
+                left: 12px;
+                right: 12px;
+                bottom: calc(72px + env(safe-area-inset-bottom));
+                min-width: 0;
+                max-width: none;
+                padding: 12px 14px;
+                font-size: 13px;
             }
         }
 
@@ -684,17 +859,44 @@
         }
 
         [data-theme="light"] body {
-            background-color: #FAFAFA;
+            background:
+                radial-gradient(920px 480px at 10% -10%, rgba(184, 150, 12, 0.12), transparent 55%),
+                radial-gradient(900px 500px at 90% 0%, rgba(0, 163, 255, 0.08), transparent 50%),
+                #FAFAFA;
             color: #1a1a1a;
         }
 
         [data-theme="light"] .glass {
             background: rgba(0, 0, 0, 0.03);
             border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08);
         }
 
         [data-theme="light"] .hero-gradient {
             background: radial-gradient(circle at center, #FFFFFF 0%, #F5F5F5 100%);
+        }
+
+        [data-theme="light"] .metric-chip {
+            background: rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="light"] .search-shell {
+            background: rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="light"] .search-input {
+            color: #18181b;
+        }
+
+        [data-theme="light"] .search-input::placeholder {
+            color: #6b7280;
+        }
+
+        [data-theme="light"] .filter-strip,
+        [data-theme="light"] .nav-shell {
+            border-color: rgba(0, 0, 0, 0.08);
         }
 
         [data-theme="light"] .gold-text {
@@ -740,16 +942,16 @@
     </style>
 </head>
 
-<body class="overflow-x-hidden">
+<body class="overflow-x-hidden antialiased">
 
     <!-- 1. LANDING PAGE (GATEKEEPER) -->
     <section id="landing-page"
         class="page min-h-screen flex flex-col justify-center items-center text-center p-6 hero-gradient fixed inset-0 z-50">
-        <div class="mb-8 transition-all duration-1000 ease-out" id="landing-content">
-            <h2 class="serif text-xs tracking-[0.6em] gold-text mb-4 uppercase">Nairobi • Eldoret • Mombasa</h2>
-            <h1 class="serif text-3xl sm:text-5xl md:text-8xl mb-6 tracking-tighter whitespace-nowrap">B L A C K B O O K
+        <div class="mb-8 transition-all duration-1000 ease-out max-w-3xl" id="landing-content">
+            <h2 class="serif text-xs tracking-[0.55em] gold-text mb-4 uppercase">Nairobi • Eldoret • Mombasa</h2>
+            <h1 class="serif text-4xl sm:text-6xl md:text-8xl mb-6 tracking-[0.14em] whitespace-normal sm:whitespace-nowrap">BLACKBOOK
             </h1>
-            <p class="text-gray-400 max-w-md mx-auto font-light leading-relaxed mb-10 text-sm md:text-base">
+            <p class="text-gray-300 max-w-xl mx-auto font-light leading-relaxed mb-10 text-sm md:text-base">
                 An elite private network for the modern gentleman.
                 <span class="block mt-1">Verified identities. Unmatched discretion.</span>
             </p>
@@ -761,9 +963,9 @@
     </section>
 
     <!-- 2. DIRECTORY PAGE -->
-    <section id="directory-page" class="page hidden-page min-h-screen bg-black">
+    <section id="directory-page" class="page hidden-page min-h-screen bg-black page-shell">
         <!-- Navigation -->
-        <nav class="sticky top-0 z-40 glass p-3 md:p-5 flex justify-between items-center px-4 md:px-12">
+        <nav class="sticky top-0 z-40 glass nav-shell p-3 md:p-5 flex justify-between items-center px-4 md:px-12">
             <h1 class="serif text-base md:text-xl gold-text tracking-widest cursor-pointer" onclick="location.reload()">
                 BLACKBOOK</h1>
             <div class="flex items-center gap-2 md:gap-4">
@@ -814,9 +1016,9 @@
         </nav>
 
         <!-- HERO SECTION WITH STATS -->
-        <div class="py-12 md:py-16 px-4 text-center border-b border-white/5">
-            <h1 class="serif text-3xl md:text-5xl text-white mb-3 md:mb-4 tracking-tight">
-                Nairobi's Premium Directory
+        <div class="py-12 md:py-16 px-4 text-center border-b border-white/5 section-shell">
+            <h1 class="serif text-3xl sm:text-4xl md:text-6xl text-white mb-3 md:mb-4 tracking-tight">
+                Private Concierge Directory
             </h1>
             <div
                 class="flex items-center justify-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-400 uppercase tracking-[0.3em] mb-6 md:mb-8">
@@ -833,20 +1035,18 @@
                 <span class="text-white/30">•</span>
                 <span>Available 24/7</span>
             </div>
-            <div class="flex items-center justify-center gap-6 md:gap-8 text-sm md:text-base mb-8 md:mb-10">
-                <div class="flex items-center gap-2">
+            <div class="flex items-center justify-center gap-2 md:gap-4 text-sm md:text-base mb-8 md:mb-10 flex-wrap">
+                <div class="flex items-center gap-2 metric-chip">
                     <span class="text-2xl md:text-3xl font-bold text-white">{{ total_verified or 0 }}</span>
                     <span class="text-gray-500 text-xs md:text-sm">Verified Providers</span>
                 </div>
-                <span class="text-white/20">•</span>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 metric-chip">
                     <span class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
                     <span class="text-xl md:text-2xl font-bold text-green-400">{{ total_online or 0 }}</span>
                     <span class="text-gray-500 text-xs md:text-sm">Online Now</span>
                 </div>
                 {% if total_premium and total_premium > 0 %}
-                <span class="text-white/20 hidden md:inline">•</span>
-                <div class="hidden md:flex items-center gap-2">
+                <div class="hidden md:flex items-center gap-2 metric-chip">
                     <span class="text-xl md:text-2xl font-bold text-[#D4AF37]">{{ total_premium }}</span>
                     <span class="text-gray-500 text-xs md:text-sm">Premium</span>
                 </div>
@@ -855,9 +1055,9 @@
 
             <!-- Search Bar -->
             <div class="max-w-2xl mx-auto">
-                <div class="relative">
+                <div class="relative search-shell">
                     <input type="text" id="search-input" placeholder="Search by name, location, or neighborhood..."
-                        class="w-full px-6 py-3 md:py-4 pl-12 md:pl-14 pr-4 bg-white/5 border border-white/10 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37]/50 focus:bg-white/10 transition-all text-sm md:text-base"
+                        class="search-input w-full px-6 py-3 md:py-4 pl-12 md:pl-14 pr-4 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37]/50 transition-all text-sm md:text-base"
                         oninput="filterProviders()" />
                     <svg class="absolute left-4 md:left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
@@ -869,7 +1069,7 @@
         </div>
 
         <!-- City Filter (Full Reload) -->
-        <div class="flex overflow-x-auto p-4 md:p-6 pb-2 md:pb-3 gap-2 md:gap-3 no-scrollbar md:justify-center bg-black/50"
+        <div class="filter-strip flex overflow-x-auto p-4 md:p-6 pb-2 md:pb-3 gap-2 md:gap-3 no-scrollbar md:justify-center bg-black/50"
             id="city-filters">
             <button onclick="window.location.href='/?city=all'"
                 class="filter-btn-city btn-ripple px-5 md:px-8 py-1.5 md:py-2 rounded-full {% if selected_city == 'all' %}gold-bg text-black active-filter{% else %}glass text-gray-400{% endif %} font-bold text-xs md:text-sm transition-all hover:scale-105">
@@ -885,7 +1085,7 @@
 
         <!-- Neighborhood Sub-Navigation (HTMX Enabled) -->
         {% if neighborhoods %}
-        <div class="flex overflow-x-auto px-4 md:px-6 pb-3 md:pb-4 gap-1.5 md:gap-2 no-scrollbar md:justify-center"
+        <div class="filter-strip flex overflow-x-auto px-4 md:px-6 pb-3 md:pb-4 gap-1.5 md:gap-2 no-scrollbar md:justify-center"
             id="hood-filters">
             <button hx-get="/api/grid?city={{ selected_city }}" hx-target="#provider-grid"
                 hx-indicator="#provider-grid-wrapper" hx-push-url="true" onclick="toggleFilter(this, 'hood')"
@@ -905,7 +1105,7 @@
         {% endif %}
 
         <!-- Grid Wrapper for HTMX & Skeletons -->
-        <div id="provider-grid-wrapper" class="relative min-h-[500px] p-3 md:px-12 pb-24">
+        <div id="provider-grid-wrapper" class="relative min-h-[500px] p-3 md:px-12 pb-24 max-w-[1440px] mx-auto">
 
             <!-- Loading Spinner Overlay (For search/filter) -->
             <div id="search-loading"
@@ -931,7 +1131,7 @@
         </div>
 
         <!-- FOR PROVIDERS CTA BANNER -->
-        <div class="border-t border-white/5 py-16 md:py-20 px-4 text-center">
+        <div class="border-t border-white/5 py-16 md:py-20 px-4 text-center section-shell">
             <div class="max-w-xl mx-auto">
                 <p class="text-[10px] gold-text font-bold uppercase tracking-[0.3em] mb-3">For Providers</p>
                 <h2 class="serif text-2xl md:text-3xl text-white mb-4">Join Nairobi's Most Exclusive Directory</h2>

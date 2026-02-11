@@ -22,7 +22,7 @@
 {% set all_photos = [] %}
 {% endif %}
 <!-- Provider Card -->
-<div class="group cursor-pointer animate-fade-in-up delay-{{ (loop.index0 % 5) * 100 }} card-hover-lift" data-provider='{{ {
+<div class="group cursor-pointer animate-fade-in-up delay-{{ (loop.index0 % 5) * 100 }} card-hover-lift active:scale-[0.985]" data-provider='{{ {
         "id": provider.id,
         "name": provider.display_name,
         "city": provider.city,
@@ -43,10 +43,10 @@
         "is_premium_verified": provider.is_premium_verified or false
     } | tojson | safe }}' onclick="openProfile(this)">
     <div
-        class="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/5 bg-zinc-900 transition-all group-hover:border-[#D4AF37]/50 group-hover:shadow-2xl">
+        class="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/10 bg-zinc-900/90 shadow-[0_8px_28px_rgba(0,0,0,0.35)] transition-all duration-300 group-hover:border-[#D4AF37]/70 group-hover:shadow-[0_20px_40px_rgba(212,175,55,0.22)]">
         <!-- Profile Image with Lazy Loading + Hover Zoom + Blur-up -->
         <img src="{{ img_url }}" loading="lazy"
-            class="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500 image-loading"
+            class="w-full h-full object-cover opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500 image-loading"
             alt="{{ provider.display_name }}"
             onload="this.classList.remove('image-loading'); this.classList.add('image-loaded');"
             style="background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%)">
@@ -54,8 +54,8 @@
         <div class="absolute top-3 right-3 z-10 flex flex-col gap-1.5 items-end">
             <!-- Boost Badge -->
             {% if provider.boost_until and provider.boost_until > now() %}
-            <div class="bg-gradient-to-r from-purple-600 to-pink-500 px-2 py-0.5 rounded-full flex items-center gap-1 badge-animate">
-                <span class="text-[8px] text-white font-bold uppercase tracking-wider">🚀 Boosted</span>
+            <div class="bg-gradient-to-r from-amber-300 to-orange-400 px-2 py-0.5 rounded-full flex items-center gap-1 badge-animate shadow-[0_6px_20px_rgba(245,158,11,0.35)]">
+                <span class="text-[8px] text-black font-extrabold uppercase tracking-[0.16em]">Boosted</span>
             </div>
             {% endif %}
 
@@ -71,7 +71,7 @@
             <!-- Live Badge (Only for online providers) -->
             {% if provider.is_online %}
             <div id="live-badge-{{ provider.id }}" hx-get="/api/status/{{ provider.id }}" hx-trigger="every 30s"
-                hx-swap="outerHTML" class="glass px-2 py-0.5 rounded-full flex items-center gap-1">
+                hx-swap="outerHTML" class="glass px-2 py-0.5 rounded-full flex items-center gap-1 shadow-[0_8px_16px_rgba(0,0,0,0.25)]">
                 <span class="h-1.5 w-1.5 bg-green-500 rounded-full animate-pulse"></span>
                 <span class="text-[8px] text-green-400 font-bold uppercase">Live</span>
             </div>
@@ -92,7 +92,7 @@
                     {% endif %}
 
                     <!-- Blue Tick Badge -->
-                    <div class="glass p-1 rounded-full">
+                    <div class="glass p-1 rounded-full shadow-[0_8px_16px_rgba(0,0,0,0.25)]">
                         <svg class="w-3.5 h-3.5 text-[#00A3FF]" fill="currentColor" viewBox="0 0 20 20">
                             <path
                                 d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293l-4 4a1 1 0 01-1.414 0l-2-2a1 1 0 111.414-1.414L9 10.586l3.293-3.293a1 1 0 011.414 1.414z">
@@ -101,7 +101,7 @@
                     </div>
         </div>
         <!-- Content Overlay -->
-        <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/80 to-transparent">
+        <div class="absolute bottom-0 left-0 right-0 p-3.5 md:p-4 bg-gradient-to-t from-black/95 via-black/70 to-transparent">
             <div class="flex items-center gap-2 mb-0.5">
                 {% if provider.is_premium_verified %}
                 <p class="text-[8px] font-bold uppercase tracking-widest opacity-90 text-cyan-400">⭐ Premium Verified</p>
@@ -114,7 +114,7 @@
                 {% endif %}
             </div>
             <h3 class="serif text-lg leading-tight mb-0.5">{{ provider.display_name }}</h3>
-            <p class="text-gray-400 text-[10px] flex items-center gap-1">
+            <p class="text-gray-300 text-[10px] flex items-center gap-1">
                 <svg class="w-2.5 h-2.5 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
                     </path>

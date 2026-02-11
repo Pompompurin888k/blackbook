@@ -7,45 +7,91 @@
     <title>Contact {{ provider.display_name }} - Blackbook</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@300;400;600&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <style>
+        :root {
+            --gold: #D4AF37;
+            --black: #070707;
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
-            background: #0a0a0a;
+            font-family: 'Manrope', sans-serif;
+            background:
+                radial-gradient(760px 420px at 8% -10%, rgba(212, 175, 55, 0.12), transparent 55%),
+                radial-gradient(680px 420px at 100% 0%, rgba(0, 163, 255, 0.08), transparent 50%),
+                var(--black);
         }
 
         .serif {
-            font-family: 'Cinzel', serif;
+            font-family: 'Cormorant Garamond', serif;
         }
 
         .gold-text {
-            color: #D4AF37;
+            color: var(--gold);
         }
 
         .glass {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .accent-ring {
+            box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.24), 0 10px 24px rgba(212, 175, 55, 0.18);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem 1rem calc(1.25rem + env(safe-area-inset-bottom));
+            }
+
+            .quick-exit {
+                top: max(0.75rem, env(safe-area-inset-top));
+                right: 0.75rem;
+                padding: 0.6rem;
+            }
+
+            .mobile-shell {
+                max-width: 100%;
+            }
+
+            .mobile-title {
+                font-size: 2rem;
+                line-height: 1;
+            }
+
+            .mobile-card {
+                padding: 1.25rem;
+                border-radius: 1.25rem;
+            }
+
+            .mobile-action {
+                padding: 0.95rem;
+                min-height: 74px;
+                border-radius: 1rem;
+            }
         }
     </style>
 </head>
 
-<body class="bg-black text-white min-h-screen flex items-center justify-center p-6">
+<body class="text-white min-h-screen flex items-center justify-center p-6">
     <!-- Quick Exit -->
     <a href="https://www.linkedin.com"
-        class="fixed top-4 right-4 z-50 bg-red-500/10 hover:bg-red-500/20 p-3 rounded-full border border-red-500/30 transition-colors"
+        class="quick-exit fixed top-4 right-4 z-50 glass hover:bg-red-500/20 p-3 rounded-full border border-red-500/40 transition-colors"
         title="Quick Exit">
         <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
     </a>
 
-    <div class="max-w-md w-full">
+    <div class="mobile-shell max-w-lg w-full">
         <!-- Header -->
         <div class="text-center mb-8">
             <p class="text-[10px] gold-text font-bold uppercase tracking-widest mb-2">Reaching Out To</p>
-            <h1 class="serif text-3xl mb-2">{{ provider.display_name }}</h1>
-            <p class="text-gray-400 text-sm mb-3">{{ provider.neighborhood or provider.city }}</p>
+            <h1 class="mobile-title serif text-4xl mb-2 tracking-wide">{{ provider.display_name }}</h1>
+            <p class="text-gray-300 text-sm mb-3 tracking-wide">{{ provider.neighborhood or provider.city }}</p>
             {% if provider.subscription_tier and provider.subscription_tier not in ['none', 'bronze'] %}
             {% set tier_styles = {'platinum': ('💎 Platinum', 'from-cyan-400 to-blue-500'), 'gold': ('🥇 Gold', 'from-yellow-400 to-yellow-600'), 'silver': ('🥈 Silver', 'from-gray-300 to-gray-400')} %}
             {% set ts = tier_styles.get(provider.subscription_tier, ('', '')) %}
@@ -54,12 +100,12 @@
         </div>
 
         <!-- Options Card -->
-        <div class="glass rounded-3xl border border-white/10 p-8 space-y-6">
-            <h2 class="text-center text-gray-400 text-sm uppercase tracking-widest">Choose Message Style</h2>
+        <div class="mobile-card glass accent-ring rounded-3xl p-8 space-y-6">
+            <h2 class="text-center text-gray-300 text-sm uppercase tracking-[0.22em]">Choose Message Style</h2>
 
             <!-- Direct Option -->
             <a href="/contact/{{ provider.id }}/direct"
-                class="block w-full p-5 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 hover:bg-[#D4AF37]/20 transition-all group">
+                class="mobile-action block w-full p-5 rounded-2xl bg-[#D4AF37]/12 border border-[#D4AF37]/35 hover:bg-[#D4AF37]/22 transition-all group hover:-translate-y-0.5">
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 rounded-full bg-[#D4AF37]/20 flex items-center justify-center">
                         <svg class="w-6 h-6 gold-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,7 +127,7 @@
 
             <!-- Discreet Option -->
             <a href="/contact/{{ provider.id }}/discreet"
-                class="block w-full p-5 rounded-2xl bg-zinc-800/50 border border-white/10 hover:bg-zinc-700/50 transition-all group">
+                class="mobile-action block w-full p-5 rounded-2xl bg-zinc-800/55 border border-white/15 hover:bg-zinc-700/55 transition-all group hover:-translate-y-0.5">
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
                         <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -102,8 +148,8 @@
             </a>
 
             <!-- Privacy Note -->
-            <p class="text-center text-gray-500 text-[10px] pt-4">
-                🔒 Your privacy is protected. Messages open in Telegram.
+            <p class="text-center text-gray-400 text-[11px] pt-4 tracking-wide">
+                Your privacy stays protected. Messages open directly in Telegram.
             </p>
         </div>
 
