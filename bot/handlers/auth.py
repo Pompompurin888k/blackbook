@@ -223,11 +223,17 @@ async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     elif text == "📞 Support":
         admin_contact = ADMIN_CHAT_ID if ADMIN_CHAT_ID else "Admin"
+        if admin_contact and str(admin_contact).isdigit():
+            contact_line = f"📱 Contact Telegram ID: `{admin_contact}`"
+        elif admin_contact:
+            contact_line = f"📱 Contact: @{str(admin_contact).lstrip('@')}"
+        else:
+            contact_line = "📱 Contact: Admin"
         await update.message.reply_text(
             "📞 *Customer Support*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "Need help? We're here for you.\n\n"
-            f"📱 Contact: @{admin_contact}\n"
+            f"{contact_line}\n"
             "⏰ Response Time: Within 2-4 hours\n\n"
             "For urgent safety issues, use the 🛡️ Safety Suite.",
             parse_mode="Markdown",

@@ -44,6 +44,11 @@ CREATE TABLE IF NOT EXISTS payments (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_success_reference_unique
+ON payments (mpesa_reference)
+WHERE status = 'SUCCESS'
+  AND mpesa_reference ~ '^BB_[0-9]+_(0|3|7|30|90)_[A-Za-z0-9]+$';
+
 CREATE TABLE IF NOT EXISTS blacklist (
     id SERIAL PRIMARY KEY,
     phone VARCHAR(20) UNIQUE,

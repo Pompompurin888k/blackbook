@@ -4,6 +4,7 @@ Handles M-Pesa payments via MegaPay API
 """
 import httpx
 import logging
+import uuid
 
 from config import (
     MEGAPAY_API_KEY,
@@ -35,13 +36,15 @@ async def initiate_stk_push(phone: str, amount: int, telegram_id: int, package_d
     elif phone.startswith("+"):
         phone = phone[1:]
     
-    # Prepare payload per MegaPay API documentation
+    # Prepare payload per MegaPay API documentation.
+    # Reference is unique per transaction to support idempotency safely.
+    reference = f"BB_{telegram_id}_{package_days}_{uuid.uuid4().hex[:10]}"
     payload = {
         "api_key": MEGAPAY_API_KEY,
         "email": MEGAPAY_EMAIL,
         "amount": str(amount),
         "msisdn": phone,
-        "reference": f"BB_{telegram_id}_{package_days}",  # BB_123456789_3
+        "reference": reference,  # BB_123456789_3_ab12cd34ef
     }
     
     logger.info(f"📱 Initiating STK Push: {phone} - {amount} KES - {package_days} days")
@@ -68,7 +71,7 @@ async def initiate_stk_push(phone: str, amount: int, telegram_id: int, package_d
                     logger.error(f"❌ STK Push API error: {data}")
                     return {
                         "success": False,
-                        "message": f"Payment request failed: {data.get('massage', data.get('ResponseDescription', 'Unknown error'))}",
+                        "message": f"Payment request failed: {data.get('message', data.get('ResponseDescription', 'Unknown error'))}",
                         "error": data
                     }
             else:

@@ -61,7 +61,7 @@ class Database:
         self._ensure_connection()
         
         # Common SELECT columns (includes tier/boost/premium fields)
-        cols = """id, telegram_id, display_name, city, neighborhood, is_online, phone,
+        cols = """id, telegram_id, display_name, city, neighborhood, is_online,
                   age, height_cm, weight_kg, build, services, bio, created_at, profile_photos,
                   subscription_tier, boost_until, is_premium_verified"""
         
@@ -105,6 +105,59 @@ class Database:
                 return cur.fetchall()
         except Exception as e:
             logger.error(f"❌ Error fetching providers: {e}")
+            self._connect()
+            return []
+
+    def get_public_active_providers(self, city: Optional[str] = None, neighborhood: Optional[str] = None) -> List[Dict]:
+        """
+        Public provider listing payload for API consumers.
+        Excludes sensitive fields like telegram_id and phone.
+        """
+        self._ensure_connection()
+
+        cols = """id, display_name, city, neighborhood, is_online,
+                  age, height_cm, weight_kg, build, services, bio, created_at, profile_photos,
+                  subscription_tier, boost_until, is_premium_verified"""
+
+        order = """
+            CASE WHEN boost_until > NOW() THEN 0 ELSE 1 END,
+            CASE subscription_tier
+                WHEN 'platinum' THEN 0
+                WHEN 'gold' THEN 1
+                WHEN 'silver' THEN 2
+                ELSE 3
+            END,
+            is_online DESC,
+            CASE WHEN created_at > NOW() - INTERVAL '30 days' THEN 0 ELSE 1 END,
+            display_name"""
+
+        try:
+            with self.conn.cursor() as cur:
+                if city and city.lower() != "all" and neighborhood:
+                    cur.execute(f"""
+                        SELECT {cols}
+                        FROM providers
+                        WHERE is_verified = TRUE AND is_active = TRUE
+                              AND city = %s AND neighborhood = %s
+                        ORDER BY {order}
+                    """, (city, neighborhood))
+                elif city and city.lower() != "all":
+                    cur.execute(f"""
+                        SELECT {cols}
+                        FROM providers
+                        WHERE is_verified = TRUE AND is_active = TRUE AND city = %s
+                        ORDER BY {order}
+                    """, (city,))
+                else:
+                    cur.execute(f"""
+                        SELECT {cols}
+                        FROM providers
+                        WHERE is_verified = TRUE AND is_active = TRUE
+                        ORDER BY {order}
+                    """)
+                return cur.fetchall()
+        except Exception as e:
+            logger.error(f"❌ Error fetching public providers: {e}")
             self._connect()
             return []
     
@@ -223,6 +276,24 @@ class Database:
             self.conn.rollback()
             return False
 
+    def boost_provider(self, tg_id: int, hours: int = 12) -> bool:
+        """Boosts a provider's visibility for X hours (only if provider is active)."""
+        boost_until = datetime.now() + timedelta(hours=hours)
+        query = """
+            UPDATE providers
+            SET boost_until = %s
+            WHERE telegram_id = %s AND is_active = TRUE
+        """
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (boost_until, tg_id))
+                self.conn.commit()
+                return cur.rowcount > 0
+        except Exception as e:
+            logger.error(f"❌ Error boosting provider: {e}")
+            self.conn.rollback()
+            return False
+
     def extend_subscription(self, tg_id: int, days: int) -> bool:
         """Extends an existing subscription by X days (for referral rewards)."""
         query = """UPDATE providers 
@@ -267,6 +338,26 @@ class Database:
             self.conn.rollback()
             return False
 
+    def has_successful_payment(self, reference: str) -> bool:
+        """Checks whether a successful payment with this reference already exists."""
+        if not reference:
+            return False
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT 1
+                    FROM payments
+                    WHERE mpesa_reference = %s AND status = 'SUCCESS'
+                    LIMIT 1
+                    """,
+                    (reference,),
+                )
+                return cur.fetchone() is not None
+        except Exception as e:
+            logger.error(f"❌ Error checking payment reference: {e}")
+            return False
+
     def log_payment(self, tg_id: int, amount: int, reference: str, status: str, package_days: int) -> bool:
         """Logs a payment transaction."""
         query = """
@@ -307,7 +398,7 @@ class Database:
                 if not source:
                     # Fallback to simple random if source not found
                     cur.execute("""
-                        SELECT id, telegram_id, display_name, city, neighborhood, is_online, phone,
+                        SELECT id, telegram_id, display_name, city, neighborhood, is_online,
                                age, height_cm, weight_kg, build, services, bio, nearby_places
                         FROM providers
                         WHERE is_verified = TRUE AND is_active = TRUE 
@@ -324,7 +415,7 @@ class Database:
                 # Smart recommendation query with scoring
                 cur.execute("""
                     SELECT 
-                        id, telegram_id, display_name, city, neighborhood, is_online, phone,
+                        id, telegram_id, display_name, city, neighborhood, is_online,
                         age, height_cm, weight_kg, build, services, bio, nearby_places,
                         created_at,
                         (
@@ -362,7 +453,7 @@ class Database:
             try:
                 with self.conn.cursor() as cur:
                     cur.execute("""
-                        SELECT id, telegram_id, display_name, city, neighborhood, is_online, phone,
+                        SELECT id, telegram_id, display_name, city, neighborhood, is_online,
                                age, height_cm, weight_kg, build, services, bio, nearby_places
                         FROM providers
                         WHERE is_verified = TRUE AND is_active = TRUE 

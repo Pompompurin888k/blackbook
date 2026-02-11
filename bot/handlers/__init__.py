@@ -16,9 +16,6 @@ def register_all_handlers(application, db):
         application: The telegram Application instance
         db: The shared Database instance
     """
-    # Store database in bot_data for access across handlers
-    application.bot_data["db"] = db
-    
     # Register handlers from each module
     auth.register_handlers(application)
     safety.register_handlers(application)

@@ -77,7 +77,7 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
     elif action == "pay_confirm":
         saved_phone = db.get_provider_phone(user.id)
         days = context.user_data.get("topup_days", 3)
-        price = context.user_data.get("topup_price", 400)
+        price = context.user_data.get("topup_price", get_package_price(3))
         
         await query.edit_message_text(
             "⏳ *Initiating Secure Payment...*\n"
@@ -111,7 +111,7 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
     # === PAYMENT: NEW PHONE NUMBER ===
     elif action == "pay_newphone":
         days = context.user_data.get("topup_days", 3)
-        price = context.user_data.get("topup_price", 400)
+        price = context.user_data.get("topup_price", get_package_price(3))
         
         await query.edit_message_text(
             f"📦 *{days} Day Package — {price} KES*\n"
@@ -316,7 +316,7 @@ async def topup_phone_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data["topup_phone"] = phone_clean
     
     days = context.user_data.get("topup_days", 3)
-    price = context.user_data.get("topup_price", 400)
+    price = context.user_data.get("topup_price", get_package_price(3))
     
     await update.message.reply_text(
         "⏳ *Initiating Secure Payment...*\n\n"
@@ -360,7 +360,7 @@ async def topup_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
     if query.data == "topup_use_saved":
         phone = db.get_provider_phone(user.id)
         days = context.user_data.get("topup_days", 3)
-        price = context.user_data.get("topup_price", 400)
+        price = context.user_data.get("topup_price", get_package_price(3))
         
         await query.edit_message_text(
             "⏳ **Sending M-Pesa prompt...**\n\n"

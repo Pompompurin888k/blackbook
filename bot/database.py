@@ -69,6 +69,13 @@ class Database:
             created_at TIMESTAMP DEFAULT NOW()
         );
         """
+
+        payment_reference_index_query = """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_success_reference_unique
+        ON payments (mpesa_reference)
+        WHERE status = 'SUCCESS'
+          AND mpesa_reference ~ '^BB_[0-9]+_(0|3|7|30|90)_[A-Za-z0-9]+$';
+        """
         
         # Blacklist table for safety checks
         blacklist_query = """
@@ -186,6 +193,7 @@ class Database:
             with self.conn.cursor() as cur:
                 cur.execute(providers_query)
                 cur.execute(payments_query)
+                cur.execute(payment_reference_index_query)
                 cur.execute(blacklist_query)
                 cur.execute(sessions_query)
                 cur.execute(add_columns)
@@ -235,12 +243,28 @@ class Database:
         """
         if not data:
             return
+
+        allowed_fields = {
+            "display_name", "phone", "city", "neighborhood",
+            "is_verified", "is_active", "is_online", "credits", "expiry_date",
+            "verification_photo_id", "telegram_username",
+            "age", "height_cm", "weight_kg", "build", "services", "bio",
+            "availability_type", "nearby_places", "profile_photos",
+            "rate_30min", "rate_1hr", "rate_2hr", "rate_3hr", "rate_overnight",
+            "languages", "subscription_tier", "boost_until", "referral_code",
+            "referred_by", "referral_credits", "is_premium_verified"
+        }
+
+        sanitized_data = {k: v for k, v in data.items() if k in allowed_fields}
+        if not sanitized_data:
+            logger.warning(f"⚠️ Ignored profile update for {tg_id}: no allowed fields in payload")
+            return
             
         # Build dynamic query
         set_clauses = []
         values = []
         
-        for key, value in data.items():
+        for key, value in sanitized_data.items():
             set_clauses.append(f"{key} = %s")
             values.append(value)
             
@@ -252,7 +276,7 @@ class Database:
             with self.conn.cursor() as cur:
                 cur.execute(query, tuple(values))
                 self.conn.commit()
-                logger.info(f"✅ Updated profile for {tg_id}: {list(data.keys())}")
+                logger.info(f"✅ Updated profile for {tg_id}: {list(sanitized_data.keys())}")
         except Exception as e:
             logger.error(f"❌ Error updating profile: {e}")
             self.conn.rollback()

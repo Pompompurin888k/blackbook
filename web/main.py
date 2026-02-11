@@ -1,10 +1,15 @@
 import os
 import logging
+import json
+import hmac
+import hashlib
+from collections import OrderedDict
 import httpx
 from fastapi import FastAPI, Request, Query
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from typing import Optional
+from urllib.parse import quote
 from database import Database
 
 logging.basicConfig(level=logging.INFO)
@@ -20,22 +25,56 @@ db = Database()
 
 # Telegram Bot Token for sending notifications
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
+MEGAPAY_CALLBACK_SECRET = os.getenv("MEGAPAY_CALLBACK_SECRET")
+ENABLE_SEED_ENDPOINT = os.getenv("ENABLE_SEED_ENDPOINT", "false").strip().lower() == "true"
+LOCALHOSTS = {"127.0.0.1", "::1", "localhost"}
+VALID_PACKAGE_DAYS = {0, 3, 7, 30, 90}
+BOOST_DURATION_HOURS = int(os.getenv("BOOST_DURATION_HOURS", "12"))
+BOOST_PRICE = int(os.getenv("BOOST_PRICE", "100"))
+PACKAGE_PRICES = {
+    3: int(os.getenv("PACKAGE_PRICE_3", "300")),
+    7: int(os.getenv("PACKAGE_PRICE_7", "600")),
+    30: int(os.getenv("PACKAGE_PRICE_30", "1500")),
+    90: int(os.getenv("PACKAGE_PRICE_90", "4000")),
+}
 
-# Photo cache (in-memory for now, consider Redis for production)
-photo_url_cache = {}
+# Photo file-path cache (in-memory for now, consider Redis for production)
+MAX_PHOTO_CACHE_ITEMS = int(os.getenv("MAX_PHOTO_CACHE_ITEMS", "2000"))
+photo_url_cache = OrderedDict()
+
+
+def _is_valid_callback_signature(raw_body: bytes, signature: Optional[str]) -> bool:
+    """Validates callback signature using HMAC SHA256."""
+    if not MEGAPAY_CALLBACK_SECRET:
+        return False
+    if not signature:
+        return False
+    if signature.startswith("sha256="):
+        signature = signature.split("=", 1)[1]
+    expected = hmac.new(
+        MEGAPAY_CALLBACK_SECRET.encode("utf-8"),
+        raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature.strip())
+
+
+def _cache_photo_path(file_id: str, file_path: str) -> None:
+    """Caches Telegram file paths with a bounded in-memory size."""
+    if file_id in photo_url_cache:
+        photo_url_cache.move_to_end(file_id)
+    photo_url_cache[file_id] = file_path
+    if len(photo_url_cache) > MAX_PHOTO_CACHE_ITEMS:
+        photo_url_cache.popitem(last=False)
 
 
 @app.get("/photo/{file_id}")
 async def get_photo(file_id: str):
     """
     Proxy endpoint to serve Telegram photos.
-    Fetches file path from Telegram API and redirects to the actual file URL.
+    Fetches file path from Telegram API and streams the photo bytes.
     Caches results to minimize API calls.
     """
-    # Check cache first
-    if file_id in photo_url_cache:
-        return RedirectResponse(url=photo_url_cache[file_id], status_code=302)
-    
     if not TELEGRAM_BOT_TOKEN:
         logger.warning("⚠️ TELEGRAM_TOKEN not set, cannot fetch photo")
         # Return a placeholder image
@@ -43,30 +82,40 @@ async def get_photo(file_id: str):
             url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800",
             status_code=302
         )
-    
+
     try:
-        # Get file path from Telegram
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile",
-                params={"file_id": file_id}
-            )
-            data = response.json()
-            
-            if data.get("ok") and data.get("result", {}).get("file_path"):
+        file_path = photo_url_cache.get(file_id)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            if not file_path:
+                meta = await client.get(
+                    f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile",
+                    params={"file_id": file_id}
+                )
+                data = meta.json()
+                if not data.get("ok") or not data.get("result", {}).get("file_path"):
+                    logger.warning(f"⚠️ Failed to get file path for {file_id}: {data}")
+                    return RedirectResponse(
+                        url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800",
+                        status_code=302
+                    )
                 file_path = data["result"]["file_path"]
-                file_url = f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
-                
-                # Cache the URL
-                photo_url_cache[file_id] = file_url
-                
-                return RedirectResponse(url=file_url, status_code=302)
-            else:
-                logger.warning(f"⚠️ Failed to get file path for {file_id}: {data}")
+                _cache_photo_path(file_id, file_path)
+
+            photo_response = await client.get(
+                f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
+            )
+            if photo_response.status_code != 200:
+                logger.warning(f"⚠️ Failed to fetch photo bytes for {file_id}: {photo_response.status_code}")
                 return RedirectResponse(
                     url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800",
                     status_code=302
                 )
+
+            return Response(
+                content=photo_response.content,
+                media_type=photo_response.headers.get("content-type", "image/jpeg"),
+                headers={"Cache-Control": "public, max-age=3600"},
+            )
     except Exception as e:
         logger.error(f"❌ Error fetching photo {file_id}: {e}")
         return RedirectResponse(
@@ -212,8 +261,13 @@ async def api_recommendations(
 
 
 @app.get("/seed")
-async def seed_data():
+async def seed_data(request: Request):
     """Seeds the database with test data."""
+    if not ENABLE_SEED_ENDPOINT:
+        return JSONResponse({"status": "error", "message": "Not found"}, status_code=404)
+    client_host = request.client.host if request.client else None
+    if client_host not in LOCALHOSTS:
+        return JSONResponse({"status": "error", "message": "Forbidden"}, status_code=403)
     db.seed_test_providers()
     return {"status": "seeded", "message": "Test providers added."}
 
@@ -284,7 +338,7 @@ async def contact_direct(provider_id: int):
     logger.info(f"📲 Direct contact: {provider_id} ({name})")
     
     if username:
-        return RedirectResponse(url=f"https://t.me/{username}?text={message.replace(' ', '%20')}", status_code=302)
+        return RedirectResponse(url=f"https://t.me/{username}?text={quote(message)}", status_code=302)
     else:
         # Fallback: tg://user deep link (works on mobile/desktop Telegram)
         return RedirectResponse(url=f"tg://openmessage?user_id={telegram_id}", status_code=302)
@@ -307,7 +361,7 @@ async def contact_discreet(provider_id: int):
     logger.info(f"🔒 Discreet contact: {provider_id} ({name})")
     
     if username:
-        return RedirectResponse(url=f"https://t.me/{username}?text={message.replace(' ', '%20')}", status_code=302)
+        return RedirectResponse(url=f"https://t.me/{username}?text={quote(message)}", status_code=302)
     else:
         return RedirectResponse(url=f"tg://openmessage?user_id={telegram_id}", status_code=302)
 
@@ -321,34 +375,104 @@ async def megapay_callback(request: Request):
     When payment succeeds, activates the provider's subscription.
     """
     try:
-        payload = await request.json()
-        logger.info(f"💳 Payment callback received: {payload}")
-        
+        if not MEGAPAY_CALLBACK_SECRET:
+            logger.error("❌ MEGAPAY_CALLBACK_SECRET not configured. Rejecting callback.")
+            return JSONResponse({"status": "error", "message": "Callback secret not configured"}, status_code=503)
+
+        raw_body = await request.body()
+        signature = request.headers.get("X-MegaPay-Signature") or request.headers.get("X-Signature")
+        if not _is_valid_callback_signature(raw_body, signature):
+            logger.warning("⚠️ Invalid or missing callback signature.")
+            return JSONResponse({"status": "error", "message": "Invalid signature"}, status_code=403)
+
+        try:
+            payload = json.loads(raw_body.decode("utf-8"))
+        except json.JSONDecodeError:
+            return JSONResponse({"status": "error", "message": "Invalid JSON payload"}, status_code=400)
+
+        logger.info(f"💳 Payment callback received (verified): {payload}")
+
         # Extract data from MegaPay response
-        # Note: Adjust field names based on actual MegaPay API response format
         status = payload.get("status") or payload.get("ResultCode")
         reference = payload.get("MpesaReceiptNumber") or payload.get("TransactionId") or payload.get("reference")
-        amount = payload.get("Amount") or payload.get("amount")
-        account_ref = payload.get("AccountReference") or payload.get("account_reference") or ""
-        
-        # Parse telegram_id and package_days from account reference (format: BB_123456789_3)
+        amount_raw = payload.get("Amount") or payload.get("amount")
+        account_ref = (
+            payload.get("AccountReference")
+            or payload.get("account_reference")
+            or (reference if isinstance(reference, str) and reference.startswith("BB_") else "")
+        )
+
+        if not reference:
+            logger.error("❌ Missing payment reference in callback payload.")
+            return JSONResponse({"status": "error", "message": "Missing payment reference"}, status_code=400)
+
+        # Parse telegram_id and package_days from account reference.
+        # Supports both BB_<tg>_<days> and BB_<tg>_<days>_<nonce>.
         parts = account_ref.split("_")
         if len(parts) >= 3 and parts[0] == "BB":
             telegram_id = int(parts[1])
             package_days = int(parts[2])
         else:
             logger.error(f"❌ Invalid account reference format: {account_ref}")
-            return JSONResponse({"status": "error", "message": "Invalid reference"}, status_code=400)
-        
+            return JSONResponse({"status": "error", "message": "Invalid account reference"}, status_code=400)
+
+        if package_days not in VALID_PACKAGE_DAYS:
+            logger.error(f"❌ Invalid package_days value from callback: {package_days}")
+            return JSONResponse({"status": "error", "message": "Invalid package days"}, status_code=400)
+
+        try:
+            amount = int(float(amount_raw))
+        except (TypeError, ValueError):
+            logger.error(f"❌ Invalid amount in callback payload: {amount_raw}")
+            return JSONResponse({"status": "error", "message": "Invalid amount"}, status_code=400)
+
+        expected_amount = BOOST_PRICE if package_days == 0 else PACKAGE_PRICES.get(package_days)
+        if expected_amount is None or amount != expected_amount:
+            logger.error(
+                f"❌ Amount mismatch for {reference}: expected {expected_amount}, got {amount}"
+            )
+            return JSONResponse({"status": "error", "message": "Invalid payment amount"}, status_code=400)
+
+        # Idempotency: already-processed successful transaction
+        if db.has_successful_payment(reference):
+            logger.info(f"ℹ️ Duplicate callback ignored for reference {reference}")
+            return JSONResponse({"status": "success", "message": "Already processed"})
+
         # Check if payment was successful
-        # MegaPay typically uses "0" or "Success" for successful payments
-        success = str(status) in ["0", "Success", "COMPLETED", "success"]
-        
+        success_markers = {"0", "200", "success", "completed", "succeeded", "ok"}
+        success = str(status).strip().lower() in success_markers
+
         if success:
-            # Activate subscription
-            db.activate_subscription(telegram_id, package_days)
-            db.log_payment(telegram_id, amount, reference, "SUCCESS", package_days)
-            
+            # Boost transaction
+            if package_days == 0:
+                if not db.boost_provider(telegram_id, BOOST_DURATION_HOURS):
+                    logger.error(f"❌ Failed to boost provider {telegram_id}")
+                    return JSONResponse({"status": "error", "message": "Failed to activate boost"}, status_code=400)
+                if not db.log_payment(telegram_id, amount, reference, "SUCCESS", package_days):
+                    logger.error(f"❌ Failed to log successful boost payment for {telegram_id}")
+                    return JSONResponse({"status": "error", "message": "Failed to log payment"}, status_code=500)
+
+                from datetime import datetime, timedelta
+                boost_until = datetime.now() + timedelta(hours=BOOST_DURATION_HOURS)
+                await send_telegram_notification(
+                    telegram_id,
+                    f"🚀 **Boost Activated!**\n\n"
+                    f"💰 Amount: {amount} KES\n"
+                    f"⏱️ Duration: {BOOST_DURATION_HOURS} hours\n"
+                    f"📈 Active until: **{boost_until.strftime('%Y-%m-%d %H:%M')}**\n\n"
+                    f"Your profile is now prioritized in results."
+                )
+                logger.info(f"✅ Boost SUCCESS: Provider {telegram_id} boosted for {BOOST_DURATION_HOURS} hours")
+                return JSONResponse({"status": "success", "message": "Boost activated"})
+
+            # Subscription transaction
+            if not db.activate_subscription(telegram_id, package_days):
+                logger.error(f"❌ Failed to activate subscription for {telegram_id}")
+                return JSONResponse({"status": "error", "message": "Failed to activate subscription"}, status_code=500)
+            if not db.log_payment(telegram_id, amount, reference, "SUCCESS", package_days):
+                logger.error(f"❌ Failed to log successful payment for {telegram_id}")
+                return JSONResponse({"status": "error", "message": "Failed to log payment"}, status_code=500)
+
             # === REFERRAL REWARD ===
             # If this provider was referred, reward the referrer
             provider_data = db.get_provider_by_telegram_id(telegram_id)
@@ -371,16 +495,16 @@ async def megapay_callback(request: Request):
                     logger.info(f"🤝 Referral reward: {commission} KES credit + 1 day to {referrer_id}")
                 except Exception as ref_err:
                     logger.error(f"⚠️ Referral reward error (non-fatal): {ref_err}")
-            
+
             # Fetch provider info for enhanced notification
             provider = db.get_provider_by_telegram_id(telegram_id)
             neighborhood = provider.get("neighborhood", "your area") if provider else "your area"
-            
+
             # Calculate expiry date
             from datetime import datetime, timedelta
             expiry_date = datetime.now() + timedelta(days=package_days)
             expiry_str = expiry_date.strftime("%Y-%m-%d %H:%M")
-            
+
             # Send enhanced Telegram notification to provider
             await send_telegram_notification(
                 telegram_id,
@@ -390,18 +514,17 @@ async def megapay_callback(request: Request):
                 f"🎉 Your profile is now **LIVE** in **{neighborhood}** until **{expiry_str}**.\n\n"
                 f"Go get them! 🚀"
             )
-            
+
             logger.info(f"✅ Payment SUCCESS: Provider {telegram_id} activated for {package_days} days")
             return JSONResponse({"status": "success", "message": "Subscription activated"})
-        else:
-            # Log failed payment
-            db.log_payment(telegram_id, amount, reference, "FAILED", package_days)
-            logger.warning(f"❌ Payment FAILED for {telegram_id}: {status}")
-            return JSONResponse({"status": "failed", "message": "Payment failed"})
-            
+
+        db.log_payment(telegram_id, amount, reference, "FAILED", package_days)
+        logger.warning(f"❌ Payment FAILED for {telegram_id}: {status}")
+        return JSONResponse({"status": "failed", "message": "Payment failed"})
+
     except Exception as e:
         logger.error(f"❌ Payment callback error: {e}")
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+        return JSONResponse({"status": "error", "message": "Internal callback error"}, status_code=500)
 
 
 async def send_telegram_notification(chat_id: int, message: str):
@@ -442,7 +565,7 @@ async def api_providers(
     neighborhood: Optional[str] = Query(None)
 ):
     """JSON API endpoint for providers."""
-    providers = db.get_active_providers(city, neighborhood)
+    providers = db.get_public_active_providers(city, neighborhood)
     return {"providers": providers, "count": len(providers)}
 
 

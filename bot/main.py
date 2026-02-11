@@ -2,7 +2,9 @@
 Blackbook Bot - Main Entry Point
 Orchestrates the modular bot architecture with persistence and centralized logging.
 """
-import osfrom datetime import timedeltafrom telegram import Update
+import os
+from datetime import timedelta
+from telegram import Update
 from telegram.ext import Application, PicklePersistence
 
 from config import TELEGRAM_TOKEN, ADMIN_CHAT_ID
