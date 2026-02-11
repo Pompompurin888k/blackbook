@@ -43,12 +43,23 @@ class Database:
 
     def _ensure_connection(self):
         """Checks if the database connection is alive and reconnects if needed."""
+        if self.conn is None or self.conn.closed:
+            logger.warning("⚠️ Database connection missing/closed. Reconnecting...")
+            self._connect()
+            return
+
         try:
             with self.conn.cursor() as cur:
                 cur.execute("SELECT 1")
-        except (psycopg2.OperationalError, psycopg2.InterfaceError):
-            logger.warning("⚠️ Database connection lost. Reconnecting...")
-            self._connect()
+        except psycopg2.Error:
+            # Recover from aborted transactions and stale connections.
+            try:
+                self.conn.rollback()
+                with self.conn.cursor() as cur:
+                    cur.execute("SELECT 1")
+            except psycopg2.Error:
+                logger.warning("⚠️ Database connection unhealthy. Reconnecting...")
+                self._connect()
     
     def get_active_providers(self, city: Optional[str] = None, neighborhood: Optional[str] = None) -> List[Dict]:
         """
@@ -163,6 +174,7 @@ class Database:
     
     def get_city_counts(self) -> Dict[str, int]:
         """Gets count of active providers per city."""
+        self._ensure_connection()
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""
@@ -175,10 +187,15 @@ class Database:
                 return {row["city"]: row["count"] for row in cur.fetchall()}
         except Exception as e:
             logger.error(f"❌ Error getting city counts: {e}")
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
             return {}
     
     def get_total_verified_count(self) -> int:
         """Gets total count of verified active providers."""
+        self._ensure_connection()
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""
@@ -190,10 +207,15 @@ class Database:
                 return result["count"] if result else 0
         except Exception as e:
             logger.error(f"❌ Error getting total verified count: {e}")
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
             return 0
     
     def get_online_count(self) -> int:
         """Gets count of providers currently online."""
+        self._ensure_connection()
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""
@@ -205,10 +227,15 @@ class Database:
                 return result["count"] if result else 0
         except Exception as e:
             logger.error(f"❌ Error getting online count: {e}")
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
             return 0
 
     def get_premium_count(self) -> int:
         """Gets count of providers with Gold/Platinum tier or boosted."""
+        self._ensure_connection()
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""
@@ -221,6 +248,10 @@ class Database:
                 return result["count"] if result else 0
         except Exception as e:
             logger.error(f"❌ Error getting premium count: {e}")
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
             return 0
 
     def get_provider_by_id(self, provider_id: int) -> Optional[Dict]:

@@ -99,9 +99,15 @@ def main() -> None:
             except Exception as e:
                 logger.error(f"❌ Failed to send overdue alert: {e}")
     
-    job_queue.run_repeating(check_expired_subscriptions, interval=timedelta(minutes=15), first=timedelta(seconds=30))
-    job_queue.run_repeating(check_overdue_sessions, interval=timedelta(minutes=2), first=timedelta(seconds=60))
-    logger.info("⏰ Scheduled jobs registered (expiry check / session alerts)")
+    if job_queue is not None:
+        job_queue.run_repeating(check_expired_subscriptions, interval=timedelta(minutes=15), first=timedelta(seconds=30))
+        job_queue.run_repeating(check_overdue_sessions, interval=timedelta(minutes=2), first=timedelta(seconds=60))
+        logger.info("⏰ Scheduled jobs registered (expiry check / session alerts)")
+    else:
+        logger.warning(
+            "⚠️ JobQueue is unavailable. Install with: pip install \"python-telegram-bot[job-queue]\" "
+            "to enable scheduled expiry/session checks."
+        )
     
     # Start the bot
     logger.info("🚀 Blackbook Bot is starting...")
