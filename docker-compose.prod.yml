@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  web:
+    # In production, we want to expose port 80 directly to the internet
+    # so Cloudflare can connect to it.
+    ports:
+      - "80:8080"
+    
+    # helper for production restarts
+    restart: always
