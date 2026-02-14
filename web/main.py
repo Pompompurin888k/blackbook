@@ -8,6 +8,7 @@ import httpx
 from fastapi import FastAPI, Request, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from typing import Optional
 from urllib.parse import quote
 from database import Database
@@ -16,6 +17,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Blackbook Directory", docs_url=None, redoc_url=None)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Templates
 templates = Jinja2Templates(directory="templates")
@@ -41,6 +43,118 @@ PACKAGE_PRICES = {
 # Photo file-path cache (in-memory for now, consider Redis for production)
 MAX_PHOTO_CACHE_ITEMS = int(os.getenv("MAX_PHOTO_CACHE_ITEMS", "2000"))
 photo_url_cache = OrderedDict()
+
+FALLBACK_PROFILE_IMAGES = [
+    "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=900",
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=900",
+    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=900",
+    "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=900",
+    "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=900",
+    "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&q=80&w=900",
+]
+
+
+def _to_string_list(value) -> list[str]:
+    """Normalizes a DB value to a flat string list."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, tuple):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return []
+        try:
+            parsed = json.loads(text)
+            if isinstance(parsed, list):
+                return [str(item).strip() for item in parsed if str(item).strip()]
+        except json.JSONDecodeError:
+            pass
+        if "," in text:
+            return [item.strip() for item in text.split(",") if item.strip()]
+        return [text]
+    return []
+
+
+def _fallback_image(seed: int, offset: int = 0) -> str:
+    index = (seed + offset) % len(FALLBACK_PROFILE_IMAGES)
+    return FALLBACK_PROFILE_IMAGES[index]
+
+
+def _sanitize_phone(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    digits = "".join(ch for ch in str(value) if ch.isdigit())
+    if digits.startswith("00"):
+        digits = digits[2:]
+    if digits.startswith("0") and len(digits) >= 9:
+        digits = "254" + digits[1:]
+    return digits
+
+
+def _build_gallery_urls(provider_id: int, photo_ids: list[str]) -> list[str]:
+    urls = [f"/photo/{file_id}" for file_id in photo_ids if file_id]
+    while len(urls) < 5:
+        urls.append(_fallback_image(provider_id, len(urls)))
+    return urls
+
+
+def _normalize_provider(provider: dict) -> dict:
+    """Builds a stable profile payload for the template."""
+    profile = dict(provider)
+    services_list = _to_string_list(profile.get("services"))
+    languages_list = _to_string_list(profile.get("languages"))
+    photo_ids = _to_string_list(profile.get("profile_photos"))
+
+    profile["services_list"] = services_list
+    profile["languages_list"] = languages_list
+    profile["primary_location"] = profile.get("neighborhood") or profile.get("city") or "Nairobi"
+    profile["photo_urls"] = _build_gallery_urls(profile.get("id", 0), photo_ids)
+    profile["availability_label"] = profile.get("availability_type") or (
+        "Available now" if profile.get("is_online") else "By booking"
+    )
+    profile["response_hint"] = (
+        "Usually replies in under 15 minutes"
+        if profile.get("is_online")
+        else "Usually replies in under 1 hour"
+    )
+    profile["last_active_hint"] = "Online now" if profile.get("is_online") else "Active today"
+    phone_digits = _sanitize_phone(profile.get("phone"))
+    profile["phone_digits"] = phone_digits
+
+    rate_fields = [
+        ("30 min", "rate_30min"),
+        ("1 hour", "rate_1hr"),
+        ("2 hours", "rate_2hr"),
+        ("3 hours", "rate_3hr"),
+        ("Overnight", "rate_overnight"),
+    ]
+    rate_cards = []
+    for label, field in rate_fields:
+        amount = profile.get(field)
+        if isinstance(amount, (int, float)) and amount > 0:
+            rate_cards.append({"label": label, "amount": int(amount)})
+    profile["rate_cards"] = rate_cards
+    default_message = quote(f"Hi {profile.get('display_name', '')}, are you available?")
+    profile["call_url"] = f"tel:+{phone_digits}" if phone_digits else f"/contact/{profile.get('id')}/direct"
+    profile["whatsapp_url"] = (
+        f"https://wa.me/{phone_digits}?text={default_message}"
+        if phone_digits
+        else f"/contact/{profile.get('id')}/direct"
+    )
+    profile["has_phone"] = bool(phone_digits)
+    return profile
+
+
+def _normalize_recommendation(provider: dict) -> dict:
+    card = dict(provider)
+    photo_ids = _to_string_list(card.get("profile_photos"))
+    card["photo_url"] = f"/photo/{photo_ids[0]}" if photo_ids else _fallback_image(card.get("id", 0))
+    card["location"] = card.get("neighborhood") or card.get("city") or "Nairobi"
+    card["services_list"] = _to_string_list(card.get("services"))[:2]
+    return card
 
 
 def _is_valid_callback_signature(raw_body: bytes, signature: Optional[str]) -> bool:
@@ -182,6 +296,7 @@ async def home(
         "selected_city": city,
         "selected_neighborhood": neighborhood,
         "neighborhoods": neighborhoods,
+        "neighborhood_map": NEIGHBORHOODS,
         "city_counts": city_counts,
         "total_count": total_count,
         "total_verified": total_verified,
@@ -312,13 +427,18 @@ async def contact_page(request: Request, provider_id: int):
     
     if not provider:
         return RedirectResponse(url="/", status_code=302)
+
+    profile = _normalize_provider(provider)
+    recommendations = db.get_recommendations(profile.get("city") or "Nairobi", provider_id, limit=4)
+    recommendation_cards = [_normalize_recommendation(item) for item in recommendations]
     
     # Log the contact click
     logger.info(f"📲 Contact page: Provider ID {provider_id} ({provider.get('display_name', 'Unknown')})")
     
     return templates.TemplateResponse("contact.html", {
         "request": request,
-        "provider": provider,
+        "provider": profile,
+        "recommendations": recommendation_cards,
     })
 
 
@@ -567,6 +687,27 @@ async def api_providers(
     """JSON API endpoint for providers."""
     providers = db.get_public_active_providers(city, neighborhood)
     return {"providers": providers, "count": len(providers)}
+
+
+@app.post("/api/analytics")
+async def api_analytics(request: Request):
+    """Receives lightweight frontend analytics events."""
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse({"status": "error", "message": "Invalid JSON"}, status_code=400)
+
+    event = str(payload.get("event", "")).strip()
+    event_payload = payload.get("payload", {})
+    if not event:
+        return JSONResponse({"status": "error", "message": "Missing event"}, status_code=400)
+    if not isinstance(event_payload, dict):
+        event_payload = {"value": str(event_payload)}
+
+    ok = db.log_analytics_event(event_name=event, event_payload=event_payload)
+    if not ok:
+        return JSONResponse({"status": "error", "message": "Failed"}, status_code=500)
+    return {"status": "ok"}
 
 
 @app.get("/health")

@@ -1,9 +1,10 @@
 import os
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, Json
 from typing import Optional, List, Dict
 from datetime import datetime, timedelta
 import logging
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ class Database:
         self.port = os.getenv("DB_PORT", "5432")
         self.conn = None
         self._connect()
+        self._run_startup_migrations()
     
     def _connect(self):
         """Establishes database connection with retry logic."""
@@ -60,6 +62,54 @@ class Database:
             except psycopg2.Error:
                 logger.warning("⚠️ Database connection unhealthy. Reconnecting...")
                 self._connect()
+
+    def _run_startup_migrations(self):
+        """Runs idempotent SQL migrations so deploys stay schema-compatible."""
+        self._ensure_connection()
+        migration_dir = Path(__file__).resolve().parent / "migrations"
+        if not migration_dir.exists():
+            logger.info("No migration directory found; skipping startup migrations.")
+            return
+
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS schema_migrations (
+                        id BIGSERIAL PRIMARY KEY,
+                        migration_key VARCHAR(255) UNIQUE NOT NULL,
+                        applied_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+                self.conn.commit()
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize schema_migrations table: {e}")
+            self.conn.rollback()
+            raise
+
+        for migration_path in sorted(migration_dir.glob("*.sql")):
+            migration_key = migration_path.name
+            try:
+                with self.conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT 1 FROM schema_migrations WHERE migration_key = %s",
+                        (migration_key,),
+                    )
+                    already_applied = cur.fetchone() is not None
+                    if already_applied:
+                        continue
+
+                    sql = migration_path.read_text(encoding="utf-8")
+                    cur.execute(sql)
+                    cur.execute(
+                        "INSERT INTO schema_migrations (migration_key) VALUES (%s)",
+                        (migration_key,),
+                    )
+                self.conn.commit()
+                logger.info(f"✅ Applied migration: {migration_key}")
+            except Exception as e:
+                logger.error(f"❌ Migration failed ({migration_key}): {e}")
+                self.conn.rollback()
+                raise
     
     def get_active_providers(self, city: Optional[str] = None, neighborhood: Optional[str] = None) -> List[Dict]:
         """
@@ -72,7 +122,7 @@ class Database:
         self._ensure_connection()
         
         # Common SELECT columns (includes tier/boost/premium fields)
-        cols = """id, telegram_id, display_name, city, neighborhood, is_online,
+        cols = """id, telegram_id, telegram_username, display_name, city, neighborhood, is_online,
                   age, height_cm, weight_kg, build, services, bio, created_at, profile_photos,
                   subscription_tier, boost_until, is_premium_verified"""
         
@@ -259,9 +309,11 @@ class Database:
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""
-                    SELECT id, telegram_id, display_name, city, neighborhood, is_online,
-                           age, height_cm, weight_kg, build, services, bio, nearby_places, 
-                           profile_photos, telegram_username,
+                    SELECT id, telegram_id, display_name, phone, city, neighborhood, is_online,
+                           age, height_cm, weight_kg, build, services, bio, nearby_places,
+                           availability_type, languages,
+                           rate_30min, rate_1hr, rate_2hr, rate_3hr, rate_overnight,
+                           created_at, profile_photos, telegram_username,
                            subscription_tier, boost_until, is_premium_verified
                     FROM providers
                     WHERE id = %s AND is_verified = TRUE AND is_active = TRUE
@@ -304,6 +356,34 @@ class Database:
                 return True
         except Exception as e:
             logger.error(f"❌ Error activating subscription: {e}")
+            self.conn.rollback()
+            return False
+
+    def log_analytics_event(self, event_name: str, event_payload: Optional[Dict] = None) -> bool:
+        """Stores lightweight frontend funnel analytics events."""
+        self._ensure_connection()
+        payload = event_payload or {}
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS analytics_events (
+                        id BIGSERIAL PRIMARY KEY,
+                        event_name VARCHAR(100) NOT NULL,
+                        event_payload JSONB,
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+                cur.execute(
+                    """
+                    INSERT INTO analytics_events (event_name, event_payload)
+                    VALUES (%s, %s)
+                    """,
+                    (event_name[:100], Json(payload))
+                )
+                self.conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error logging analytics event: {e}")
             self.conn.rollback()
             return False
 
@@ -430,7 +510,8 @@ class Database:
                     # Fallback to simple random if source not found
                     cur.execute("""
                         SELECT id, telegram_id, display_name, city, neighborhood, is_online,
-                               age, height_cm, weight_kg, build, services, bio, nearby_places
+                               age, height_cm, weight_kg, build, services, bio, nearby_places,
+                               profile_photos, subscription_tier, is_premium_verified
                         FROM providers
                         WHERE is_verified = TRUE AND is_active = TRUE 
                               AND city = %s AND id != %s
@@ -448,7 +529,7 @@ class Database:
                     SELECT 
                         id, telegram_id, display_name, city, neighborhood, is_online,
                         age, height_cm, weight_kg, build, services, bio, nearby_places,
-                        created_at,
+                        created_at, profile_photos, subscription_tier, is_premium_verified,
                         (
                             -- Same neighborhood bonus
                             CASE WHEN neighborhood = %s THEN 10 ELSE 0 END +
@@ -485,7 +566,8 @@ class Database:
                 with self.conn.cursor() as cur:
                     cur.execute("""
                         SELECT id, telegram_id, display_name, city, neighborhood, is_online,
-                               age, height_cm, weight_kg, build, services, bio, nearby_places
+                               age, height_cm, weight_kg, build, services, bio, nearby_places,
+                               profile_photos, subscription_tier, is_premium_verified
                         FROM providers
                         WHERE is_verified = TRUE AND is_active = TRUE 
                               AND city = %s AND id != %s
@@ -553,3 +635,4 @@ class Database:
         except Exception as e:
             logger.error(f"❌ Error seeding database: {e}")
             self.conn.rollback()
+

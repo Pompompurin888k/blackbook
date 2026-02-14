@@ -7,7 +7,6 @@ os.environ.setdefault("DB_HOST", "localhost")
 os.environ.setdefault("DB_PORT", "8291")
 os.environ.setdefault("DB_NAME", "blackbook_db")
 os.environ.setdefault("DB_USER", "bb_operator")
-os.environ.setdefault("DB_PASSWORD", "BlackBook8888")
 
 import sys
 sys.path.insert(0, 'web')

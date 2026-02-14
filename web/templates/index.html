@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BLACKBOOK | Private Concierge</title>
+    <title>BLACKBOOK | Nairobi Concierge Directory</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -802,6 +802,54 @@
             pointer-events: auto;
         }
 
+        /* Mobile action dock + sheets */
+        .sheet-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 850;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .sheet-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .mobile-sheet {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: -110%;
+            z-index: 860;
+            background: rgba(18, 18, 18, 0.98);
+            backdrop-filter: blur(18px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px 20px 0 0;
+            padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+            transition: bottom 0.25s ease;
+        }
+
+        .mobile-sheet.active {
+            bottom: 0;
+        }
+
+        #mobile-action-bar {
+            position: fixed;
+            left: 12px;
+            right: 12px;
+            bottom: calc(12px + env(safe-area-inset-bottom));
+            z-index: 120;
+        }
+
+        @media (min-width: 769px) {
+            #mobile-action-bar {
+                display: none;
+            }
+        }
+
         .no-scrollbar {
             -ms-overflow-style: none;
             scrollbar-width: none;
@@ -952,7 +1000,7 @@
             <h1 class="serif text-4xl sm:text-6xl md:text-8xl mb-6 tracking-[0.14em] whitespace-normal sm:whitespace-nowrap">BLACKBOOK
             </h1>
             <p class="text-gray-300 max-w-xl mx-auto font-light leading-relaxed mb-10 text-sm md:text-base">
-                An elite private network for the modern gentleman.
+                An elite concierge network for the modern gentleman.
                 <span class="block mt-1">Verified identities. Unmatched discretion.</span>
             </p>
             <button onclick="navigateTo('directory')"
@@ -1015,10 +1063,10 @@
             </div>
         </nav>
 
-        <!-- HERO SECTION WITH STATS -->
+        <!-- HERO SECTION WITH QUICK ACTIONS -->
         <div class="py-12 md:py-16 px-4 text-center border-b border-white/5 section-shell">
             <h1 class="serif text-3xl sm:text-4xl md:text-6xl text-white mb-3 md:mb-4 tracking-tight">
-                Private Concierge Directory
+                Nairobi Concierge Directory
             </h1>
             <div
                 class="flex items-center justify-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-400 uppercase tracking-[0.3em] mb-6 md:mb-8">
@@ -1035,22 +1083,26 @@
                 <span class="text-white/30">•</span>
                 <span>Available 24/7</span>
             </div>
-            <div class="flex items-center justify-center gap-2 md:gap-4 text-sm md:text-base mb-8 md:mb-10 flex-wrap">
-                <div class="flex items-center gap-2 metric-chip">
-                    <span class="text-2xl md:text-3xl font-bold text-white">{{ total_verified or 0 }}</span>
-                    <span class="text-gray-500 text-xs md:text-sm">Verified Providers</span>
+            <div class="max-w-3xl mx-auto mb-8 md:mb-10">
+                <p class="text-[10px] uppercase tracking-[0.28em] text-gray-500 mb-3">Quick Actions</p>
+                <div class="flex items-center gap-2 overflow-x-auto no-scrollbar px-1 md:justify-center">
+                    <button type="button" data-qf="newArrivals" onclick="toggleQuickFilter('newArrivals')"
+                        class="quick-filter-btn whitespace-nowrap glass border border-white/10 text-gray-300 px-4 py-2 rounded-full text-[11px] uppercase tracking-widest transition-all">
+                        New Arrivals
+                    </button>
+                    <button type="button" data-qf="premiumVerified" onclick="toggleQuickFilter('premiumVerified')"
+                        class="quick-filter-btn whitespace-nowrap glass border border-white/10 text-gray-300 px-4 py-2 rounded-full text-[11px] uppercase tracking-widest transition-all">
+                        Premium Verified
+                    </button>
+                    <button type="button" data-qf="withPhotos" onclick="toggleQuickFilter('withPhotos')"
+                        class="quick-filter-btn whitespace-nowrap glass border border-white/10 text-gray-300 px-4 py-2 rounded-full text-[11px] uppercase tracking-widest transition-all">
+                        With Photos
+                    </button>
+                    <a href="/safety"
+                        class="whitespace-nowrap glass border border-white/10 text-gray-300 px-4 py-2 rounded-full text-[11px] uppercase tracking-widest transition-all hover:border-[#D4AF37]/40 hover:text-[#D4AF37]">
+                        Safety
+                    </a>
                 </div>
-                <div class="flex items-center gap-2 metric-chip">
-                    <span class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
-                    <span class="text-xl md:text-2xl font-bold text-green-400">{{ total_online or 0 }}</span>
-                    <span class="text-gray-500 text-xs md:text-sm">Online Now</span>
-                </div>
-                {% if total_premium and total_premium > 0 %}
-                <div class="hidden md:flex items-center gap-2 metric-chip">
-                    <span class="text-xl md:text-2xl font-bold text-[#D4AF37]">{{ total_premium }}</span>
-                    <span class="text-gray-500 text-xs md:text-sm">Premium</span>
-                </div>
-                {% endif %}
             </div>
 
             <!-- Search Bar -->
@@ -1068,41 +1120,21 @@
             </div>
         </div>
 
-        <!-- City Filter (Full Reload) -->
-        <div class="filter-strip flex overflow-x-auto p-4 md:p-6 pb-2 md:pb-3 gap-2 md:gap-3 no-scrollbar md:justify-center bg-black/50"
-            id="city-filters">
-            <button onclick="window.location.href='/?city=all'"
-                class="filter-btn-city btn-ripple px-5 md:px-8 py-1.5 md:py-2 rounded-full {% if selected_city == 'all' %}gold-bg text-black active-filter{% else %}glass text-gray-400{% endif %} font-bold text-xs md:text-sm transition-all hover:scale-105">
-                All
-            </button>
-            {% for city in cities %}
-            <button onclick="window.location.href='/?city={{ city }}'"
-                class="filter-btn-city btn-ripple px-5 md:px-8 py-1.5 md:py-2 rounded-full {% if selected_city == city %}gold-bg text-black active-filter{% else %}glass text-gray-400{% endif %} font-semibold text-xs md:text-sm transition-all hover:scale-105">
-                {{ city }}
-            </button>
-            {% endfor %}
+        <!-- Location Control (City + Neighborhood Sheet) -->
+        <div class="px-4 md:px-6 py-3 md:py-4 bg-black/50 border-y border-white/5">
+            <div class="max-w-4xl mx-auto flex items-center gap-3">
+                <div class="flex-1 glass border border-white/10 rounded-xl px-4 py-2.5">
+                    <p class="text-[9px] uppercase tracking-[0.24em] text-gray-500 mb-1">Location</p>
+                    <p id="current-location-pill" class="text-sm md:text-base text-white font-semibold">
+                        {{ selected_city or 'Nairobi' }} · {{ selected_neighborhood or 'All Areas' }}
+                    </p>
+                </div>
+                <button type="button" onclick="openLocationSheet()"
+                    class="btn-ripple px-4 md:px-5 py-2.5 rounded-xl gold-bg text-black text-[11px] uppercase tracking-widest font-bold">
+                    Change
+                </button>
+            </div>
         </div>
-
-        <!-- Neighborhood Sub-Navigation (HTMX Enabled) -->
-        {% if neighborhoods %}
-        <div class="filter-strip flex overflow-x-auto px-4 md:px-6 pb-3 md:pb-4 gap-1.5 md:gap-2 no-scrollbar md:justify-center"
-            id="hood-filters">
-            <button hx-get="/api/grid?city={{ selected_city }}" hx-target="#provider-grid"
-                hx-indicator="#provider-grid-wrapper" hx-push-url="true" onclick="toggleFilter(this, 'hood')"
-                class="filter-btn-hood px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest whitespace-nowrap transition-all
-                       {% if not selected_neighborhood %}border border-[#D4AF37]/50 gold-text active-filter{% else %}border border-white/10 text-gray-400 hover:border-[#D4AF37]/30{% endif %}">
-                All Areas
-            </button>
-            {% for hood in neighborhoods %}
-            <button hx-get="/api/grid?city={{ selected_city }}&neighborhood={{ hood }}" hx-target="#provider-grid"
-                hx-indicator="#provider-grid-wrapper" hx-push-url="true" onclick="toggleFilter(this, 'hood')"
-                class="filter-btn-hood px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest whitespace-nowrap transition-all
-                       {% if selected_neighborhood == hood %}border border-[#D4AF37]/50 gold-text active-filter{% else %}border border-white/10 text-gray-400 hover:border-[#D4AF37]/30{% endif %}">
-                {{ hood }}
-            </button>
-            {% endfor %}
-        </div>
-        {% endif %}
 
         <!-- Grid Wrapper for HTMX & Skeletons -->
         <div id="provider-grid-wrapper" class="relative min-h-[500px] p-3 md:px-12 pb-24 max-w-[1440px] mx-auto">
@@ -1155,6 +1187,117 @@
                     <span>🥇 Gold</span>
                     <span>💎 Platinum</span>
                 </div>
+            </div>
+        </div>
+
+        <!-- Mobile Sticky Action Bar -->
+        <div id="mobile-action-bar" class="md:hidden">
+            <div class="glass rounded-2xl border border-white/10 px-3 py-2 flex items-center justify-between gap-2">
+                <button type="button" onclick="openFilterSheet()"
+                    class="flex-1 px-3 py-2 rounded-xl bg-white/5 text-gray-200 text-[11px] uppercase tracking-widest font-semibold">
+                    Filters <span id="mobile-filter-count" class="text-[#D4AF37]">0</span>
+                </button>
+                <button type="button" onclick="openFavoritesSheet()"
+                    class="flex-1 px-3 py-2 rounded-xl bg-white/5 text-gray-200 text-[11px] uppercase tracking-widest font-semibold">
+                    Favorites
+                </button>
+                <a href="/safety"
+                    class="flex-1 px-3 py-2 rounded-xl bg-white/5 text-gray-200 text-[11px] uppercase tracking-widest font-semibold text-center">
+                    Safety
+                </a>
+                <button type="button" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })"
+                    class="px-3 py-2 rounded-xl bg-[#D4AF37] text-black text-[11px] uppercase tracking-widest font-bold">
+                    Top
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter Sheet -->
+        <div id="filter-sheet-backdrop" class="sheet-backdrop" onclick="closeFilterSheet()"></div>
+        <div id="filter-sheet" class="mobile-sheet">
+            <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm uppercase tracking-[0.22em] text-gray-300">Smart Filters</h3>
+                <button type="button" onclick="clearAllFilters()"
+                    class="text-[11px] uppercase tracking-widest text-[#D4AF37]">Clear All</button>
+            </div>
+
+            <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Quick Filters</p>
+            <div class="flex flex-wrap gap-2 mb-4">
+                <button id="sheet-filter-new" type="button" data-qf="newArrivals" onclick="toggleQuickFilter('newArrivals')"
+                    class="px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">New Arrivals</button>
+                <button id="sheet-filter-premium" type="button" data-qf="premiumVerified" onclick="toggleQuickFilter('premiumVerified')"
+                    class="px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Premium Verified</button>
+                <button id="sheet-filter-photos" type="button" data-qf="withPhotos" onclick="toggleQuickFilter('withPhotos')"
+                    class="px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">With Photos</button>
+            </div>
+
+            <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Sort By</p>
+            <div class="grid grid-cols-2 gap-2 mb-5">
+                <button id="sort-recommended" type="button" onclick="setSortBy('recommended')"
+                    class="px-3 py-2 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Recommended</button>
+                <button id="sort-newest" type="button" onclick="setSortBy('newest')"
+                    class="px-3 py-2 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Newest</button>
+                <button id="sort-online" type="button" onclick="setSortBy('online')"
+                    class="px-3 py-2 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Online</button>
+                <button id="sort-premium" type="button" onclick="setSortBy('premium')"
+                    class="px-3 py-2 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Premium</button>
+            </div>
+
+            <button type="button" onclick="applyFilterSheet()"
+                class="w-full px-4 py-3 rounded-xl bg-[#D4AF37] text-black text-xs uppercase tracking-[0.2em] font-bold">
+                Apply Filters
+            </button>
+        </div>
+
+        <!-- Favorites Sheet -->
+        <div id="favorites-sheet-backdrop" class="sheet-backdrop" onclick="closeFavoritesSheet()"></div>
+        <div id="favorites-sheet" class="mobile-sheet">
+            <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm uppercase tracking-[0.22em] text-gray-300">Favorites</h3>
+                <button type="button" onclick="closeFavoritesSheet()"
+                    class="text-[11px] uppercase tracking-widest text-gray-400">Close</button>
+            </div>
+            <div id="favorites-list" class="space-y-2 max-h-[45vh] overflow-y-auto pr-1"></div>
+        </div>
+
+        <!-- Location Sheet -->
+        <div id="location-sheet-backdrop" class="sheet-backdrop" onclick="closeLocationSheet()"></div>
+        <div id="location-sheet" class="mobile-sheet">
+            <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm uppercase tracking-[0.22em] text-gray-300">Choose Location</h3>
+                <button type="button" onclick="closeLocationSheet()"
+                    class="text-[11px] uppercase tracking-widest text-gray-400">Close</button>
+            </div>
+
+            <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">City</p>
+            <div id="location-city-options" class="flex flex-wrap gap-2 mb-4">
+                <button type="button" data-city="all" onclick="selectLocationCity('all')"
+                    class="location-city-btn px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">
+                    All Cities
+                </button>
+                {% for city in cities %}
+                <button type="button" data-city="{{ city }}" onclick="selectLocationCity('{{ city }}')"
+                    class="location-city-btn px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">
+                    {{ city }}
+                </button>
+                {% endfor %}
+            </div>
+
+            <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Neighborhood</p>
+            <div id="location-neighborhood-options" class="flex flex-wrap gap-2 mb-5"></div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <button type="button" onclick="resetLocationSelection()"
+                    class="px-3 py-3 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">
+                    Reset
+                </button>
+                <button type="button" onclick="applyLocationSelection()"
+                    class="px-3 py-3 rounded-xl bg-[#D4AF37] text-black text-[11px] uppercase tracking-widest font-bold">
+                    Apply
+                </button>
             </div>
         </div>
     </section>
@@ -1406,6 +1549,27 @@
             </div>
         </div>
 
+        <!-- Mobile Profile Contact Dock -->
+        <div id="profile-contact-dock"
+            class="md:hidden fixed left-3 right-3 bottom-[calc(10px+env(safe-area-inset-bottom))] z-[95]">
+            <div class="glass rounded-2xl border border-white/10 p-2 space-y-2">
+                <div class="grid grid-cols-2 gap-2">
+                    <a id="dock-direct-btn" href="#"
+                        class="px-3 py-3 rounded-xl bg-[#25D366]/20 text-[#25D366] text-[11px] uppercase tracking-widest font-bold text-center">
+                        Direct
+                    </a>
+                    <a id="dock-discreet-btn" href="#"
+                        class="px-3 py-3 rounded-xl bg-white/10 text-white text-[11px] uppercase tracking-widest font-bold text-center">
+                        Discreet
+                    </a>
+                </div>
+                <button type="button" onclick="openContactFallbackModal()"
+                    class="w-full px-3 py-2 rounded-xl bg-white/5 text-gray-300 text-[10px] uppercase tracking-widest">
+                    Trouble opening Telegram?
+                </button>
+            </div>
+        </div>
+
         <!-- Image Zoom Modal -->
         <div id="image-zoom-modal" class="image-zoom-modal" onclick="closeImageZoom()">
             <button class="absolute top-6 right-6 z-[80] glass p-3 rounded-full hover:bg-white/10 transition-colors"
@@ -1440,6 +1604,24 @@
                     class="w-full glass p-4 rounded-xl text-white hover:bg-white/10 transition-colors">
                     Cancel
                 </button>
+            </div>
+        </div>
+
+        <!-- Contact Fallback Sheet -->
+        <div id="contact-fallback-backdrop" class="sheet-backdrop" onclick="closeContactFallbackModal()"></div>
+        <div id="contact-fallback-sheet" class="mobile-sheet">
+            <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
+            <h3 class="text-sm uppercase tracking-[0.22em] text-gray-300 mb-2 text-center">Telegram Fallback</h3>
+            <p class="text-xs text-gray-400 text-center mb-4">If Telegram did not open, copy this handle and paste it in Telegram search.</p>
+            <div class="glass rounded-xl border border-white/10 p-3 mb-4">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Handle</p>
+                <p id="fallback-handle" class="text-sm text-white break-all">Not available</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <button type="button" onclick="copyFallbackHandle()"
+                    class="px-3 py-3 rounded-xl bg-[#D4AF37] text-black text-[11px] uppercase tracking-widest font-bold">Copy Handle</button>
+                <button type="button" onclick="closeContactFallbackModal()"
+                    class="px-3 py-3 rounded-xl bg-white/10 text-white text-[11px] uppercase tracking-widest font-bold">Close</button>
             </div>
         </div>
     </section>
@@ -1483,6 +1665,100 @@
         const hasCity = urlParams.has('city');
         const hasNeighborhood = urlParams.has('neighborhood');
         const skipLanding = hasCity || hasNeighborhood;
+        const neighborhoodMap = {{ neighborhood_map | tojson | safe }};
+        const selectedCityServer = "{{ selected_city or 'Nairobi' }}";
+        const selectedNeighborhoodServer = "{{ selected_neighborhood or '' }}";
+        let pendingLocation = {
+            city: selectedCityServer || 'Nairobi',
+            neighborhood: selectedNeighborhoodServer || ''
+        };
+
+        function updateCurrentLocationPill() {
+            const pill = document.getElementById('current-location-pill');
+            if (!pill) return;
+            const cityLabel = pendingLocation.city === 'all' ? 'All Cities' : pendingLocation.city;
+            const hoodLabel = pendingLocation.city === 'all' ? 'All Areas' : (pendingLocation.neighborhood || 'All Areas');
+            pill.textContent = `${cityLabel} · ${hoodLabel}`;
+        }
+
+        function updateLocationCityButtons() {
+            document.querySelectorAll('.location-city-btn').forEach((btn) => {
+                const isActive = btn.dataset.city === pendingLocation.city;
+                if (isActive) {
+                    btn.classList.remove('glass', 'text-gray-200', 'border-white/10');
+                    btn.classList.add('gold-bg', 'text-black', 'border-[#D4AF37]');
+                } else {
+                    btn.classList.remove('gold-bg', 'text-black', 'border-[#D4AF37]');
+                    btn.classList.add('glass', 'text-gray-200', 'border-white/10');
+                }
+            });
+        }
+
+        function renderLocationNeighborhoodOptions() {
+            const container = document.getElementById('location-neighborhood-options');
+            if (!container) return;
+
+            if (pendingLocation.city === 'all') {
+                container.innerHTML = '<p class="text-xs text-gray-500">Select a city first to choose an area.</p>';
+                return;
+            }
+
+            const hoods = neighborhoodMap[pendingLocation.city] || [];
+            const allAreasActive = !pendingLocation.neighborhood;
+            const buttons = [
+                `<button type="button" onclick="selectLocationNeighborhood('')" class="location-hood-btn px-3 py-2 rounded-full ${allAreasActive ? 'gold-bg text-black border border-[#D4AF37]' : 'glass text-gray-200 border border-white/10'} text-[11px] uppercase tracking-widest">All Areas</button>`
+            ];
+            hoods.forEach((hood) => {
+                const active = pendingLocation.neighborhood === hood;
+                buttons.push(
+                    `<button type="button" onclick="selectLocationNeighborhood('${hood.replace(/'/g, "\\'")}')" class="location-hood-btn px-3 py-2 rounded-full ${active ? 'gold-bg text-black border border-[#D4AF37]' : 'glass text-gray-200 border border-white/10'} text-[11px] uppercase tracking-widest">${hood}</button>`
+                );
+            });
+            container.innerHTML = buttons.join('');
+        }
+
+        function openLocationSheet() {
+            updateLocationCityButtons();
+            renderLocationNeighborhoodOptions();
+            document.getElementById('location-sheet')?.classList.add('active');
+            document.getElementById('location-sheet-backdrop')?.classList.add('active');
+            trackEvent('location_sheet_open');
+        }
+
+        function closeLocationSheet() {
+            document.getElementById('location-sheet')?.classList.remove('active');
+            document.getElementById('location-sheet-backdrop')?.classList.remove('active');
+        }
+
+        function selectLocationCity(city) {
+            pendingLocation.city = city;
+            pendingLocation.neighborhood = '';
+            updateLocationCityButtons();
+            renderLocationNeighborhoodOptions();
+        }
+
+        function selectLocationNeighborhood(hood) {
+            pendingLocation.neighborhood = hood || '';
+            renderLocationNeighborhoodOptions();
+        }
+
+        function resetLocationSelection() {
+            pendingLocation.city = 'all';
+            pendingLocation.neighborhood = '';
+            updateLocationCityButtons();
+            renderLocationNeighborhoodOptions();
+        }
+
+        function applyLocationSelection() {
+            const params = new URLSearchParams();
+            params.set('city', pendingLocation.city || 'Nairobi');
+            if (pendingLocation.city !== 'all' && pendingLocation.neighborhood) {
+                params.set('neighborhood', pendingLocation.neighborhood);
+            }
+            trackEvent('location_apply', { city: pendingLocation.city, neighborhood: pendingLocation.neighborhood || null });
+            closeLocationSheet();
+            window.location.href = `/?${params.toString()}`;
+        }
 
         // Initial Page Load Animation
         window.addEventListener('DOMContentLoaded', () => {
@@ -1494,6 +1770,13 @@
                 document.getElementById('directory-page').style.display = 'block';
             }
             // Landing page is now visible by default - no animation needed
+            updateCurrentLocationPill();
+            restoreUiState();
+            filterProviders();
+            schedulePreload();
+            document.querySelectorAll('a[href="/safety"]').forEach((a) => {
+                a.addEventListener('click', () => trackEvent('safety_click'));
+            });
         });
 
         // SPA Navigation Logic
@@ -1564,97 +1847,383 @@
             }
         }
 
-        // Search Filter Function with Loading State
+        // Filtering, sorting, persistence, and lightweight analytics
+        const STATE_KEY = 'bb-ui-state-v2';
+        const quickFilters = {
+            newArrivals: false,
+            premiumVerified: false,
+            withPhotos: false
+        };
+        let sortBy = 'recommended';
         let searchTimeout;
-        function filterProviders() {
-            // Clear previous timeout
-            clearTimeout(searchTimeout);
 
-            // Show loading spinner
+        function trackEvent(eventName, payload = {}) {
+            const body = JSON.stringify({
+                event: eventName,
+                payload: {
+                    ...payload,
+                    path: window.location.pathname + window.location.search,
+                    ts: Date.now()
+                }
+            });
+            try {
+                if (navigator.sendBeacon) {
+                    const blob = new Blob([body], { type: 'application/json' });
+                    navigator.sendBeacon('/api/analytics', blob);
+                } else {
+                    fetch('/api/analytics', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body,
+                        keepalive: true
+                    }).catch(() => {});
+                }
+            } catch (_) {}
+        }
+
+        function hasActiveQuickFilters() {
+            return Object.values(quickFilters).some(Boolean);
+        }
+
+        function getActiveFilterCount() {
+            const searchTerm = (document.getElementById('search-input')?.value || '').trim();
+            return Object.values(quickFilters).filter(Boolean).length + (searchTerm ? 1 : 0) + (sortBy !== 'recommended' ? 1 : 0);
+        }
+
+        function updateFilterCountBadge() {
+            const el = document.getElementById('mobile-filter-count');
+            if (el) el.textContent = String(getActiveFilterCount());
+        }
+
+        function updateQuickFilterButtons() {
+            const styleButton = (button, isActive) => {
+                if (!button) return;
+                if (isActive) {
+                    button.classList.remove('glass', 'text-gray-300', 'text-gray-200', 'border-white/10');
+                    button.classList.add('gold-bg', 'text-black', 'border-[#D4AF37]', 'active-filter');
+                } else {
+                    button.classList.remove('gold-bg', 'text-black', 'border-[#D4AF37]', 'active-filter');
+                    if (!button.classList.contains('glass')) button.classList.add('glass');
+                    if (button.id && button.id.startsWith('sheet-filter-')) {
+                        button.classList.add('text-gray-200', 'border-white/10');
+                    } else {
+                        button.classList.add('text-gray-300', 'border-white/10');
+                    }
+                }
+            };
+            Object.keys(quickFilters).forEach((key) => {
+                document.querySelectorAll(`[data-qf="${key}"]`).forEach((btn) => styleButton(btn, quickFilters[key]));
+            });
+            updateFilterCountBadge();
+        }
+
+        function updateSortButtons() {
+            ['recommended', 'newest', 'online', 'premium'].forEach((key) => {
+                const btn = document.getElementById(`sort-${key}`);
+                if (!btn) return;
+                if (sortBy === key) {
+                    btn.classList.remove('glass', 'text-gray-200', 'border-white/10');
+                    btn.classList.add('gold-bg', 'text-black', 'border-[#D4AF37]', 'active-filter');
+                } else {
+                    btn.classList.remove('gold-bg', 'text-black', 'border-[#D4AF37]', 'active-filter');
+                    btn.classList.add('glass', 'text-gray-200', 'border-white/10');
+                }
+            });
+            updateFilterCountBadge();
+        }
+
+        function persistUiState() {
+            const params = new URLSearchParams(window.location.search);
+            const city = params.get('city') || 'Nairobi';
+            const neighborhood = params.get('neighborhood') || '';
+            const searchTerm = (document.getElementById('search-input')?.value || '').trim();
+            const state = { city, neighborhood, searchTerm, quickFilters, sortBy };
+            localStorage.setItem(STATE_KEY, JSON.stringify(state));
+        }
+
+        function restoreUiState() {
+            try {
+                const raw = localStorage.getItem(STATE_KEY);
+                if (!raw) return;
+                const state = JSON.parse(raw);
+                if (state.searchTerm && document.getElementById('search-input')) {
+                    document.getElementById('search-input').value = state.searchTerm;
+                }
+                if (state.quickFilters && typeof state.quickFilters === 'object') {
+                    quickFilters.newArrivals = !!state.quickFilters.newArrivals;
+                    quickFilters.premiumVerified = !!state.quickFilters.premiumVerified;
+                    quickFilters.withPhotos = !!state.quickFilters.withPhotos;
+                }
+                if (state.sortBy) sortBy = state.sortBy;
+            } catch (_) {}
+            updateQuickFilterButtons();
+            updateSortButtons();
+        }
+
+        function openFilterSheet() {
+            document.getElementById('filter-sheet')?.classList.add('active');
+            document.getElementById('filter-sheet-backdrop')?.classList.add('active');
+            trackEvent('filters_open');
+        }
+
+        function closeFilterSheet() {
+            document.getElementById('filter-sheet')?.classList.remove('active');
+            document.getElementById('filter-sheet-backdrop')?.classList.remove('active');
+        }
+
+        function applyFilterSheet() {
+            closeFilterSheet();
+            filterProviders();
+            trackEvent('filters_apply', { sortBy, ...quickFilters });
+        }
+
+        function setSortBy(mode) {
+            sortBy = mode;
+            updateSortButtons();
+            persistUiState();
+            filterProviders();
+            trackEvent('sort_change', { sortBy: mode });
+        }
+
+        function toggleQuickFilter(filterKey) {
+            quickFilters[filterKey] = !quickFilters[filterKey];
+            updateQuickFilterButtons();
+            persistUiState();
+            filterProviders();
+            trackEvent('quick_filter_toggle', { filterKey, active: quickFilters[filterKey] });
+        }
+
+        function clearQuickFilters() {
+            quickFilters.newArrivals = false;
+            quickFilters.premiumVerified = false;
+            quickFilters.withPhotos = false;
+            updateQuickFilterButtons();
+            filterProviders();
+        }
+
+        function clearAllFilters() {
+            clearQuickFilters();
+            sortBy = 'recommended';
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.value = '';
+            updateSortButtons();
+            persistUiState();
+            filterProviders();
+        }
+
+        function sortProviderCards(cards) {
+            const tierRank = { platinum: 4, gold: 3, silver: 2, bronze: 1, none: 0 };
+            return cards.sort((a, b) => {
+                const da = JSON.parse(a.dataset.provider);
+                const db = JSON.parse(b.dataset.provider);
+                if (sortBy === 'newest') {
+                    return (db.created_at_ts || 0) - (da.created_at_ts || 0);
+                }
+                if (sortBy === 'online') {
+                    if ((db.is_online ? 1 : 0) !== (da.is_online ? 1 : 0)) return (db.is_online ? 1 : 0) - (da.is_online ? 1 : 0);
+                    return (db.created_at_ts || 0) - (da.created_at_ts || 0);
+                }
+                if (sortBy === 'premium') {
+                    const pa = (da.is_premium_verified ? 10 : 0) + (tierRank[da.tier || 'none'] || 0);
+                    const pb = (db.is_premium_verified ? 10 : 0) + (tierRank[db.tier || 'none'] || 0);
+                    if (pb !== pa) return pb - pa;
+                    return (db.created_at_ts || 0) - (da.created_at_ts || 0);
+                }
+                return 0;
+            });
+        }
+
+        function showNearbyProviders() {
+            const params = new URLSearchParams(window.location.search);
+            const city = params.get('city') || pendingLocation.city || 'Nairobi';
+            const next = new URLSearchParams();
+            next.set('city', city);
+            window.location.href = `/?${next.toString()}`;
+        }
+
+        function preloadUpcomingImages(limit = 6) {
+            const cards = Array.from(document.querySelectorAll('#provider-grid > div[data-provider]'))
+                .filter((card) => card.style.display !== 'none')
+                .slice(0, limit);
+            cards.forEach((card) => {
+                const img = card.querySelector('img[loading="lazy"]');
+                const src = img?.getAttribute('src');
+                if (src) {
+                    const p = new Image();
+                    p.src = src;
+                }
+            });
+        }
+
+        function schedulePreload() {
+            const runner = () => preloadUpcomingImages(6);
+            if ('requestIdleCallback' in window) {
+                window.requestIdleCallback(runner, { timeout: 800 });
+            } else {
+                setTimeout(runner, 120);
+            }
+        }
+
+        function filterProviders() {
+            clearTimeout(searchTimeout);
             const loadingOverlay = document.getElementById('search-loading');
             const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+            const quickFilterActive = hasActiveQuickFilters();
+            const hasCriteria = searchTerm.length > 0 || quickFilterActive || sortBy !== 'recommended';
 
-            // If there's a search term, show loading
-            if (searchTerm.length > 0) {
-                loadingOverlay.classList.remove('hidden');
-            }
+            if (loadingOverlay && hasCriteria) loadingOverlay.classList.remove('hidden');
 
-            // Debounce the search for better UX
             searchTimeout = setTimeout(() => {
-                const providerCards = document.querySelectorAll('#provider-grid > div[data-provider]');
+                const grid = document.getElementById('provider-grid');
+                let cards = Array.from(document.querySelectorAll('#provider-grid > div[data-provider]'));
+                cards = sortProviderCards(cards);
+                cards.forEach((card) => grid.appendChild(card));
+
                 let visibleCount = 0;
+                cards.forEach((card) => {
+                    const providerData = JSON.parse(card.dataset.provider);
+                    const name = (providerData.name || '').toLowerCase();
+                    const location = (providerData.location || '').toLowerCase();
+                    const city = (providerData.city || '').toLowerCase();
 
-                providerCards.forEach(card => {
-                    try {
-                        const providerData = JSON.parse(card.dataset.provider);
-                        const name = (providerData.name || '').toLowerCase();
-                        const location = (providerData.location || '').toLowerCase();
-                        const city = (providerData.city || '').toLowerCase();
+                    const matchesSearch = searchTerm === '' || name.includes(searchTerm) || location.includes(searchTerm) || city.includes(searchTerm);
+                    const matchesNewArrivals = !quickFilters.newArrivals || providerData.is_new_arrival === true;
+                    const matchesPremiumVerified = !quickFilters.premiumVerified || providerData.is_premium_verified === true;
+                    const matchesWithPhotos = !quickFilters.withPhotos || providerData.has_photos === true;
+                    const matches = matchesSearch && matchesNewArrivals && matchesPremiumVerified && matchesWithPhotos;
 
-                        // Match if search term is in name, location, or city
-                        const matches = searchTerm === '' ||
-                            name.includes(searchTerm) ||
-                            location.includes(searchTerm) ||
-                            city.includes(searchTerm);
-
-                        if (matches) {
-                            card.style.display = '';
-                            card.classList.add('card-fade-in');
-                            visibleCount++;
-                        } else {
-                            card.style.display = 'none';
-                            card.classList.remove('card-fade-in');
-                        }
-                    } catch (e) {
-                        console.error('Error parsing provider data:', e);
+                    if (matches) {
+                        card.style.display = '';
+                        visibleCount += 1;
+                    } else {
+                        card.style.display = 'none';
                     }
                 });
 
-                // Show "no results" message if needed
-                const grid = document.getElementById('provider-grid');
                 let noResultsMsg = document.getElementById('no-search-results');
-
-                if (visibleCount === 0 && searchTerm !== '') {
+                if (visibleCount === 0 && hasCriteria) {
                     if (!noResultsMsg) {
                         noResultsMsg = document.createElement('div');
                         noResultsMsg.id = 'no-search-results';
                         noResultsMsg.className = 'col-span-full text-center py-16 text-gray-500 animate-fade-in-up';
-                        noResultsMsg.innerHTML = `
-                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                            </svg>
-                            <p class="text-lg">No providers found for "${searchTerm}"</p>
-                            <p class="text-sm mt-2">Try a different search term</p>
-                        `;
                         grid.appendChild(noResultsMsg);
                     }
+                    noResultsMsg.innerHTML = `
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <p class="text-lg mb-3">No providers match your filters.</p>
+                        <div class="flex flex-wrap gap-2 justify-center">
+                            <button onclick="clearQuickFilters()" class="px-3 py-2 rounded-lg glass border border-white/10 text-xs uppercase tracking-widest text-gray-300">Clear Quick Filters</button>
+                            <button onclick="clearAllFilters()" class="px-3 py-2 rounded-lg glass border border-white/10 text-xs uppercase tracking-widest text-gray-300">Reset All</button>
+                            <button onclick="showNearbyProviders()" class="px-3 py-2 rounded-lg glass border border-white/10 text-xs uppercase tracking-widest text-gray-300">Show Nearby</button>
+                        </div>
+                    `;
                 } else if (noResultsMsg) {
                     noResultsMsg.remove();
                 }
 
-                // Hide loading overlay
-                loadingOverlay.classList.add('hidden');
-            }, 300); // 300ms debounce
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                persistUiState();
+                updateFilterCountBadge();
+                schedulePreload();
+            }, 220);
+        }
+
+        function openFavoritesSheet() {
+            const list = document.getElementById('favorites-list');
+            const favorites = JSON.parse(localStorage.getItem('blackbook-favorites') || '[]');
+            if (!favorites.length) {
+                list.innerHTML = '<p class="text-sm text-gray-400 p-3">No favorites yet.</p>';
+            } else {
+                list.innerHTML = favorites.map((f) => `
+                    <button type="button" onclick="openFavoriteProfile(${f.profile_id || 0})"
+                        class="w-full text-left p-3 rounded-xl glass border border-white/10 hover:border-[#D4AF37]/40">
+                        <p class="text-sm text-white font-medium">${f.name}</p>
+                        <p class="text-xs text-gray-400 mt-1">${f.location || ''}</p>
+                    </button>
+                `).join('');
+            }
+            document.getElementById('favorites-sheet')?.classList.add('active');
+            document.getElementById('favorites-sheet-backdrop')?.classList.add('active');
+            trackEvent('favorites_open', { count: favorites.length });
+        }
+
+        function closeFavoritesSheet() {
+            document.getElementById('favorites-sheet')?.classList.remove('active');
+            document.getElementById('favorites-sheet-backdrop')?.classList.remove('active');
+        }
+
+        function openFavoriteProfile(profileId) {
+            closeFavoritesSheet();
+            if (!profileId) {
+                showToast('Profile not available in current view', 'error', 2200);
+                return;
+            }
+            const card = Array.from(document.querySelectorAll('#provider-grid > div[data-provider]')).find((el) => {
+                try {
+                    return JSON.parse(el.dataset.provider).id === profileId;
+                } catch (_) {
+                    return false;
+                }
+            });
+            if (card) {
+                openProfile(card);
+                trackEvent('favorite_open', { profile_id: profileId });
+            } else {
+                showToast('Profile not in current list. Adjust filters first.', 'info', 2600);
+            }
+        }
+
+        function openContactLink(mode, url) {
+            trackEvent('contact_click', { mode, profile_id: window.currentProfileId || null });
+            const opened = window.open(url, '_blank', 'noopener');
+            if (!opened) {
+                window.location.href = url;
+            } else {
+                showToast('If Telegram did not open, use "Trouble opening Telegram?"', 'info', 2600);
+            }
+        }
+
+        function openContactFallbackModal() {
+            const handle = window.currentProfileTelegramUsername
+                ? `@${window.currentProfileTelegramUsername}`
+                : (window.currentProfileTelegramId ? String(window.currentProfileTelegramId) : 'Not available');
+            const el = document.getElementById('fallback-handle');
+            if (el) el.textContent = handle;
+            document.getElementById('contact-fallback-sheet')?.classList.add('active');
+            document.getElementById('contact-fallback-backdrop')?.classList.add('active');
+        }
+
+        function closeContactFallbackModal() {
+            document.getElementById('contact-fallback-sheet')?.classList.remove('active');
+            document.getElementById('contact-fallback-backdrop')?.classList.remove('active');
+        }
+
+        function copyFallbackHandle() {
+            const handle = document.getElementById('fallback-handle')?.textContent || '';
+            if (!handle || handle === 'Not available') {
+                showToast('No Telegram handle available', 'error', 2200);
+                return;
+            }
+            copyToClipboard(handle, `Copied ${handle}`);
         }
 
         // Open Profile View
         function openProfile(card) {
             try {
-                // Scroll to top immediately (instant, not smooth)
-                window.scrollTo(0, 0);
-
-                console.log('Card element:', card);
-                console.log('Raw data-provider:', card.dataset.provider);
-
                 const data = JSON.parse(card.dataset.provider);
-                console.log('Parsed data:', data);
 
                 // Validate required fields
-                if (!data.name || !data.id) {
+                if (!data.id) {
                     console.error('Missing required fields:', data);
-                    alert('Invalid provider data. Missing name or ID.');
+                    alert('Invalid provider data. Missing ID.');
                     return;
                 }
+
+                trackEvent('card_open', { profile_id: data.id, city: data.city || null });
+                window.location.href = `/contact/${data.id}`;
+                return;
 
                 // Basic Info
                 document.getElementById('view-name').innerText = data.name;
@@ -1663,12 +2232,41 @@
                 // Safe Contact Buttons (no direct phone exposure)
                 window.currentProfileId = data.id;
                 window.currentProfileContactUrl = `${window.location.origin}/contact/${data.id}`;
+                window.currentProfileTelegramUsername = data.telegram_username || '';
+                window.currentProfileTelegramId = data.telegram_id || null;
                 const firstName = data.name.split(' ')[0];
-                document.getElementById('view-whatsapp-btn').href = `/contact/${data.id}/direct`;
+                const directUrl = `/contact/${data.id}/direct`;
+                const discreetUrl = `/contact/${data.id}/discreet`;
+                document.getElementById('view-whatsapp-btn').href = directUrl;
                 document.getElementById('view-whatsapp-text').innerText = `Direct ${firstName}`;
+                document.getElementById('view-whatsapp-btn').onclick = (e) => {
+                    e.preventDefault();
+                    openContactLink('direct', directUrl);
+                };
 
-                document.getElementById('view-call-btn').href = `/contact/${data.id}/discreet`;
+                document.getElementById('view-call-btn').href = discreetUrl;
                 document.getElementById('view-call-text').innerText = `Discreet ${firstName}`;
+                document.getElementById('view-call-btn').onclick = (e) => {
+                    e.preventDefault();
+                    openContactLink('discreet', discreetUrl);
+                };
+
+                const dockDirect = document.getElementById('dock-direct-btn');
+                const dockDiscreet = document.getElementById('dock-discreet-btn');
+                if (dockDirect) {
+                    dockDirect.href = directUrl;
+                    dockDirect.onclick = (e) => {
+                        e.preventDefault();
+                        openContactLink('direct_dock', directUrl);
+                    };
+                }
+                if (dockDiscreet) {
+                    dockDiscreet.href = discreetUrl;
+                    dockDiscreet.onclick = (e) => {
+                        e.preventDefault();
+                        openContactLink('discreet_dock', discreetUrl);
+                    };
+                }
 
 
                 // Use real photos if available, otherwise create fallback variations
@@ -2055,6 +2653,12 @@
 
             if (event.detail.failed) {
                 showToast('Failed to load content. Please try again.', 'error');
+            }
+        });
+
+        document.body.addEventListener('htmx:afterSwap', (event) => {
+            if (event.detail?.target?.id === 'provider-grid') {
+                filterProviders();
             }
         });
     </script>

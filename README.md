@@ -23,6 +23,8 @@ cp .env.example .env
 docker-compose up -d
 ```
 
+On startup, the web service now auto-applies versioned SQL migrations from `web/migrations/`.
+
 ## Environment Variables
 
 ```env

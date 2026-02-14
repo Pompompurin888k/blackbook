@@ -1,163 +1,365 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contact {{ provider.display_name }} - Blackbook</title>
+    <title>{{ provider.display_name }} | Blackbook</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --gold: #D4AF37;
-            --black: #070707;
+            --gold: #d4af37;
+            --ink: #f2efe9;
+            --bg: #080808;
+            --panel: rgba(255, 255, 255, 0.045);
+            --border: rgba(255, 255, 255, 0.13);
         }
 
         body {
-            font-family: 'Manrope', sans-serif;
+            font-family: "Manrope", sans-serif;
+            color: var(--ink);
             background:
-                radial-gradient(760px 420px at 8% -10%, rgba(212, 175, 55, 0.12), transparent 55%),
-                radial-gradient(680px 420px at 100% 0%, rgba(0, 163, 255, 0.08), transparent 50%),
-                var(--black);
+                radial-gradient(760px 400px at 5% -10%, rgba(212, 175, 55, 0.15), transparent 60%),
+                radial-gradient(680px 380px at 100% -8%, rgba(0, 163, 255, 0.13), transparent 58%),
+                var(--bg);
         }
 
         .serif {
-            font-family: 'Cormorant Garamond', serif;
-        }
-
-        .gold-text {
-            color: var(--gold);
+            font-family: "Cormorant Garamond", serif;
         }
 
         .glass {
-            background: rgba(255, 255, 255, 0.04);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+            background: var(--panel);
+            backdrop-filter: blur(14px);
+            border: 1px solid var(--border);
         }
 
-        .accent-ring {
-            box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.24), 0 10px 24px rgba(212, 175, 55, 0.18);
+        .gallery-track {
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
         }
 
-        @media (max-width: 768px) {
-            body {
-                padding: 1rem 1rem calc(1.25rem + env(safe-area-inset-bottom));
-            }
+        .gallery-track::-webkit-scrollbar {
+            display: none;
+        }
 
-            .quick-exit {
-                top: max(0.75rem, env(safe-area-inset-top));
-                right: 0.75rem;
-                padding: 0.6rem;
-            }
+        .gallery-slide {
+            scroll-snap-align: start;
+            flex: 0 0 100%;
+        }
 
-            .mobile-shell {
-                max-width: 100%;
-            }
+        .about-collapsed {
+            max-height: 4.8rem;
+            overflow: hidden;
+            mask-image: linear-gradient(180deg, #000 62%, transparent 100%);
+        }
 
-            .mobile-title {
-                font-size: 2rem;
-                line-height: 1;
-            }
+        .app-action {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            border-radius: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: rgba(255, 255, 255, 0.08);
+            padding: 0.55rem 0.65rem;
+        }
 
-            .mobile-card {
-                padding: 1.25rem;
-                border-radius: 1.25rem;
-            }
+        .app-icon-shell {
+            width: 2.25rem;
+            height: 2.25rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
 
-            .mobile-action {
-                padding: 0.95rem;
-                min-height: 74px;
-                border-radius: 1rem;
-            }
+        .app-icon-img {
+            width: 2.25rem;
+            height: 2.25rem;
+            object-fit: contain;
+            display: block;
         }
     </style>
 </head>
-
-<body class="text-white min-h-screen flex items-center justify-center p-6">
-    <!-- Quick Exit -->
-    <a href="https://www.linkedin.com"
-        class="quick-exit fixed top-4 right-4 z-50 glass hover:bg-red-500/20 p-3 rounded-full border border-red-500/40 transition-colors"
-        title="Quick Exit">
-        <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-        </svg>
+<body class="min-h-screen pb-40">
+    <a href="https://www.linkedin.com" class="fixed top-3 right-3 z-50 glass rounded-full px-3 py-2 text-[11px] uppercase tracking-[0.14em] text-red-300 hover:bg-red-500/20 transition-colors">
+        Quick Exit
     </a>
 
-    <div class="mobile-shell max-w-lg w-full">
-        <!-- Header -->
-        <div class="text-center mb-8">
-            <p class="text-[10px] gold-text font-bold uppercase tracking-widest mb-2">Reaching Out To</p>
-            <h1 class="mobile-title serif text-4xl mb-2 tracking-wide">{{ provider.display_name }}</h1>
-            <p class="text-gray-300 text-sm mb-3 tracking-wide">{{ provider.neighborhood or provider.city }}</p>
-            {% if provider.subscription_tier and provider.subscription_tier not in ['none', 'bronze'] %}
-            {% set tier_styles = {'platinum': ('💎 Platinum', 'from-cyan-400 to-blue-500'), 'gold': ('🥇 Gold', 'from-yellow-400 to-yellow-600'), 'silver': ('🥈 Silver', 'from-gray-300 to-gray-400')} %}
-            {% set ts = tier_styles.get(provider.subscription_tier, ('', '')) %}
-            <span class="inline-block text-[10px] text-black px-3 py-1 rounded-full font-bold uppercase tracking-wider bg-gradient-to-r {{ ts[1] }}">{{ ts[0] }} Member</span>
-            {% endif %}
+    <main class="max-w-3xl mx-auto px-4 pt-5 md:pt-8 space-y-4 md:space-y-5">
+        <div class="flex items-center justify-between">
+            <a href="/" class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold uppercase tracking-[0.14em] bg-white/12 border border-white/25 hover:bg-white/20 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                Back to Home
+            </a>
+            <span class="text-xs uppercase tracking-[0.18em] text-gray-300">Profile View</span>
         </div>
 
-        <!-- Options Card -->
-        <div class="mobile-card glass accent-ring rounded-3xl p-8 space-y-6">
-            <h2 class="text-center text-gray-300 text-sm uppercase tracking-[0.22em]">Choose Message Style</h2>
-
-            <!-- Direct Option -->
-            <a href="/contact/{{ provider.id }}/direct"
-                class="mobile-action block w-full p-5 rounded-2xl bg-[#D4AF37]/12 border border-[#D4AF37]/35 hover:bg-[#D4AF37]/22 transition-all group hover:-translate-y-0.5">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-full bg-[#D4AF37]/20 flex items-center justify-center">
-                        <svg class="w-6 h-6 gold-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z">
-                            </path>
-                        </svg>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="font-bold text-lg gold-text">Direct</h3>
-                        <p class="text-gray-400 text-xs mt-1">"Hi, I found you on Blackbook..."</p>
-                    </div>
-                    <svg class="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
+        <section class="glass rounded-3xl overflow-hidden">
+            <div class="relative">
+                <div id="galleryTrack" class="gallery-track flex overflow-x-auto">
+                    {% for photo_url in provider.photo_urls %}
+                    <button type="button" class="gallery-slide relative block h-[63vw] max-h-[520px] min-h-[300px]" onclick="openLightbox({{ loop.index0 }})">
+                        <img src="{{ photo_url }}" alt="{{ provider.display_name }} photo {{ loop.index }}" class="h-full w-full object-cover" loading="{{ 'eager' if loop.first else 'lazy' }}">
+                    </button>
+                    {% endfor %}
                 </div>
-            </a>
+                <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent"></div>
 
-            <!-- Discreet Option -->
-            <a href="/contact/{{ provider.id }}/discreet"
-                class="mobile-action block w-full p-5 rounded-2xl bg-zinc-800/55 border border-white/15 hover:bg-zinc-700/55 transition-all group hover:-translate-y-0.5">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
-                            </path>
-                        </svg>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="font-bold text-lg">Discreet</h3>
-                        <p class="text-gray-400 text-xs mt-1">"Hi, is this a good time to talk?"</p>
-                    </div>
-                    <svg class="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
+                <div class="absolute top-4 left-4 flex flex-wrap gap-2">
+                    <span class="text-[10px] px-2.5 py-1 rounded-full bg-[#00A3FF]/85 text-black font-bold uppercase tracking-[0.16em]">Verified</span>
+                    {% if provider.is_online %}
+                    <span class="text-[10px] px-2.5 py-1 rounded-full bg-green-500/85 text-black font-bold uppercase tracking-[0.16em]">Online</span>
+                    {% endif %}
+                    {% if provider.subscription_tier and provider.subscription_tier not in ['none', 'bronze'] %}
+                    <span class="text-[10px] px-2.5 py-1 rounded-full bg-[#d4af37]/90 text-black font-bold uppercase tracking-[0.16em]">{{ provider.subscription_tier }}</span>
+                    {% endif %}
                 </div>
-            </a>
 
-            <!-- Privacy Note -->
-            <p class="text-center text-gray-400 text-[11px] pt-4 tracking-wide">
-                Your privacy stays protected. Messages open directly in Telegram.
-            </p>
-        </div>
+                <div class="absolute bottom-4 left-4 right-4">
+                    <h1 class="serif text-4xl leading-[0.9] md:text-5xl">{{ provider.display_name }}</h1>
+                    <div class="mt-2 flex items-center gap-2 text-sm text-gray-200">
+                        <span class="h-2 w-2 rounded-full {% if provider.is_online %}bg-green-400{% else %}bg-gray-500{% endif %}"></span>
+                        <span>{{ provider.primary_location }}</span>
+                    </div>
+                </div>
+            </div>
+            <div id="galleryDots" class="px-4 py-3 flex justify-center gap-1.5"></div>
+        </section>
 
-        <!-- Back Link -->
-        <div class="text-center mt-6">
-            <a href="/" class="text-gray-400 text-sm hover:text-white transition-colors">← Back to Directory</a>
+        <section class="glass rounded-2xl p-4">
+            <h2 class="text-[11px] uppercase tracking-[0.2em] text-gray-300 mb-3">Quick Facts</h2>
+            <div class="flex flex-wrap gap-2 text-xs">
+                {% if provider.age %}<span class="px-3 py-1.5 rounded-full bg-white/10 border border-white/15">Age {{ provider.age }}</span>{% endif %}
+                {% if provider.build %}<span class="px-3 py-1.5 rounded-full bg-white/10 border border-white/15">{{ provider.build }}</span>{% endif %}
+                {% if provider.height_cm %}<span class="px-3 py-1.5 rounded-full bg-white/10 border border-white/15">{{ provider.height_cm }} cm</span>{% endif %}
+                {% if provider.weight_kg %}<span class="px-3 py-1.5 rounded-full bg-white/10 border border-white/15">{{ provider.weight_kg }} kg</span>{% endif %}
+                {% for language in provider.languages_list[:3] %}
+                <span class="px-3 py-1.5 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/25 text-[#f2d98b]">{{ language }}</span>
+                {% endfor %}
+                {% for service in provider.services_list[:4] %}
+                <span class="px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-400/25 text-cyan-200">{{ service }}</span>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="grid md:grid-cols-2 gap-4">
+            <div class="glass rounded-2xl p-4">
+                <h2 class="text-[11px] uppercase tracking-[0.2em] text-gray-300 mb-3">Availability</h2>
+                <p class="text-sm mb-3">{{ provider.availability_label }}</p>
+                {% if provider.rate_cards %}
+                <div class="grid grid-cols-2 gap-2">
+                    {% for rate in provider.rate_cards %}
+                    <div class="rounded-xl bg-white/5 border border-white/10 p-2.5">
+                        <p class="text-[10px] uppercase tracking-[0.12em] text-gray-400">{{ rate.label }}</p>
+                        <p class="text-sm font-semibold">KES {{ rate.amount }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-xs text-gray-400">Rates are shared after first message.</p>
+                {% endif %}
+            </div>
+
+            <div class="glass rounded-2xl p-4">
+                <h2 class="text-[11px] uppercase tracking-[0.2em] text-gray-300 mb-3">Trust & Safety</h2>
+                <div class="space-y-2.5 text-sm">
+                    <p class="flex justify-between gap-3"><span class="text-gray-400">Verified since</span><span>{{ provider.created_at.strftime('%b %Y') if provider.created_at else 'Recently' }}</span></p>
+                    <p class="flex justify-between gap-3"><span class="text-gray-400">Response time</span><span>{{ provider.response_hint }}</span></p>
+                    <p class="flex justify-between gap-3"><span class="text-gray-400">Last active</span><span>{{ provider.last_active_hint }}</span></p>
+                </div>
+                <div class="pt-4 flex items-center gap-4 text-xs uppercase tracking-[0.14em]">
+                    <a href="/safety" class="text-cyan-300 hover:text-cyan-200">Safety Tips</a>
+                    <a href="/safety?report={{ provider.id }}" class="text-red-300 hover:text-red-200">Report Profile</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="glass rounded-2xl p-4">
+            <h2 class="text-[11px] uppercase tracking-[0.2em] text-gray-300 mb-3">About</h2>
+            <p id="aboutText" class="text-sm text-gray-100 about-collapsed">{{ provider.bio or 'Professional, discreet, and respectful communication preferred.' }}</p>
+            <button id="aboutToggle" type="button" class="mt-3 text-xs uppercase tracking-[0.14em] text-[#f2d98b] hover:text-[#ffe8a6]" onclick="toggleAbout()">Read More</button>
+        </section>
+
+        {% if recommendations %}
+        <section class="glass rounded-2xl p-4">
+            <h2 class="text-[11px] uppercase tracking-[0.2em] text-gray-300 mb-3">Similar Nearby</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {% for rec in recommendations %}
+                <a href="/contact/{{ rec.id }}" class="group rounded-2xl overflow-hidden border border-white/10 bg-black/30 hover:border-[#d4af37]/45 transition-colors">
+                    <div class="relative aspect-[3/4]">
+                        <img src="{{ rec.photo_url }}" alt="{{ rec.display_name }}" class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
+                        {% if rec.is_online %}
+                        <span class="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400"></span>
+                        {% endif %}
+                        <div class="absolute bottom-2 left-2 right-2">
+                            <p class="serif text-lg leading-none">{{ rec.display_name }}</p>
+                            <p class="text-[10px] text-gray-300 uppercase tracking-[0.12em]">{{ rec.location }}</p>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </main>
+
+    <div class="fixed bottom-0 inset-x-0 z-40 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <div class="max-w-3xl mx-auto glass rounded-2xl p-2.5 border border-white/15">
+            <div class="grid grid-cols-2 gap-2 mb-2">
+                <a href="{{ provider.call_url }}" class="app-action hover:bg-white/15 transition-colors">
+                    <span class="app-icon-shell"><img src="/static/icons/call.png" alt="" class="app-icon-img"></span>
+                    <span class="text-left leading-tight">
+                        <span class="block text-[10px] uppercase tracking-[0.14em] text-gray-300">On Call</span>
+                        <span class="block text-xs font-semibold text-white">{{ "Tap to call" if provider.has_phone else "Open direct" }}</span>
+                    </span>
+                </a>
+
+                <a href="{{ provider.whatsapp_url }}" target="_blank" rel="noopener noreferrer" class="app-action hover:bg-white/15 transition-colors">
+                    <span class="app-icon-shell"><img src="/static/icons/whatsapp.png" alt="" class="app-icon-img"></span>
+                    <span class="text-left leading-tight">
+                        <span class="block text-[10px] uppercase tracking-[0.14em] text-gray-300">WhatsApp</span>
+                        <span class="block text-xs font-semibold text-white">{{ "Start chat" if provider.has_phone else "Open direct" }}</span>
+                    </span>
+                </a>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <a href="/contact/{{ provider.id }}/direct" class="rounded-xl bg-[#d4af37] text-black text-sm font-bold py-3 text-center uppercase tracking-[0.14em]">Direct</a>
+                <a href="/contact/{{ provider.id }}/discreet" class="rounded-xl bg-white/10 border border-white/20 text-white text-sm font-bold py-3 text-center uppercase tracking-[0.14em]">Discreet</a>
+            </div>
+            <div class="mt-2 flex gap-2">
+                <button type="button" id="saveBtn" class="flex-1 rounded-xl bg-white/7 border border-white/15 py-2.5 text-xs uppercase tracking-[0.14em]" onclick="toggleSave()">Save</button>
+                <button type="button" class="flex-1 rounded-xl bg-white/7 border border-white/15 py-2.5 text-xs uppercase tracking-[0.14em]" onclick="shareProfile()">Share</button>
+            </div>
         </div>
     </div>
-</body>
 
+    <div id="lightbox" class="hidden fixed inset-0 z-50 bg-black/95 items-center justify-center p-4">
+        <button type="button" class="absolute top-4 right-4 text-white/90 text-xs uppercase tracking-[0.16em]" onclick="closeLightbox()">Close</button>
+        <button type="button" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/80 text-3xl" onclick="stepLightbox(-1)">&lsaquo;</button>
+        <img id="lightboxImg" src="" alt="Profile photo zoom" class="max-h-[86vh] max-w-[92vw] object-contain rounded-xl">
+        <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/80 text-3xl" onclick="stepLightbox(1)">&rsaquo;</button>
+    </div>
+
+    <script>
+        const galleryTrack = document.getElementById("galleryTrack");
+        const galleryDots = document.getElementById("galleryDots");
+        const galleryImages = {{ provider.photo_urls | tojson | safe }};
+        let lightboxIndex = 0;
+
+        function renderDots() {
+            galleryDots.innerHTML = "";
+            galleryImages.forEach((_, idx) => {
+                const dot = document.createElement("button");
+                dot.type = "button";
+                dot.className = "h-1.5 rounded-full transition-all " + (idx === 0 ? "w-6 bg-[#d4af37]" : "w-2.5 bg-white/35");
+                dot.onclick = () => {
+                    galleryTrack.scrollTo({ left: idx * galleryTrack.clientWidth, behavior: "smooth" });
+                };
+                galleryDots.appendChild(dot);
+            });
+        }
+
+        function updateActiveDot() {
+            const index = Math.round(galleryTrack.scrollLeft / Math.max(galleryTrack.clientWidth, 1));
+            [...galleryDots.children].forEach((dot, idx) => {
+                dot.className = "h-1.5 rounded-full transition-all " + (idx === index ? "w-6 bg-[#d4af37]" : "w-2.5 bg-white/35");
+            });
+        }
+
+        galleryTrack.addEventListener("scroll", updateActiveDot, { passive: true });
+        window.addEventListener("resize", updateActiveDot);
+        renderDots();
+        updateActiveDot();
+
+        function openLightbox(index) {
+            lightboxIndex = index;
+            document.getElementById("lightboxImg").src = galleryImages[lightboxIndex];
+            document.getElementById("lightbox").classList.remove("hidden");
+            document.getElementById("lightbox").classList.add("flex");
+        }
+
+        function closeLightbox() {
+            const lightbox = document.getElementById("lightbox");
+            lightbox.classList.add("hidden");
+            lightbox.classList.remove("flex");
+        }
+
+        function stepLightbox(step) {
+            lightboxIndex = (lightboxIndex + step + galleryImages.length) % galleryImages.length;
+            document.getElementById("lightboxImg").src = galleryImages[lightboxIndex];
+        }
+
+        function toggleAbout() {
+            const aboutText = document.getElementById("aboutText");
+            const toggle = document.getElementById("aboutToggle");
+            const collapsed = aboutText.classList.toggle("about-collapsed");
+            toggle.textContent = collapsed ? "Read More" : "Show Less";
+        }
+
+        (function initAboutClamp() {
+            const aboutText = document.getElementById("aboutText");
+            const toggle = document.getElementById("aboutToggle");
+            if (aboutText.scrollHeight <= aboutText.clientHeight + 4) {
+                aboutText.classList.remove("about-collapsed");
+                toggle.classList.add("hidden");
+            }
+        })();
+
+        const saveBtn = document.getElementById("saveBtn");
+        const storageKey = "bb-saved-profiles";
+        const currentProfile = { id: {{ provider.id }}, name: {{ provider.display_name | tojson | safe }}, location: {{ provider.primary_location | tojson | safe }} };
+
+        function readSaved() {
+            try {
+                return JSON.parse(localStorage.getItem(storageKey) || "[]");
+            } catch (_) {
+                return [];
+            }
+        }
+
+        function updateSaveState() {
+            const saved = readSaved();
+            const exists = saved.some((item) => item.id === currentProfile.id);
+            saveBtn.textContent = exists ? "Saved" : "Save";
+            saveBtn.classList.toggle("text-[#f2d98b]", exists);
+        }
+
+        function toggleSave() {
+            const saved = readSaved();
+            const index = saved.findIndex((item) => item.id === currentProfile.id);
+            if (index >= 0) {
+                saved.splice(index, 1);
+            } else {
+                saved.push(currentProfile);
+            }
+            localStorage.setItem(storageKey, JSON.stringify(saved));
+            updateSaveState();
+        }
+
+        async function shareProfile() {
+            const shareData = {
+                title: currentProfile.name + " | Blackbook",
+                text: "View this profile in " + currentProfile.location,
+                url: window.location.href
+            };
+            if (navigator.share) {
+                try {
+                    await navigator.share(shareData);
+                    return;
+                } catch (_) {}
+            }
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(window.location.href);
+            }
+        }
+
+        updateSaveState();
+    </script>
+</body>
 </html>
