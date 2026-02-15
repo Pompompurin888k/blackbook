@@ -1713,63 +1713,54 @@ def register_handlers(application):
     # /photos command for photo management
     application.add_handler(CommandHandler("photos", photos_command))
     
+    # Shared profile completion states used by both profile_handler and registration_handler
+    profile_states = {
+        PROFILE_AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_age)],
+        PROFILE_HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_height)],
+        PROFILE_WEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_weight)],
+        PROFILE_BUILD: [CallbackQueryHandler(profile_build, pattern="^build_")],
+        PROFILE_AVAILABILITY: [CallbackQueryHandler(profile_availability, pattern="^avail_")],
+        PROFILE_SERVICES: [CallbackQueryHandler(profile_services, pattern="^service_")],
+        PROFILE_BIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_bio)],
+        PROFILE_NEARBY: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_nearby)],
+        PROFILE_PHOTOS: [
+            MessageHandler(filters.PHOTO, profile_photos),
+            CommandHandler("done", done_photos),
+        ],
+        PROFILE_RATES: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_rates)],
+        PROFILE_LANGUAGES: [CallbackQueryHandler(profile_languages, pattern="^lang_")],
+    }
+    
     # Profile Completion Conversation
     profile_handler = ConversationHandler(
         entry_points=[
             CommandHandler("complete_profile", complete_profile),
             CallbackQueryHandler(complete_profile_from_button, pattern="^menu_complete_profile$")
         ],
-        states={
-            PROFILE_AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_age)],
-            PROFILE_HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_height)],
-            PROFILE_WEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_weight)],
-            PROFILE_BUILD: [CallbackQueryHandler(profile_build, pattern="^build_")],
-            PROFILE_AVAILABILITY: [CallbackQueryHandler(profile_availability, pattern="^avail_")],
-            PROFILE_SERVICES: [CallbackQueryHandler(profile_services, pattern="^service_")],
-            PROFILE_BIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_bio)],
-            PROFILE_NEARBY: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_nearby)],
-            PROFILE_PHOTOS: [
-                MessageHandler(filters.PHOTO, profile_photos),
-                CommandHandler("done", done_photos),
-            ],
-            PROFILE_RATES: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_rates)],
-            PROFILE_LANGUAGES: [CallbackQueryHandler(profile_languages, pattern="^lang_")],
-        },
+        states=profile_states,
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     application.add_handler(profile_handler)
     
     # Registration conversation - UNIFIED FLOW (name → city → neighborhood → profile details)
+    registration_states = {
+        # Basic registration
+        STAGE_NAME: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, stage_name)
+        ],
+        CITY: [
+            CallbackQueryHandler(city_callback, pattern="^city_")
+        ],
+        NEIGHBORHOOD: [
+            CallbackQueryHandler(neighborhood_callback, pattern="^hood_"),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, neighborhood)
+        ],
+        # Profile completion states (continues from neighborhood)
+        **profile_states,
+    }
     registration_handler = ConversationHandler(
         entry_points=[CommandHandler("register", register)],
-        states={
-            # Basic registration
-            STAGE_NAME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, stage_name)
-            ],
-            CITY: [
-                CallbackQueryHandler(city_callback, pattern="^city_")
-            ],
-            NEIGHBORHOOD: [
-                CallbackQueryHandler(neighborhood_callback, pattern="^hood_"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, neighborhood)
-            ],
-            # Profile completion states (continues from neighborhood)
-            PROFILE_AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_age)],
-            PROFILE_HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_height)],
-            PROFILE_WEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_weight)],
-            PROFILE_BUILD: [CallbackQueryHandler(profile_build, pattern="^build_")],
-            PROFILE_AVAILABILITY: [CallbackQueryHandler(profile_availability, pattern="^avail_")],
-            PROFILE_SERVICES: [CallbackQueryHandler(profile_services, pattern="^service_")],
-            PROFILE_BIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_bio)],
-            PROFILE_NEARBY: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_nearby)],
-            PROFILE_PHOTOS: [
-                MessageHandler(filters.PHOTO, profile_photos),
-                CommandHandler("done", done_photos),
-            ],
-            PROFILE_RATES: [MessageHandler(filters.TEXT & ~filters.COMMAND, profile_rates)],
-            PROFILE_LANGUAGES: [CallbackQueryHandler(profile_languages, pattern="^lang_")],
-        },
+        states=registration_states,
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     application.add_handler(registration_handler)

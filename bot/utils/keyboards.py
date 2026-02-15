@@ -287,26 +287,6 @@ def get_admin_verification_keyboard(provider_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-# ==================== STATUS ====================
-
-def get_status_toggle_keyboard() -> InlineKeyboardMarkup:
-    """Returns status toggle keyboard."""
-    keyboard = [
-        [InlineKeyboardButton("🔄 Toggle Again", callback_data="menu_status")],
-        [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")],
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
-def get_inactive_status_keyboard() -> InlineKeyboardMarkup:
-    """Returns keyboard for users without active subscription."""
-    keyboard = [
-        [InlineKeyboardButton("💰 Go Live", callback_data="menu_topup")],
-        [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")],
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
 # ==================== PROFILE COMPLETION ====================
 
 def get_build_keyboard() -> InlineKeyboardMarkup:

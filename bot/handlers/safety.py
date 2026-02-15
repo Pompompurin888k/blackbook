@@ -1,6 +1,6 @@
 """
 Blackbook Bot - Safety Handlers
-Handles: /check, /report, /session, /checkin, /status, and safety menu callbacks
+Handles: /check, /report, /session, /checkin, and safety menu callbacks
 """
 import logging
 from datetime import datetime, timedelta
@@ -17,8 +17,6 @@ from utils.keyboards import (
     get_session_duration_keyboard,
     get_session_active_keyboard,
     get_back_button,
-    get_status_toggle_keyboard,
-    get_inactive_status_keyboard,
 )
 
 logger = logging.getLogger(__name__)
@@ -156,47 +154,7 @@ async def safety_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             parse_mode="Markdown"
         )
     
-    # === STATUS TOGGLE ===
-    elif action == "status":
-        if provider and provider.get("is_active"):
-            new_status = db.toggle_online_status(user.id)
-            neighborhood = provider.get('neighborhood', 'your area')
-            
-            if new_status:
-                await query.edit_message_text(
-                    "🟢 *Status: LIVE*\n"
-                    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                    f"Your profile now shows the 'Available Now' badge.\n"
-                    f"You are prioritized in {neighborhood} search results.",
-                    reply_markup=get_status_toggle_keyboard(),
-                    parse_mode="Markdown"
-                )
-            else:
-                await query.edit_message_text(
-                    "⚫ *Status: HIDDEN*\n"
-                    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                    "Your profile is still visible, but clients see you are unavailable.",
-                    reply_markup=get_status_toggle_keyboard(),
-                    parse_mode="Markdown"
-                )
-        else:
-            await query.edit_message_text(
-                "❌ *Cannot Toggle Status*\n\n"
-                "You need an active subscription to appear on the website.\n\n"
-                "Get listed now:",
-                reply_markup=get_inactive_status_keyboard(),
-                parse_mode="Markdown"
-            )
-    
-    # === SAFETY CHECK (from menu) ===
-    elif action == "check":
-        await query.edit_message_text(
-            "🛡️ *Safety Check*\n\n"
-            "Use the /check command to screen a client:\n"
-            "`/check 0712345678`",
-            reply_markup=get_back_button(),
-            parse_mode="Markdown"
-        )
+
 
 
 # ==================== /CHECK COMMAND ====================
@@ -380,48 +338,6 @@ async def checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
-# ==================== /STATUS COMMAND ====================
-
-async def toggle_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Toggles online/offline status for the website."""
-    user = update.effective_user
-    db = get_db()
-    
-    provider = db.get_provider(user.id)
-    if not provider:
-        await update.message.reply_text("❌ You need to /register first.")
-        return
-    
-    if not provider.get("is_active"):
-        await update.message.reply_text(
-            "❌ You need an active subscription to go online.\n\n"
-            "Use /topup to get listed on the website.",
-            parse_mode="Markdown"
-        )
-        return
-    
-    new_status = db.toggle_online_status(user.id)
-    neighborhood = provider.get('neighborhood', 'your area')
-    
-    if new_status:
-        await update.message.reply_text(
-            "🟢 *Status: LIVE*\n\n"
-            f"Your profile now shows the 'Available Now' badge. "
-            f"You will be prioritized in {neighborhood} search results.\n\n"
-            "_Send /status again to go offline._",
-            parse_mode="Markdown"
-        )
-    else:
-        await update.message.reply_text(
-            "⚫ *Status: HIDDEN*\n\n"
-            "Your profile is still visible, but clients see you are currently unavailable.\n\n"
-            "_Send /status again to go back online._",
-            parse_mode="Markdown"
-        )
-    
-    logger.info(f"📡 Status toggle by {user.id}: {'ONLINE' if new_status else 'OFFLINE'}")
-
-
 # ==================== HANDLER REGISTRATION ====================
 
 def register_handlers(application):
@@ -432,11 +348,9 @@ def register_handlers(application):
     application.add_handler(CommandHandler("report", report_number))
     application.add_handler(CommandHandler("session", start_session))
     application.add_handler(CommandHandler("checkin", checkin))
-    # NOTE: /status is registered in auth.py to avoid duplicate handler conflicts
-    # application.add_handler(CommandHandler("status", toggle_status))
     
     # Menu callback handler
     application.add_handler(CallbackQueryHandler(
         safety_menu_callback,
-        pattern="^menu_(safety|safety_check|safety_session|safety_checkin|safety_report|session_\\d+|status|check)$"
+        pattern="^menu_(safety|safety_check|safety_session|safety_checkin|safety_report|session_\\d+)$"
     ))
