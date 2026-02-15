@@ -1,6 +1,7 @@
 """
 Blackbook Bot - Safety Handlers
-Handles: /check, /report, /session, /checkin, and safety menu callbacks
+Handles: check, report, session, checkin, and safety menu callbacks.
+All features are accessible via buttons — no slash commands required.
 """
 import logging
 from datetime import datetime, timedelta
@@ -8,7 +9,9 @@ from telegram import Update
 from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
+    MessageHandler,
     ContextTypes,
+    filters,
 )
 
 from config import ADMIN_CHAT_ID
@@ -17,6 +20,7 @@ from utils.keyboards import (
     get_session_duration_keyboard,
     get_session_active_keyboard,
     get_back_button,
+    get_safety_input_cancel_keyboard,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,6 +36,10 @@ def get_db():
 
 async def safety_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Shows the safety suite menu (called from persistent menu buttons)."""
+    # Clear any pending safety input state when returning to menu
+    context.user_data.pop("safety_input", None)
+    context.user_data.pop("safety_report_phone", None)
+
     await update.message.reply_text(
         "🛡️ *SAFETY SUITE*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -59,6 +67,10 @@ async def safety_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     
     # === SAFETY SUITE MENU ===
     if action == "safety":
+        # Clear any pending safety input state
+        context.user_data.pop("safety_input", None)
+        context.user_data.pop("safety_report_phone", None)
+        
         await query.edit_message_text(
             "🛡️ *SAFETY SUITE*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -71,18 +83,18 @@ async def safety_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             parse_mode="Markdown"
         )
     
-    # === SAFETY: CHECK NUMBER ===
+    # === SAFETY: CHECK NUMBER (guided flow) ===
     elif action == "safety_check":
+        context.user_data["safety_input"] = "check"
+        
         await query.edit_message_text(
             "📞 *CLIENT INTELLIGENCE CHECK*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "Type the command:\n"
-            "`/check 0712345678`\n\n"
-            "We'll search our database for reports of:\n"
-            "• Non-payment\n"
-            "• Violence\n"
-            "• Suspicious behavior",
-            reply_markup=get_back_button("menu_safety"),
+            "Send the *phone number* you want to check:\n\n"
+            "📱 Example: `0712345678`\n\n"
+            "_We'll search our database for reports of non-payment, "
+            "violence, or suspicious behavior._",
+            reply_markup=get_safety_input_cancel_keyboard(),
             parse_mode="Markdown"
         )
     
@@ -92,7 +104,7 @@ async def safety_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             "⏱️ *SAFETY SESSION TIMER*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "Select session duration:\n\n"
-            "If you don't /checkin on time, an *Emergency Alert* "
+            "If you don't check in on time, an *Emergency Alert* "
             "will be sent to the Management Team.",
             reply_markup=get_session_duration_keyboard(),
             parse_mode="Markdown"
@@ -140,24 +152,168 @@ async def safety_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 parse_mode="Markdown"
             )
     
-    # === SAFETY: REPORT ===
+    # === SAFETY: REPORT (guided flow) ===
     elif action == "safety_report":
+        context.user_data["safety_input"] = "report_phone"
+        
         await query.edit_message_text(
             "🚫 *REPORT A CLIENT*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "Type the command:\n"
-            "`/report 0712345678 Reason here`\n\n"
-            "Example:\n"
-            "`/report 0712345678 Did not pay, aggressive`\n\n"
+            "Send the *phone number* of the client to report:\n\n"
+            "📱 Example: `0712345678`\n\n"
             "_Help protect your sisters. Only report genuine issues._",
-            reply_markup=get_back_button("menu_safety"),
+            reply_markup=get_safety_input_cancel_keyboard(),
+            parse_mode="Markdown"
+        )
+
+
+# ==================== GUIDED INPUT HANDLER ====================
+
+async def handle_safety_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles text input during safety check/report flows."""
+    safety_action = context.user_data.get("safety_input")
+    
+    if not safety_action:
+        return  # Not in safety input mode
+    
+    user = update.effective_user
+    db = get_db()
+    text = update.message.text.strip()
+    
+    # Skip if it's a menu button press
+    menu_buttons = [
+        "👑 The Collection", "👤 My Profile", "💰 Top up Balance",
+        "🛡️ Safety Suite", "🤝 Affiliate Program", "📞 Support", "📋 Rules"
+    ]
+    if text in menu_buttons:
+        context.user_data.pop("safety_input", None)
+        context.user_data.pop("safety_report_phone", None)
+        return  # Let menu handler process it
+    
+    # === CHECK NUMBER ===
+    if safety_action == "check":
+        context.user_data.pop("safety_input", None)
+        
+        phone = text.replace(" ", "").replace("-", "")
+        
+        # Basic validation
+        if len(phone) < 9 or not phone.replace("+", "").isdigit():
+            await update.message.reply_text(
+                "⚠️ Invalid phone number. Please send a valid number.\n\n"
+                "📱 Example: `0712345678`",
+                reply_markup=get_safety_input_cancel_keyboard(),
+                parse_mode="Markdown"
+            )
+            context.user_data["safety_input"] = "check"  # Keep in check mode
+            return
+        
+        result = db.check_blacklist(phone)
+        
+        if result.get("blacklisted"):
+            await update.message.reply_text(
+                "🚨 *SECURITY ALERT: BLACKLISTED*\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"📱 Client: `{phone}`\n"
+                f"⚠️ Risk: {result.get('reason', 'Not specified')}\n"
+                f"📅 Reported: {result.get('date', 'Unknown')}\n\n"
+                "*Recommendation: ABORT CONNECTION. Do not meet this individual.*",
+                reply_markup=get_back_button("menu_safety"),
+                parse_mode="Markdown"
+            )
+        else:
+            await update.message.reply_text(
+                "✅ *Security Check: PASSED*\n\n"
+                f"No reports found for `{phone}`.\n\n"
+                "_Always start a ⏱️ Session before meeting a client._",
+                reply_markup=get_back_button("menu_safety"),
+                parse_mode="Markdown"
+            )
+        
+        logger.info(f"🔍 Blacklist check by {user.id}: {phone} - {'FOUND' if result.get('blacklisted') else 'CLEAR'}")
+    
+    # === REPORT: STEP 1 — PHONE NUMBER ===
+    elif safety_action == "report_phone":
+        phone = text.replace(" ", "").replace("-", "")
+        
+        if len(phone) < 9 or not phone.replace("+", "").isdigit():
+            await update.message.reply_text(
+                "⚠️ Invalid phone number. Please send a valid number.\n\n"
+                "📱 Example: `0712345678`",
+                reply_markup=get_safety_input_cancel_keyboard(),
+                parse_mode="Markdown"
+            )
+            return  # Stay in report_phone mode
+        
+        context.user_data["safety_report_phone"] = phone
+        context.user_data["safety_input"] = "report_reason"
+        
+        await update.message.reply_text(
+            "📝 *What happened?*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"Reporting: `{phone}`\n\n"
+            "Describe the incident in a few words.\n\n"
+            "_Example: Did not pay, was aggressive_",
+            reply_markup=get_safety_input_cancel_keyboard(),
             parse_mode="Markdown"
         )
     
+    # === REPORT: STEP 2 — REASON ===
+    elif safety_action == "report_reason":
+        phone = context.user_data.get("safety_report_phone", "")
+        reason = text
+        
+        # Clean up state
+        context.user_data.pop("safety_input", None)
+        context.user_data.pop("safety_report_phone", None)
+        
+        if len(reason) < 3:
+            await update.message.reply_text(
+                "⚠️ Please provide a more detailed reason.",
+                reply_markup=get_safety_input_cancel_keyboard(),
+                parse_mode="Markdown"
+            )
+            context.user_data["safety_input"] = "report_reason"
+            context.user_data["safety_report_phone"] = phone
+            return
+        
+        success = db.add_to_blacklist(phone, reason, user.id)
+        
+        if success:
+            await update.message.reply_text(
+                "✅ *Number Reported*\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"📱 `{phone}` has been added to the blacklist.\n"
+                f"📝 Reason: {reason}\n\n"
+                "_Thank you for keeping our community safe._",
+                reply_markup=get_back_button("menu_safety"),
+                parse_mode="Markdown"
+            )
+            
+            # Alert admin
+            if ADMIN_CHAT_ID:
+                try:
+                    provider = db.get_provider(user.id)
+                    name = provider.get("display_name", "Unknown") if provider else "Unknown"
+                    await context.bot.send_message(
+                        chat_id=int(ADMIN_CHAT_ID),
+                        text=f"🚨 *New Blacklist Report*\n\n"
+                             f"📱 Number: `{phone}`\n"
+                             f"📝 Reason: {reason}\n"
+                             f"👤 Reported by: {name}",
+                        parse_mode="Markdown"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to alert admin: {e}")
+        else:
+            await update.message.reply_text(
+                "❌ Failed to add to blacklist. Please try again.",
+                reply_markup=get_back_button("menu_safety"),
+                parse_mode="Markdown"
+            )
 
 
-
-# ==================== /CHECK COMMAND ====================
+# ==================== SLASH COMMAND FALLBACKS ====================
+# These still work for power users but are no longer required.
 
 async def check_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Checks if a phone number is blacklisted. Usage: /check 0712345678"""
@@ -167,17 +323,20 @@ async def check_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     provider = db.get_provider(user.id)
     if not provider:
         await update.message.reply_text(
-            "❌ You need to /register first.",
+            "❌ You're not registered yet. Tap 👤 My Profile to get started.",
             parse_mode="Markdown"
         )
         return
     
     if not context.args or len(context.args) < 1:
+        # No args — start the guided flow instead
+        context.user_data["safety_input"] = "check"
         await update.message.reply_text(
-            "📞 *Client Intelligence Check*\n\n"
-            "Usage: `/check 0712345678`\n\n"
-            "We check our national database for reports of non-payment, "
-            "violence, or suspicious behavior.",
+            "📞 *CLIENT INTELLIGENCE CHECK*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Send the *phone number* you want to check:\n\n"
+            "📱 Example: `0712345678`",
+            reply_markup=get_safety_input_cancel_keyboard(),
             parse_mode="Markdown"
         )
         return
@@ -193,31 +352,35 @@ async def check_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             f"⚠️ Risk: {result.get('reason', 'Not specified')}\n"
             f"📅 Reported: {result.get('date', 'Unknown')}\n\n"
             "*Recommendation: ABORT CONNECTION. Do not meet this individual.*",
+            reply_markup=get_back_button("menu_safety"),
             parse_mode="Markdown"
         )
     else:
         await update.message.reply_text(
             "✅ *Security Check: PASSED*\n\n"
             f"No reports found for `{phone}`.\n\n"
-            "_Note: Always use /session regardless of check results._",
+            "_Always start a ⏱️ Session before meeting a client._",
+            reply_markup=get_back_button("menu_safety"),
             parse_mode="Markdown"
         )
     
     logger.info(f"🔍 Blacklist check by {user.id}: {phone} - {'FOUND' if result.get('blacklisted') else 'CLEAR'}")
 
 
-# ==================== /REPORT COMMAND ====================
-
 async def report_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Reports a phone number to the blacklist. Usage: /report 0712345678 Reason here"""
+    """Reports a phone number to the blacklist. Usage: /report 0712345678 Reason"""
     user = update.effective_user
     db = get_db()
     
     if not context.args or len(context.args) < 2:
+        # No args — start the guided flow instead
+        context.user_data["safety_input"] = "report_phone"
         await update.message.reply_text(
-            "🚫 **Report to Blacklist**\n\n"
-            "Usage: `/report 0712345678 Reason for report`\n\n"
-            "Example: `/report 0712345678 Did not pay, threatened me`",
+            "🚫 *REPORT A CLIENT*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Send the *phone number* of the client to report:\n\n"
+            "📱 Example: `0712345678`",
+            reply_markup=get_safety_input_cancel_keyboard(),
             parse_mode="Markdown"
         )
         return
@@ -229,10 +392,11 @@ async def report_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     
     if success:
         await update.message.reply_text(
-            "✅ **Number Reported**\n\n"
+            "✅ *Number Reported*\n\n"
             f"📱 `{phone}` has been added to the blacklist.\n"
             f"📝 Reason: {reason}\n\n"
             "_Thank you for keeping our community safe._",
+            reply_markup=get_back_button("menu_safety"),
             parse_mode="Markdown"
         )
         
@@ -243,7 +407,7 @@ async def report_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 name = provider.get("display_name", "Unknown") if provider else "Unknown"
                 await context.bot.send_message(
                     chat_id=int(ADMIN_CHAT_ID),
-                    text=f"🚨 **New Blacklist Report**\n\n"
+                    text=f"🚨 *New Blacklist Report*\n\n"
                          f"📱 Number: `{phone}`\n"
                          f"📝 Reason: {reason}\n"
                          f"👤 Reported by: {name}",
@@ -254,29 +418,32 @@ async def report_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     else:
         await update.message.reply_text(
             "❌ Failed to add to blacklist. Please try again.",
+            reply_markup=get_back_button("menu_safety"),
             parse_mode="Markdown"
         )
 
 
-# ==================== /SESSION COMMAND ====================
-
 async def start_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Starts a safety session timer. Usage: /session 60 (for 60 minutes)"""
+    """Starts a safety session timer. Usage: /session 60"""
     user = update.effective_user
     db = get_db()
     
     provider = db.get_provider(user.id)
     if not provider:
-        await update.message.reply_text("❌ You need to /register first.")
+        await update.message.reply_text(
+            "❌ You're not registered yet. Tap 👤 My Profile to get started."
+        )
         return
     
     if not context.args or len(context.args) < 1:
+        # No args — show duration buttons instead
         await update.message.reply_text(
-            "⏱️ **Safety Session Timer**\n\n"
-            "Usage: `/session 60` (for 60 minutes)\n\n"
-            "This starts a timer. If you don't send /checkin before the time is up, "
-            "the admin will be alerted.\n\n"
-            "**Always use this before meeting a client!**",
+            "⏱️ *SAFETY SESSION TIMER*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Select session duration:\n\n"
+            "If you don't check in on time, an *Emergency Alert* "
+            "will be sent to the Management Team.",
+            reply_markup=get_session_duration_keyboard(),
             parse_mode="Markdown"
         )
         return
@@ -304,17 +471,14 @@ async def start_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             f"⏱️ Duration: {minutes} Minutes\n"
             f"⏰ Check-in Due: {check_back_time.strftime('%H:%M')}\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "We are watching the clock. You are expected to /checkin by the deadline.\n\n"
-            "If you do not check in, an *Emergency Alert* including your last known "
-            "location will be sent to the Management Team.",
+            "We are watching the clock.\n\n"
+            "Tap ✅ *Check In* in the 🛡️ Safety Suite when you're done.",
             parse_mode="Markdown"
         )
         logger.info(f"⏱️ Session started by {user.id} for {minutes} minutes")
     else:
         await update.message.reply_text("❌ Failed to start session. Please try again.")
 
-
-# ==================== /CHECKIN COMMAND ====================
 
 async def checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Checks in after a session - confirms provider is safe."""
@@ -325,15 +489,15 @@ async def checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     if success:
         await update.message.reply_text(
-            "✅ **Check-in Confirmed!**\n\n"
+            "✅ *Check-in Confirmed!*\n\n"
             "Glad you're safe! 💚\n\n"
-            "_Remember to /session before your next meeting._",
+            "_Start a new ⏱️ Session before your next meeting._",
             parse_mode="Markdown"
         )
     else:
         await update.message.reply_text(
             "ℹ️ No active session to check in for.\n\n"
-            "Use `/session <minutes>` to start a safety timer.",
+            "Use 🛡️ Safety Suite → ⏱️ Start Session to set a timer.",
             parse_mode="Markdown"
         )
 
@@ -343,7 +507,7 @@ async def checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 def register_handlers(application):
     """Registers all safety-related handlers with the application."""
     
-    # Command handlers
+    # Command handlers (still work as fallbacks)
     application.add_handler(CommandHandler("check", check_number))
     application.add_handler(CommandHandler("report", report_number))
     application.add_handler(CommandHandler("session", start_session))
@@ -354,3 +518,9 @@ def register_handlers(application):
         safety_menu_callback,
         pattern="^menu_(safety|safety_check|safety_session|safety_checkin|safety_report|session_\\d+)$"
     ))
+    
+    # Safety input handler (check/report guided flows)
+    application.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        handle_safety_input
+    ), group=0)

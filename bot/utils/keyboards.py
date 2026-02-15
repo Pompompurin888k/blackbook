@@ -240,6 +240,14 @@ def get_safety_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
+def get_safety_input_cancel_keyboard() -> InlineKeyboardMarkup:
+    """Returns cancel keyboard shown during safety input (check/report)."""
+    keyboard = [
+        [InlineKeyboardButton("❌ Cancel", callback_data="menu_safety")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
 def get_session_duration_keyboard() -> InlineKeyboardMarkup:
     """Returns session duration selection keyboard."""
     keyboard = [

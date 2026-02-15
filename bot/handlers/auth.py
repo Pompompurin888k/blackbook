@@ -494,7 +494,7 @@ async def neighborhood_callback(update: Update, context: ContextTypes.DEFAULT_TY
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels the current conversation."""
     await update.message.reply_text(
-        "❌ Cancelled. Use /register or /verify to start again."
+        "❌ Cancelled. Tap 👤 My Profile to start again."
     )
     context.user_data.clear()
     return ConversationHandler.END
@@ -510,7 +510,7 @@ async def toggle_online_status(update: Update, context: ContextTypes.DEFAULT_TYP
     provider = db.get_provider(user.id)
     if not provider:
         await update.message.reply_text(
-            "❌ You're not registered yet. Use /register first.",
+            "❌ You're not registered yet. Tap 👤 My Profile to get started.",
             parse_mode="Markdown"
         )
         return
@@ -673,7 +673,7 @@ async def photos_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if data == "photos_add":
         await query.edit_message_text(
             "📸 *Add Photos*\n\n"
-            "Use /complete_profile to add more photos to your gallery.",
+            "Tap ✏️ Edit Profile in 👤 My Profile to add more photos.",
             parse_mode="Markdown"
         )
         return
@@ -879,7 +879,7 @@ async def profile_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     # Allow user to exit by clicking menu buttons
     menu_buttons = ["👑 The Collection", "👤 My Profile", "💰 Top up Balance", "🛡️ Safety Suite", "🤝 Affiliate Program", "📞 Support", "📋 Rules"]
     if text in menu_buttons or text.startswith("/"):
-        await update.message.reply_text("❌ Profile completion cancelled. Use /complete_profile to start again.")
+        await update.message.reply_text("❌ Profile completion cancelled. Tap 👤 My Profile to start again.")
         return ConversationHandler.END
     
     try:
@@ -1405,7 +1405,7 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
             chat_id=provider_id,
             text="❌ **Verification Rejected**\n\n"
                  "Your verification photo was not approved.\n"
-                 "Please use /verify to try again with a clearer photo.",
+                 "Please tap 📸 Get Verified in your profile to try again with a clearer photo.",
             parse_mode="Markdown"
         )
         
