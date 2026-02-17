@@ -156,17 +156,7 @@ async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif text == "👤 My Profile":
         provider = db.get_provider(user.id)
         if not provider:
-            # Start registration for new users
-            await update.message.reply_text(
-                "👋 *Welcome to Blackbook!*\n"
-                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "Let's create your premium profile.\n\n"
-                "Please enter your *Stage Name*\n"
-                "_(The name clients will see on the website)_:",
-                parse_mode="Markdown"
-            )
-            # Set conversation state for registration
-            context.user_data["registering"] = True
+            # Registration flow is handled by the ConversationHandler entry point.
             return
         # Trigger the /myprofile command for existing users
         await myprofile(update, context)
@@ -344,6 +334,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the registration conversation and asks for Stage Name."""
     from config import MAINTENANCE_MODE
+    user = update.effective_user
+    db = get_db()
     
     if MAINTENANCE_MODE:
         await update.message.reply_text(
@@ -352,6 +344,12 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             "Please try again later.",
             parse_mode="Markdown"
         )
+        return ConversationHandler.END
+
+    # Existing users should be routed to profile, not forced through registration again.
+    provider = db.get_provider(user.id) if user else None
+    if provider:
+        await myprofile(update, context)
         return ConversationHandler.END
     
     await update.message.reply_text(
@@ -1761,7 +1759,10 @@ def register_handlers(application):
         **profile_states,
     }
     registration_handler = ConversationHandler(
-        entry_points=[CommandHandler("register", register)],
+        entry_points=[
+            CommandHandler("register", register),
+            MessageHandler(filters.Regex("^👤 My Profile$"), register),
+        ],
         states=registration_states,
         fallbacks=[CommandHandler("cancel", cancel)],
     )

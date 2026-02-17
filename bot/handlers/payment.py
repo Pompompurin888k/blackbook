@@ -134,10 +134,20 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
             )
             return
 
+        if db.has_successful_payment_for_provider(user.id):
+            await query.edit_message_text(
+                "ℹ️ Free trial is only for brand-new providers before first payment.\n\n"
+                "Choose a paid package to go live.",
+                reply_markup=get_menu_package_keyboard(show_trial=False),
+                parse_mode="Markdown",
+            )
+            return
+
         activated = db.activate_free_trial(user.id, FREE_TRIAL_DAYS)
         if not activated:
             await query.edit_message_text(
-                "❌ Free trial could not be activated.\n\nIf this is unexpected, contact support.",
+                "❌ Free trial could not be activated.\n\n"
+                "Eligibility: verified, inactive, new account, and no prior successful payment.",
                 reply_markup=get_back_button("menu_topup"),
                 parse_mode="Markdown",
             )

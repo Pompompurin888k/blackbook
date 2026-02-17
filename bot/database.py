@@ -413,7 +413,7 @@ class Database:
     def activate_free_trial(self, tg_id: int, days: int = 7) -> bool:
         """
         Activates one-time free trial for verified providers.
-        Eligibility: verified, inactive, and trial not used.
+        Eligibility: verified, inactive, trial not used, and no prior successful payments.
         """
         query = """
         UPDATE providers
@@ -429,10 +429,16 @@ class Database:
           AND is_verified = TRUE
           AND is_active = FALSE
           AND COALESCE(trial_used, FALSE) = FALSE
+          AND NOT EXISTS (
+              SELECT 1
+              FROM payments p
+              WHERE p.telegram_id = %s
+                AND p.status = 'SUCCESS'
+          )
         """
         try:
             with self.conn.cursor() as cur:
-                cur.execute(query, (days, tg_id))
+                cur.execute(query, (days, tg_id, tg_id))
                 self.conn.commit()
                 ok = cur.rowcount > 0
                 if ok:
@@ -511,6 +517,23 @@ class Database:
         except Exception as e:
             logger.error(f"❌ Error marking trial expired notified: {e}")
             self.conn.rollback()
+            return False
+
+    def has_successful_payment_for_provider(self, tg_id: int) -> bool:
+        """Checks if provider has any successful payment history."""
+        query = """
+        SELECT 1
+        FROM payments
+        WHERE telegram_id = %s
+          AND status = 'SUCCESS'
+        LIMIT 1
+        """
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (tg_id,))
+                return cur.fetchone() is not None
+        except Exception as e:
+            logger.error(f"❌ Error checking provider payment history: {e}")
             return False
 
     def log_payment(self, tg_id, amount, reference, status, package_days):
