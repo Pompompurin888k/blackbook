@@ -3,11 +3,16 @@ Blackbook Bot - Main Entry Point
 Orchestrates the modular bot architecture with persistence and centralized logging.
 """
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import Application, PicklePersistence
 
-from config import TELEGRAM_TOKEN, ADMIN_CHAT_ID
+from config import (
+    TELEGRAM_TOKEN,
+    ADMIN_CHAT_ID,
+    FREE_TRIAL_REMINDER_DAY5_HOURS,
+    FREE_TRIAL_FINAL_REMINDER_HOURS,
+)
 from database import Database
 from handlers import register_all_handlers
 from utils.logger import get_logger, configure_root_logger
@@ -66,6 +71,85 @@ def main() -> None:
         count = db.deactivate_expired_subscriptions()
         if count > 0:
             logger.info(f"⏰ Deactivated {count} expired subscription(s)")
+
+        # Notify providers when free trial has ended (single notification).
+        expired_trials = db.get_unnotified_expired_trials()
+        for provider in expired_trials:
+            tg_id = provider.get("telegram_id")
+            name = provider.get("display_name", "there")
+            try:
+                await context.bot.send_message(
+                    chat_id=tg_id,
+                    text=(
+                        "⌛ *Free Trial Ended*\n\n"
+                        f"Hi {name}, your trial has ended and your listing is now paused.\n\n"
+                        "To go live again immediately, choose any paid package in 💰 Top up Balance."
+                    ),
+                    parse_mode="Markdown",
+                )
+                db.mark_trial_expired_notified(tg_id)
+            except Exception as e:
+                logger.error(f"❌ Failed to send trial-expired notification to {tg_id}: {e}")
+
+    async def check_trial_reminders(context):
+        """Periodic job: send day-5 and last-day trial reminders."""
+        now = datetime.now()
+        candidates = db.get_trial_reminder_candidates()
+        day5_sent = 0
+        final_sent = 0
+
+        for provider in candidates:
+            tg_id = provider.get("telegram_id")
+            expiry = provider.get("expiry_date")
+            if not tg_id or not expiry:
+                continue
+
+            hours_left = (expiry - now).total_seconds() / 3600.0
+            if hours_left <= 0:
+                continue
+
+            display_name = provider.get("display_name", "there")
+            if (
+                hours_left <= FREE_TRIAL_FINAL_REMINDER_HOURS
+                and not provider.get("trial_reminder_lastday_sent")
+            ):
+                try:
+                    await context.bot.send_message(
+                        chat_id=tg_id,
+                        text=(
+                            "⚠️ *Trial Ending Soon*\n\n"
+                            f"Hi {display_name}, your free trial ends in less than 24 hours.\n\n"
+                            "Tap 💰 Top up Balance now to keep your listing live with no downtime."
+                        ),
+                        parse_mode="Markdown",
+                    )
+                    db.mark_trial_reminder_sent(tg_id, "lastday")
+                    final_sent += 1
+                except Exception as e:
+                    logger.error(f"❌ Failed sending final trial reminder to {tg_id}: {e}")
+                continue
+
+            if (
+                hours_left <= FREE_TRIAL_REMINDER_DAY5_HOURS
+                and not provider.get("trial_reminder_day5_sent")
+            ):
+                try:
+                    await context.bot.send_message(
+                        chat_id=tg_id,
+                        text=(
+                            "🔔 *Trial Reminder*\n\n"
+                            f"Hi {display_name}, your free trial is nearing its end.\n\n"
+                            "Choose a paid package in 💰 Top up Balance to stay visible without interruption."
+                        ),
+                        parse_mode="Markdown",
+                    )
+                    db.mark_trial_reminder_sent(tg_id, "day5")
+                    day5_sent += 1
+                except Exception as e:
+                    logger.error(f"❌ Failed sending day-5 trial reminder to {tg_id}: {e}")
+
+        if day5_sent or final_sent:
+            logger.info(f"🔔 Trial reminders sent: day5={day5_sent}, final={final_sent}")
     
     # Check overdue safety sessions every 2 minutes
     async def check_overdue_sessions(context):
@@ -101,8 +185,9 @@ def main() -> None:
     
     if job_queue is not None:
         job_queue.run_repeating(check_expired_subscriptions, interval=timedelta(minutes=15), first=timedelta(seconds=30))
+        job_queue.run_repeating(check_trial_reminders, interval=timedelta(minutes=30), first=timedelta(minutes=2))
         job_queue.run_repeating(check_overdue_sessions, interval=timedelta(minutes=2), first=timedelta(seconds=60))
-        logger.info("⏰ Scheduled jobs registered (expiry check / session alerts)")
+        logger.info("⏰ Scheduled jobs registered (expiry / trial reminders / session alerts)")
     else:
         logger.warning(
             "⚠️ JobQueue is unavailable. Install with: pip install \"python-telegram-bot[job-queue]\" "
@@ -123,6 +208,7 @@ def main() -> None:
     logger.info("    ✓ PicklePersistence (conversation state survives restarts)")
     logger.info("    ✓ Centralized logging (module-aware)")
     logger.info("    ✓ Scheduled subscription expiry checks (every 15 min)")
+    logger.info("    ✓ Scheduled free-trial reminders (every 30 min)")
     logger.info("    ✓ Scheduled overdue session alerts (every 2 min)")
     logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     

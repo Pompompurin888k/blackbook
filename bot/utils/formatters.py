@@ -13,6 +13,7 @@ def generate_verification_code() -> str:
 
 # Tier display mapping
 TIER_BADGES = {
+    "trial": "🎁 Trial",
     "platinum": "💎 Platinum",
     "gold": "🥇 Gold",
     "silver": "🥈 Silver",

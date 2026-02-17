@@ -6,7 +6,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMa
 from config import (
     CITIES, PACKAGES, TIERS, SESSION_DURATIONS, BUILDS, AVAILABILITIES,
     SERVICES, LANGUAGES, NAIROBI_NEIGHBORHOODS, ELDORET_NEIGHBORHOODS,
-    BOOST_PRICE, BOOST_DURATION_HOURS, PREMIUM_VERIFY_PRICE,
+    BOOST_PRICE, BOOST_DURATION_HOURS, PREMIUM_VERIFY_PRICE, FREE_TRIAL_DAYS,
 )
 
 
@@ -109,6 +109,14 @@ def get_full_profile_keyboard(provider: dict) -> InlineKeyboardMarkup:
     # Verification (if not verified)
     if not provider.get("is_verified"):
         buttons.append([InlineKeyboardButton("✅ Get Verified", callback_data="menu_verify_start")])
+
+    is_trial_eligible = (
+        provider.get("is_verified")
+        and not provider.get("is_active")
+        and not provider.get("trial_used")
+    )
+    if is_trial_eligible:
+        buttons.append([InlineKeyboardButton(f"🎁 Start {FREE_TRIAL_DAYS}-Day Free Trial", callback_data="menu_trial_activate")])
     
     # Go live (if not active)
     if not provider.get("is_active"):
@@ -132,6 +140,13 @@ def get_profile_keyboard(provider: dict) -> InlineKeyboardMarkup:
     
     if not provider.get("is_verified"):
         buttons.append([InlineKeyboardButton("📸 Get Verified", callback_data="menu_verify_start")])
+    is_trial_eligible = (
+        provider.get("is_verified")
+        and not provider.get("is_active")
+        and not provider.get("trial_used")
+    )
+    if is_trial_eligible:
+        buttons.append([InlineKeyboardButton(f"🎁 Start {FREE_TRIAL_DAYS}-Day Free Trial", callback_data="menu_trial_activate")])
     if not provider.get("is_active"):
         buttons.append([InlineKeyboardButton("💰 Go Live Now", callback_data="menu_topup")])
     buttons.append([InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")])
@@ -155,9 +170,14 @@ def get_package_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_menu_package_keyboard() -> InlineKeyboardMarkup:
+def get_menu_package_keyboard(show_trial: bool = False) -> InlineKeyboardMarkup:
     """Returns tier package selection keyboard (menu version with extras)."""
     keyboard = []
+    if show_trial:
+        keyboard.append([InlineKeyboardButton(
+            f"🎁 Start {FREE_TRIAL_DAYS}-Day Free Trial — FREE",
+            callback_data="menu_trial_activate"
+        )])
     for days in sorted(PACKAGES.keys()):
         tier = TIERS.get(days, {})
         emoji = tier.get("emoji", "📦")

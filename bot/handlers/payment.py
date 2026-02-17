@@ -13,7 +13,17 @@ from telegram.ext import (
     filters,
 )
 
-from config import TOPUP_PHONE, TOPUP_CONFIRM, get_package_price, PACKAGES, TIERS, BOOST_PRICE, BOOST_DURATION_HOURS, PREMIUM_VERIFY_PRICE
+from config import (
+    TOPUP_PHONE,
+    TOPUP_CONFIRM,
+    get_package_price,
+    PACKAGES,
+    TIERS,
+    BOOST_PRICE,
+    BOOST_DURATION_HOURS,
+    PREMIUM_VERIFY_PRICE,
+    FREE_TRIAL_DAYS,
+)
 from utils.keyboards import (
     get_package_keyboard,
     get_menu_package_keyboard,
@@ -34,6 +44,16 @@ def get_db():
     return _get_db()
 
 
+def _is_trial_eligible(provider: dict) -> bool:
+    if not provider:
+        return False
+    return (
+        provider.get("is_verified") is True
+        and provider.get("is_active") is False
+        and not provider.get("trial_used")
+    )
+
+
 # ==================== MENU CALLBACKS ====================
 
 async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -50,6 +70,8 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
     if action == "topup":
         status_text = ""
         tier_text = ""
+        trial_text = ""
+        show_trial = _is_trial_eligible(provider)
         if provider and provider.get("is_active"):
             expiry = provider.get("expiry_date")
             tier = provider.get("subscription_tier", "none")
@@ -59,18 +81,79 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 tier_info = next((t for t in TIERS.values() if t["name"].lower() == tier), None)
                 if tier_info:
                     tier_text = f"\n{tier_info['emoji']} Current tier: *{tier_info['name']}*"
+        elif show_trial:
+            trial_text = (
+                f"\n\n🎁 *New here?* You can start a *{FREE_TRIAL_DAYS}-day free trial* once."
+                "\nAfter that, choose any paid plan to stay live."
+            )
         
         await query.edit_message_text(
             "💰 *LISTING MANAGEMENT*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"Active listings receive *400% more engagement*.{tier_text}{status_text}\n\n"
+            f"Active listings receive *400% more engagement*.{tier_text}{status_text}{trial_text}\n\n"
             "🥉 *Bronze* — 3 days (basic listing)\n"
             "🥈 *Silver* — 7 days (photos + live badge)\n"
             "🥇 *Gold* — 30 days (priority + featured)\n"
             "💎 *Platinum* — 90 days (top of search + spotlight)\n\n"
             "Select your package:",
-            reply_markup=get_menu_package_keyboard(),
+            reply_markup=get_menu_package_keyboard(show_trial=show_trial),
             parse_mode="Markdown"
+        )
+
+    # === FREE TRIAL ACTIVATION ===
+    elif action == "trial_activate":
+        if not provider:
+            await query.edit_message_text(
+                "❌ You need to /register first before starting a trial.",
+                reply_markup=get_back_button("menu_main"),
+                parse_mode="Markdown",
+            )
+            return
+
+        if not provider.get("is_verified"):
+            await query.edit_message_text(
+                "❌ You must be verified before starting a free trial.\n\nUse 📸 Get Verified first.",
+                reply_markup=get_back_button("menu_profile"),
+                parse_mode="Markdown",
+            )
+            return
+
+        if provider.get("is_active"):
+            await query.edit_message_text(
+                "✅ Your listing is already active.\n\nUse paid packages to extend or upgrade.",
+                reply_markup=get_back_button("menu_topup"),
+                parse_mode="Markdown",
+            )
+            return
+
+        if provider.get("trial_used"):
+            await query.edit_message_text(
+                "ℹ️ Your free trial was already used.\n\nChoose a paid package to go live again.",
+                reply_markup=get_menu_package_keyboard(show_trial=False),
+                parse_mode="Markdown",
+            )
+            return
+
+        activated = db.activate_free_trial(user.id, FREE_TRIAL_DAYS)
+        if not activated:
+            await query.edit_message_text(
+                "❌ Free trial could not be activated.\n\nIf this is unexpected, contact support.",
+                reply_markup=get_back_button("menu_topup"),
+                parse_mode="Markdown",
+            )
+            return
+
+        provider = db.get_provider(user.id) or {}
+        expiry = provider.get("expiry_date")
+        expiry_text = expiry.strftime("%Y-%m-%d %H:%M") if expiry else "soon"
+        await query.edit_message_text(
+            "🎁 *Free Trial Activated*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"Your profile is now LIVE for *{FREE_TRIAL_DAYS} days*.\n"
+            f"📅 Trial ends: *{expiry_text}*\n\n"
+            "We will remind you before it ends so you can upgrade without downtime.",
+            reply_markup=get_back_button("menu_profile"),
+            parse_mode="Markdown",
         )
     
     # === PAYMENT: USE SAVED PHONE ===
@@ -222,7 +305,7 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
 # ==================== /TOPUP COMMAND ====================
 
 async def topup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Starts the topup process - shows package selection."""
+    """Shows listing management packages (and free trial if eligible)."""
     user = update.effective_user
     db = get_db()
     
@@ -242,25 +325,37 @@ async def topup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
     
     status_text = ""
+    tier_text = ""
+    trial_text = ""
+    show_trial = _is_trial_eligible(provider)
     if provider.get("is_active"):
         expiry = provider.get("expiry_date")
+        tier = provider.get("subscription_tier", "none")
         if expiry:
-            status_text = f"\n\n📅 Current subscription expires: {expiry.strftime('%Y-%m-%d %H:%M')}"
-    
-    tier_lines = []
-    for days in sorted(PACKAGES.keys()):
-        t = TIERS.get(days, {})
-        tier_lines.append(f"{t.get('emoji', '📦')} *{t.get('name', '')}* — {days} days — {PACKAGES[days]:,} KES\n   _{t.get('perks', '')}_")
-    
+            status_text = f"\n📅 Expires: {expiry.strftime('%Y-%m-%d')}"
+        if tier and tier != "none":
+            tier_info = next((t for t in TIERS.values() if t["name"].lower() == tier), None)
+            if tier_info:
+                tier_text = f"\n{tier_info['emoji']} Current tier: *{tier_info['name']}*"
+    elif show_trial:
+        trial_text = (
+            f"\n\n🎁 *New here?* You can start a *{FREE_TRIAL_DAYS}-day free trial* once."
+            "\nAfter that, choose any paid plan to stay live."
+        )
+
     await update.message.reply_text(
-        "💰 *Listing Management*\n"
+        "💰 *LISTING MANAGEMENT*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"Active listings receive *400% more engagement*.{status_text}\n\n"
-        + "\n".join(tier_lines),
-        reply_markup=get_package_keyboard(),
+        f"Active listings receive *400% more engagement*.{tier_text}{status_text}{trial_text}\n\n"
+        "🥉 *Bronze* — 3 days (basic listing)\n"
+        "🥈 *Silver* — 7 days (photos + live badge)\n"
+        "🥇 *Gold* — 30 days (priority + featured)\n"
+        "💎 *Platinum* — 90 days (top of search + spotlight)\n\n"
+        "Select your package:",
+        reply_markup=get_menu_package_keyboard(show_trial=show_trial),
         parse_mode="Markdown"
     )
-    return TOPUP_PHONE
+    return ConversationHandler.END
 
 
 async def topup_package_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -350,6 +445,61 @@ async def topup_phone_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return ConversationHandler.END
 
 
+async def menu_phone_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handles phone number input for the inline menu payment flow.
+    Triggered only when context.user_data['awaiting_phone'] is set.
+    """
+    if not context.user_data.get("awaiting_phone"):
+        return
+
+    user = update.effective_user
+    db = get_db()
+    phone = update.message.text.strip()
+
+    phone_clean = phone.replace(" ", "").replace("-", "").replace("+", "")
+    if not phone_clean.isdigit() or len(phone_clean) < 9:
+        await update.message.reply_text(
+            "❌ Invalid phone number. Please enter a valid M-Pesa number:\n"
+            "_Format: 0712345678 or 254712345678_",
+            parse_mode="Markdown",
+        )
+        return
+
+    db.update_provider_phone(user.id, phone_clean)
+    context.user_data["topup_phone"] = phone_clean
+
+    days = context.user_data.get("topup_days", 3)
+    price = context.user_data.get("topup_price", get_package_price(3))
+
+    await update.message.reply_text(
+        "⏳ *Initiating Secure Payment...*\n\n"
+        f"A prompt will appear on your phone (`{phone_clean}`). "
+        "Enter your M-Pesa PIN to authorize.",
+        parse_mode="Markdown",
+    )
+
+    result = await initiate_stk_push(phone_clean, price, user.id, days)
+    if result["success"]:
+        provider = db.get_provider(user.id)
+        neighborhood = provider.get('neighborhood', 'your area') if provider else 'your area'
+        await update.message.reply_text(
+            "✅ *Transaction Initiated*\n\n"
+            f"📱 Check your phone: `{phone_clean}`\n"
+            f"💰 Amount: {price} KES\n\n"
+            f"_Your profile will appear in {neighborhood} once confirmed._",
+            parse_mode="Markdown",
+        )
+    else:
+        await update.message.reply_text(
+            f"❌ *Payment Failed*\n\n{result['message']}\n\nPlease try again.",
+            reply_markup=get_payment_failed_keyboard(),
+            parse_mode="Markdown",
+        )
+
+    context.user_data.pop("awaiting_phone", None)
+
+
 async def topup_confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handles confirmation of saved phone or new phone request."""
     query = update.callback_query
@@ -430,5 +580,11 @@ def register_handlers(application):
     # Menu callback handler
     application.add_handler(CallbackQueryHandler(
         payment_menu_callback,
-        pattern="^menu_(topup|pay_confirm|pay_newphone|pay_\\d+|boost|boost_confirm)$"
+        pattern="^menu_(topup|trial_activate|pay_confirm|pay_newphone|pay_\\d+|boost|boost_confirm)$"
     ))
+
+    # Handles typed phone input for menu payment flow.
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, menu_phone_input),
+        group=2,
+    )

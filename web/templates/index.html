@@ -2012,7 +2012,7 @@
         }
 
         function sortProviderCards(cards) {
-            const tierRank = { platinum: 4, gold: 3, silver: 2, bronze: 1, none: 0 };
+                const tierRank = { platinum: 4, gold: 3, silver: 2, bronze: 1, trial: 1, none: 0 };
             return cards.sort((a, b) => {
                 const da = JSON.parse(a.dataset.provider);
                 const db = JSON.parse(b.dataset.provider);

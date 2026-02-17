@@ -69,7 +69,7 @@
             {% endif %}
 
             <!-- Tier Badge -->
-            {% if provider.subscription_tier and provider.subscription_tier != 'none' and provider.subscription_tier != 'bronze' %}
+            {% if provider.subscription_tier and provider.subscription_tier not in ['none', 'bronze', 'trial'] %}
             {% set tier_badges = {'platinum': ('💎', 'from-cyan-400 to-blue-500', 'Platinum'), 'gold': ('🥇', 'from-[#D4AF37] to-[#FFD700]', 'Gold'), 'silver': ('🥈', 'from-gray-300 to-gray-400', 'Silver')} %}
             {% set tb = tier_badges.get(provider.subscription_tier, ('📦', 'from-gray-500 to-gray-600', provider.subscription_tier)) %}
             <span class="bg-gradient-to-r {{ tb[1] }} text-black px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider badge-animate">

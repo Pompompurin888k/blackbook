@@ -346,7 +346,8 @@ class Database:
         tier_map = {3: "bronze", 7: "silver", 30: "gold", 90: "platinum"}
         tier_name = tier_map.get(days, "bronze")
         query = """UPDATE providers 
-                   SET is_active = TRUE, expiry_date = %s, subscription_tier = %s 
+                   SET is_active = TRUE, expiry_date = %s, subscription_tier = %s,
+                       trial_expired_notified = FALSE
                    WHERE telegram_id = %s"""
         try:
             with self.conn.cursor() as cur:

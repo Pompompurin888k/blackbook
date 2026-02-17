@@ -114,6 +114,11 @@ TIERS = {
 BOOST_PRICE = 100       # KES per boost
 BOOST_DURATION_HOURS = 12  # Hours of boost visibility
 
+# Free trial
+FREE_TRIAL_DAYS = int(os.getenv("FREE_TRIAL_DAYS", "7"))
+FREE_TRIAL_REMINDER_DAY5_HOURS = int(os.getenv("FREE_TRIAL_REMINDER_DAY5_HOURS", "48"))
+FREE_TRIAL_FINAL_REMINDER_HOURS = int(os.getenv("FREE_TRIAL_FINAL_REMINDER_HOURS", "24"))
+
 # Referral rewards
 REFERRAL_REWARD_DAYS = 1      # Free days given to referrer per signup
 REFERRAL_COMMISSION_PCT = 20  # % commission on referred user's first payment (as credit)

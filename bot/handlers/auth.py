@@ -22,6 +22,7 @@ from config import (
     CITIES,
     RATE_DURATIONS,
     LANGUAGES,
+    FREE_TRIAL_DAYS,
 )
 from utils.keyboards import (
     get_main_menu_keyboard,
@@ -1382,13 +1383,14 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
                      "🎉 You now have the Blue Tick ✔️\n\n"
                      "━━━━━━━━━━━━━━━━━━━━━━\n\n"
                      "📋 *Your profile is saved but not yet live.*\n\n"
-                     "To appear on innbucks.org and start receiving clients:\n\n"
-                     "💰 *Activate Subscription*\n"
-                     "→ Click: 💰 Top up Balance\n"
-                     "→ 300 KES for 3 days\n"
-                     "→ 600 KES for 7 days (1 FREE!)\n\n"
-                     "💡 Once you pay, your profile goes live instantly!",
-                parse_mode="Markdown"
+                     f"🎁 You can start a *{FREE_TRIAL_DAYS}-day free trial* once,\n"
+                     "or activate a paid package immediately.\n\n"
+                     "💡 Once activated, your profile goes live instantly!",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(f"🎁 Start {FREE_TRIAL_DAYS}-Day Free Trial", callback_data="menu_trial_activate")],
+                    [InlineKeyboardButton("💰 Choose Paid Package", callback_data="menu_topup")],
+                ])
             )
         
         await query.edit_message_caption(

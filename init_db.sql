@@ -31,7 +31,12 @@ CREATE TABLE IF NOT EXISTS providers (
     referral_code VARCHAR(20) UNIQUE,
     referred_by BIGINT,
     referral_credits INT DEFAULT 0,
-    is_premium_verified BOOLEAN DEFAULT FALSE
+    is_premium_verified BOOLEAN DEFAULT FALSE,
+    trial_used BOOLEAN DEFAULT FALSE,
+    trial_started_at TIMESTAMP,
+    trial_reminder_day5_sent BOOLEAN DEFAULT FALSE,
+    trial_reminder_lastday_sent BOOLEAN DEFAULT FALSE,
+    trial_expired_notified BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS payments (
