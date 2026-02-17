@@ -7,6 +7,7 @@ import os
 # ==================== TELEGRAM CONFIG ====================
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
+ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN", TELEGRAM_TOKEN)
 PARTNER_TELEGRAM_ID = os.getenv("PARTNER_TELEGRAM_ID")
 
 # ==================== DATABASE CONFIG ====================

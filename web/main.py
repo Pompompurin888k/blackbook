@@ -28,6 +28,7 @@ db = Database()
 # Telegram Bot Token for sending notifications
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
+ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN", TELEGRAM_BOT_TOKEN)
 MEGAPAY_CALLBACK_SECRET = os.getenv("MEGAPAY_CALLBACK_SECRET")
 ENABLE_SEED_ENDPOINT = os.getenv("ENABLE_SEED_ENDPOINT", "false").strip().lower() == "true"
 LOCALHOSTS = {"127.0.0.1", "::1", "localhost"}
@@ -688,13 +689,19 @@ async def megapay_callback(request: Request):
         return JSONResponse({"status": "error", "message": "Internal callback error"}, status_code=500)
 
 
-async def send_telegram_notification(chat_id: int, message: str, parse_mode: Optional[str] = "Markdown"):
+async def send_telegram_notification(
+    chat_id: int,
+    message: str,
+    parse_mode: Optional[str] = "Markdown",
+    bot_token: Optional[str] = None,
+):
     """Sends a notification to a user via Telegram Bot API."""
-    if not TELEGRAM_BOT_TOKEN:
+    token = bot_token or TELEGRAM_BOT_TOKEN
+    if not token:
         logger.warning("⚠️ TELEGRAM_TOKEN not set, cannot send notification")
         return
     
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": message,
@@ -715,10 +722,15 @@ async def send_telegram_notification(chat_id: int, message: str, parse_mode: Opt
 
 async def send_admin_alert(message: str):
     """Sends basic operational alerts to admin via Telegram."""
-    if not ADMIN_CHAT_ID:
+    if not ADMIN_CHAT_ID or not ADMIN_BOT_TOKEN:
         return
     try:
-        await send_telegram_notification(int(ADMIN_CHAT_ID), f"ALERT:\n{message}", parse_mode=None)
+        await send_telegram_notification(
+            int(ADMIN_CHAT_ID),
+            f"ALERT:\n{message}",
+            parse_mode=None,
+            bot_token=ADMIN_BOT_TOKEN,
+        )
     except Exception as e:
         logger.error(f"❌ Failed to send admin alert: {e}")
 

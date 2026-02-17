@@ -5,12 +5,14 @@ Orchestrates the modular bot architecture with persistence and centralized loggi
 import os
 from pathlib import Path
 from datetime import datetime, timedelta
+import httpx
 from telegram import Update
 from telegram.ext import Application, PicklePersistence
 
 from config import (
     TELEGRAM_TOKEN,
     ADMIN_CHAT_ID,
+    ADMIN_BOT_TOKEN,
     FREE_TRIAL_REMINDER_DAY2_HOURS,
     FREE_TRIAL_REMINDER_DAY5_HOURS,
     FREE_TRIAL_FINAL_REMINDER_HOURS,
@@ -39,6 +41,8 @@ def main() -> None:
     
     if not ADMIN_CHAT_ID:
         logger.warning("⚠️ ADMIN_CHAT_ID not set! Verification system will not work.")
+    elif ADMIN_BOT_TOKEN and ADMIN_BOT_TOKEN != TELEGRAM_TOKEN:
+        logger.info("ℹ️ Separate ADMIN_BOT_TOKEN detected: admin alerts will use admin bot token.")
     
     # Initialize database
     logger.info("🗄️ Initializing database connection...")
@@ -75,19 +79,26 @@ def main() -> None:
         except Exception as e:
             logger.error(f"❌ Failed to write bot heartbeat: {e}")
 
-    async def send_admin_alert(bot, message: str) -> None:
-        """Sends basic operational alerts to admin Telegram."""
-        if not ADMIN_CHAT_ID:
+    async def send_admin_alert(message: str) -> None:
+        """Sends basic operational alerts to admin Telegram (supports separate admin bot token)."""
+        if not ADMIN_CHAT_ID or not ADMIN_BOT_TOKEN:
             return
         try:
-            await bot.send_message(chat_id=int(ADMIN_CHAT_ID), text=f"ALERT:\n{message[:3800]}")
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                await client.post(
+                    f"https://api.telegram.org/bot{ADMIN_BOT_TOKEN}/sendMessage",
+                    json={
+                        "chat_id": int(ADMIN_CHAT_ID),
+                        "text": f"ALERT:\n{message[:3800]}",
+                    },
+                )
         except Exception as alert_err:
             logger.error(f"❌ Failed to send admin alert: {alert_err}")
 
     async def on_error(update: object, context) -> None:
         """Global async error handler for uncaught bot exceptions."""
         logger.error(f"Unhandled bot exception: {context.error}")
-        await send_admin_alert(context.bot, f"Unhandled bot exception: {context.error}")
+        await send_admin_alert(f"Unhandled bot exception: {context.error}")
 
     application.add_error_handler(on_error)
     
@@ -120,7 +131,7 @@ def main() -> None:
                 db.mark_trial_expired_notified(tg_id)
             except Exception as e:
                 logger.error(f"❌ Failed to send trial-expired notification to {tg_id}: {e}")
-                await send_admin_alert(context.bot, f"Trial-expired notification failed for {tg_id}: {e}")
+                await send_admin_alert(f"Trial-expired notification failed for {tg_id}: {e}")
 
         winback_candidates = db.get_trial_winback_candidates(TRIAL_WINBACK_AFTER_HOURS)
         winback_sent = 0
@@ -141,7 +152,7 @@ def main() -> None:
                 winback_sent += 1
             except Exception as e:
                 logger.error(f"❌ Failed to send trial winback to {tg_id}: {e}")
-                await send_admin_alert(context.bot, f"Trial winback send failed for {tg_id}: {e}")
+                await send_admin_alert(f"Trial winback send failed for {tg_id}: {e}")
 
         if winback_sent:
             logger.info(f"🔁 Trial winback messages sent: {winback_sent}")
@@ -184,7 +195,7 @@ def main() -> None:
                     final_sent += 1
                 except Exception as e:
                     logger.error(f"❌ Failed sending final trial reminder to {tg_id}: {e}")
-                    await send_admin_alert(context.bot, f"Final trial reminder failed for {tg_id}: {e}")
+                    await send_admin_alert(f"Final trial reminder failed for {tg_id}: {e}")
                 continue
 
             if (
@@ -206,7 +217,7 @@ def main() -> None:
                     day5_sent += 1
                 except Exception as e:
                     logger.error(f"❌ Failed sending day-5 trial reminder to {tg_id}: {e}")
-                    await send_admin_alert(context.bot, f"Day-5 trial reminder failed for {tg_id}: {e}")
+                    await send_admin_alert(f"Day-5 trial reminder failed for {tg_id}: {e}")
                 continue
 
             if (
@@ -228,7 +239,7 @@ def main() -> None:
                     day2_sent += 1
                 except Exception as e:
                     logger.error(f"❌ Failed sending day-2 trial reminder to {tg_id}: {e}")
-                    await send_admin_alert(context.bot, f"Day-2 trial reminder failed for {tg_id}: {e}")
+                    await send_admin_alert(f"Day-2 trial reminder failed for {tg_id}: {e}")
 
         if day2_sent or day5_sent or final_sent:
             logger.info(f"🔔 Trial reminders sent: day2={day2_sent}, day5={day5_sent}, final={final_sent}")
@@ -265,7 +276,7 @@ def main() -> None:
                     logger.warning(f"🚨 Overdue session alert sent for {provider_name}")
             except Exception as e:
                 logger.error(f"❌ Failed to send overdue alert: {e}")
-                await send_admin_alert(context.bot, f"Overdue-session alert send failed for {provider_name}: {e}")
+                await send_admin_alert(f"Overdue-session alert send failed for {provider_name}: {e}")
 
     async def heartbeat_job(context):
         """Periodic heartbeat writer for container healthcheck."""

@@ -3,6 +3,7 @@ Blackbook Bot - Authentication Handlers
 Handles: /start, /register, /verify, /myprofile, verification callbacks
 """
 import logging
+import httpx
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler,
@@ -19,6 +20,8 @@ from config import (
     PROFILE_AVAILABILITY, PROFILE_SERVICES, PROFILE_BIO, PROFILE_NEARBY, PROFILE_PHOTOS, PROFILE_RATES, PROFILE_LANGUAGES,
     AWAITING_PHOTO,
     ADMIN_CHAT_ID,
+    ADMIN_BOT_TOKEN,
+    TELEGRAM_TOKEN,
     CITIES,
     RATE_DURATIONS,
     LANGUAGES,
@@ -76,6 +79,51 @@ def format_profile_step(step: int, title: str, body: str) -> str:
         f"*Step {step}/{PROFILE_FLOW_TOTAL_STEPS}: {title}*\n\n"
         f"{body}"
     )
+
+
+async def send_admin_verification_request(
+    context: ContextTypes.DEFAULT_TYPE,
+    provider_id: int,
+    photo_file_id: str,
+    caption: str,
+) -> bool:
+    """
+    Sends verification request to admin chat.
+    If admin bot token matches client bot token, include inline approve/reject buttons.
+    If different token is used, send notification-only message to avoid dead callback buttons.
+    """
+    if not ADMIN_CHAT_ID:
+        return False
+
+    use_inline_actions = ADMIN_BOT_TOKEN == TELEGRAM_TOKEN
+    if use_inline_actions:
+        await context.bot.send_photo(
+            chat_id=int(ADMIN_CHAT_ID),
+            photo=photo_file_id,
+            caption=caption,
+            reply_markup=get_admin_verification_keyboard(provider_id),
+            parse_mode="Markdown",
+        )
+        return True
+
+    # Different admin bot token: send notification-only payload via Bot API.
+    admin_caption = (
+        f"{caption}\n\n"
+        "Action required: Open the client moderation bot and use /admin to approve or reject this profile."
+    )
+    url = f"https://api.telegram.org/bot{ADMIN_BOT_TOKEN}/sendPhoto"
+    payload = {
+        "chat_id": int(ADMIN_CHAT_ID),
+        "photo": photo_file_id,
+        "caption": admin_caption,
+        "parse_mode": "Markdown",
+    }
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        resp = await client.post(url, json=payload)
+        if resp.status_code != 200:
+            logger.error(f"❌ Failed to send admin verification notification: {resp.text}")
+            return False
+    return True
 
 
 def is_profile_complete(provider: dict) -> bool:
@@ -924,13 +972,18 @@ async def handle_verification_photo(update: Update, context: ContextTypes.DEFAUL
         f"🆔 User ID: `{user.id}`\n"
     )
     
-    await context.bot.send_photo(
-        chat_id=int(ADMIN_CHAT_ID),
-        photo=photo_file_id,
+    sent = await send_admin_verification_request(
+        context=context,
+        provider_id=user.id,
+        photo_file_id=photo_file_id,
         caption=caption,
-        reply_markup=get_admin_verification_keyboard(user.id),
-        parse_mode="Markdown"
     )
+    if not sent:
+        await update.message.reply_text(
+            "⚠️ Verification queue notification failed. Please contact support.",
+            parse_mode="Markdown",
+        )
+        return ConversationHandler.END
     db.log_funnel_event(user.id, "verification_submitted")
     
     await update.message.reply_text(
@@ -1481,15 +1534,17 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
                     f"🆔 User ID: `{user.id}`\n"
                     "Source: Profile completion"
                 )
-                await context.bot.send_photo(
-                    chat_id=int(ADMIN_CHAT_ID),
-                    photo=photos[0],
+                sent = await send_admin_verification_request(
+                    context=context,
+                    provider_id=user.id,
+                    photo_file_id=photos[0],
                     caption=caption,
-                    reply_markup=get_admin_verification_keyboard(user.id),
-                    parse_mode="Markdown",
                 )
-                db.log_funnel_event(user.id, "verification_submitted", {"source": "profile_complete_auto"})
-                auto_submitted_for_review = True
+                if not sent:
+                    logger.error(f"❌ Failed sending auto verification request for {user.id}")
+                else:
+                    db.log_funnel_event(user.id, "verification_submitted", {"source": "profile_complete_auto"})
+                    auto_submitted_for_review = True
             except Exception as e:
                 logger.error(f"❌ Failed to auto-submit verification request for {user.id}: {e}")
     db.log_funnel_event(
