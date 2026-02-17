@@ -1395,7 +1395,7 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "💡 *While you wait:*\n"
         "• Use 👤 My Profile to view/edit your info\n"
-        "• Use 💰 Top up Balance to activate your listing",
+        "• Use 💰 Top up Balance to activate your listing"
     )
 
     if responder:
