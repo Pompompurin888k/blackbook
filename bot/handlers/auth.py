@@ -6,7 +6,7 @@ import logging
 import os
 from urllib.parse import quote
 import httpx
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import (
     CommandHandler,
     MessageHandler,
@@ -864,19 +864,47 @@ async def photos_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if idx >= len(photos):
             idx = 0
         
-        # Send the photo with navigation keyboard
+        caption = f"📸 *Photo {idx + 1} of {len(photos)}*"
         try:
-            await query.message.delete()
-        except:
-            pass
-        
-        await context.bot.send_photo(
-            chat_id=user.id,
-            photo=photos[idx],
-            caption=f"📸 *Photo {idx + 1} of {len(photos)}*",
-            reply_markup=get_photo_viewer_keyboard(idx, len(photos)),
-            parse_mode="Markdown"
-        )
+            # If we're already on a photo message, update in place for smoother mobile UX.
+            if query.message and query.message.photo and data.startswith("photo_view_"):
+                await query.edit_message_media(
+                    media=InputMediaPhoto(
+                        media=photos[idx],
+                        caption=caption,
+                        parse_mode="Markdown",
+                    ),
+                    reply_markup=get_photo_viewer_keyboard(idx, len(photos)),
+                )
+                return
+
+            # First open from manager view.
+            await context.bot.send_photo(
+                chat_id=user.id,
+                photo=photos[idx],
+                caption=caption,
+                reply_markup=get_photo_viewer_keyboard(idx, len(photos)),
+                parse_mode="Markdown",
+            )
+
+            # Cleanup old manager message only after successful send.
+            if query.message:
+                try:
+                    await query.message.delete()
+                except Exception:
+                    pass
+            return
+        except Exception as e:
+            logger.error(f"❌ Failed to open photo viewer for {user.id}: {e}")
+            await context.bot.send_message(
+                chat_id=user.id,
+                text=(
+                    "⚠️ Couldn't open this photo.\n\n"
+                    "Some older photos may be invalid after bot-token changes.\n"
+                    "Please re-upload from 👤 My Profile → 📸 Photos."
+                ),
+                reply_markup=get_photo_management_keyboard(len(photos)),
+            )
         return
     
     # Delete photo menu
