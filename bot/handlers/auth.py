@@ -325,7 +325,6 @@ async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Define valid menu buttons
     valid_buttons = [
         "👑 The Collection",
-        "👤 My Profile",
         "💰 Top up Balance",
         "🛡️ Safety Suite",
         "🤝 Affiliate Program",
@@ -349,14 +348,6 @@ async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             "⭐ Premium Experience Guaranteed",
             parse_mode="Markdown"
         )
-    
-    elif text == "👤 My Profile":
-        provider = db.get_provider(user.id)
-        if not provider:
-            # Registration flow is handled by the ConversationHandler entry point.
-            return
-        # Trigger the /myprofile command for existing users
-        await myprofile(update, context)
     
     elif text == "💰 Top up Balance":
         # Trigger the topup flow
