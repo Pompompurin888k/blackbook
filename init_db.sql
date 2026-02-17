@@ -34,9 +34,11 @@ CREATE TABLE IF NOT EXISTS providers (
     is_premium_verified BOOLEAN DEFAULT FALSE,
     trial_used BOOLEAN DEFAULT FALSE,
     trial_started_at TIMESTAMP,
+    trial_reminder_day2_sent BOOLEAN DEFAULT FALSE,
     trial_reminder_day5_sent BOOLEAN DEFAULT FALSE,
     trial_reminder_lastday_sent BOOLEAN DEFAULT FALSE,
-    trial_expired_notified BOOLEAN DEFAULT FALSE
+    trial_expired_notified BOOLEAN DEFAULT FALSE,
+    trial_winback_sent BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS payments (

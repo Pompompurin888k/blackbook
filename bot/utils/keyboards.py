@@ -249,6 +249,16 @@ def get_payment_failed_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
+def get_payment_pending_keyboard() -> InlineKeyboardMarkup:
+    """Returns keyboard shown after STK prompt to check payment status."""
+    keyboard = [
+        [InlineKeyboardButton("🔎 Check Payment Status", callback_data="menu_pay_status")],
+        [InlineKeyboardButton("💰 Back to Packages", callback_data="menu_topup")],
+        [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
 # ==================== SAFETY ====================
 
 def get_safety_menu_keyboard() -> InlineKeyboardMarkup:
@@ -308,12 +318,14 @@ def get_verification_start_keyboard() -> InlineKeyboardMarkup:
 
 
 def get_admin_verification_keyboard(provider_id: int) -> InlineKeyboardMarkup:
-    """Returns admin verification approval keyboard."""
+    """Returns admin verification keyboard with one-tap reject templates."""
     keyboard = [
+        [InlineKeyboardButton("✅ Approve", callback_data=f"verify_approve_{provider_id}")],
         [
-            InlineKeyboardButton("✅ Approve", callback_data=f"verify_approve_{provider_id}"),
-            InlineKeyboardButton("❌ Reject", callback_data=f"verify_reject_{provider_id}"),
-        ]
+            InlineKeyboardButton("❌ Photo Quality", callback_data=f"verify_reject_{provider_id}_photo"),
+            InlineKeyboardButton("❌ Identity Mismatch", callback_data=f"verify_reject_{provider_id}_mismatch"),
+        ],
+        [InlineKeyboardButton("❌ Incomplete Profile", callback_data=f"verify_reject_{provider_id}_incomplete")],
     ]
     return InlineKeyboardMarkup(keyboard)
 

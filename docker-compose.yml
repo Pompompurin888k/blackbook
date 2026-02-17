@@ -12,6 +12,11 @@ services:
       - "0.0.0.0:8291:5432" # Accessible from host (needed for bot running in host mode)
     volumes:
       - ./db_data:/var/lib/postgresql/data # This keeps your data safe if the container stops
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
     networks:
       - blackbook_network
 
@@ -26,6 +31,11 @@ services:
       - .env
     volumes:
       - ./bot:/app
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os,time,sys; p='/tmp/blackbook_bot_heartbeat'; sys.exit(0 if os.path.exists(p) and (time.time()-os.path.getmtime(p)) < 180 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
     networks:
       - blackbook_network
 
@@ -43,6 +53,11 @@ services:
     command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
     volumes:
       - ./web:/app
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import json,sys,urllib.request; r=urllib.request.urlopen('http://localhost:8080/health', timeout=5); d=json.loads(r.read().decode()); sys.exit(0 if d.get('status')=='healthy' else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
     networks:
       - blackbook_network
 

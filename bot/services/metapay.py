@@ -65,6 +65,7 @@ async def initiate_stk_push(phone: str, amount: int, telegram_id: int, package_d
                     return {
                         "success": True,
                         "message": "STK Push sent! Check your phone for the M-Pesa prompt.",
+                        "reference": reference,
                         "data": data
                     }
                 else:
@@ -72,6 +73,7 @@ async def initiate_stk_push(phone: str, amount: int, telegram_id: int, package_d
                     return {
                         "success": False,
                         "message": f"Payment request failed: {data.get('message', data.get('ResponseDescription', 'Unknown error'))}",
+                        "reference": reference,
                         "error": data
                     }
             else:
@@ -79,6 +81,7 @@ async def initiate_stk_push(phone: str, amount: int, telegram_id: int, package_d
                 return {
                     "success": False,
                     "message": f"Payment request failed. Please try again.",
+                    "reference": reference,
                     "error": response.text
                 }
                 
@@ -86,13 +89,15 @@ async def initiate_stk_push(phone: str, amount: int, telegram_id: int, package_d
         logger.error("❌ STK Push timeout")
         return {
             "success": False,
-            "message": "Payment request timed out. Please try again."
+            "message": "Payment request timed out. Please try again.",
+            "reference": reference,
         }
     except Exception as e:
         logger.error(f"❌ STK Push error: {e}")
         return {
             "success": False,
-            "message": "Payment service unavailable. Please try again later."
+            "message": "Payment service unavailable. Please try again later.",
+            "reference": reference,
         }
 
 

@@ -202,6 +202,9 @@ class Database:
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='trial_started_at') THEN
                 ALTER TABLE providers ADD COLUMN trial_started_at TIMESTAMP;
             END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='trial_reminder_day2_sent') THEN
+                ALTER TABLE providers ADD COLUMN trial_reminder_day2_sent BOOLEAN DEFAULT FALSE;
+            END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='trial_reminder_day5_sent') THEN
                 ALTER TABLE providers ADD COLUMN trial_reminder_day5_sent BOOLEAN DEFAULT FALSE;
             END IF;
@@ -210,6 +213,9 @@ class Database:
             END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='trial_expired_notified') THEN
                 ALTER TABLE providers ADD COLUMN trial_expired_notified BOOLEAN DEFAULT FALSE;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='trial_winback_sent') THEN
+                ALTER TABLE providers ADD COLUMN trial_winback_sent BOOLEAN DEFAULT FALSE;
             END IF;
         END $$;
         """
@@ -279,8 +285,9 @@ class Database:
             "rate_30min", "rate_1hr", "rate_2hr", "rate_3hr", "rate_overnight",
             "languages", "subscription_tier", "boost_until", "referral_code",
             "referred_by", "referral_credits", "is_premium_verified",
-            "trial_used", "trial_started_at", "trial_reminder_day5_sent",
-            "trial_reminder_lastday_sent", "trial_expired_notified"
+            "trial_used", "trial_started_at", "trial_reminder_day2_sent",
+            "trial_reminder_day5_sent", "trial_reminder_lastday_sent",
+            "trial_expired_notified", "trial_winback_sent"
         }
 
         sanitized_data = {k: v for k, v in data.items() if k in allowed_fields}
@@ -433,9 +440,11 @@ class Database:
             subscription_tier = 'trial',
             trial_used = TRUE,
             trial_started_at = NOW(),
+            trial_reminder_day2_sent = FALSE,
             trial_reminder_day5_sent = FALSE,
             trial_reminder_lastday_sent = FALSE,
-            trial_expired_notified = FALSE
+            trial_expired_notified = FALSE,
+            trial_winback_sent = FALSE
         WHERE telegram_id = %s
           AND is_verified = TRUE
           AND is_active = FALSE
@@ -464,6 +473,7 @@ class Database:
         """Gets active trial providers for reminder checks."""
         query = """
         SELECT telegram_id, display_name, expiry_date,
+               COALESCE(trial_reminder_day2_sent, FALSE) AS trial_reminder_day2_sent,
                COALESCE(trial_reminder_day5_sent, FALSE) AS trial_reminder_day5_sent,
                COALESCE(trial_reminder_lastday_sent, FALSE) AS trial_reminder_lastday_sent
         FROM providers
@@ -481,8 +491,10 @@ class Database:
             return []
 
     def mark_trial_reminder_sent(self, tg_id: int, reminder_type: str) -> bool:
-        """Marks a trial reminder as sent. reminder_type: day5|lastday."""
-        if reminder_type == "day5":
+        """Marks a trial reminder as sent. reminder_type: day2|day5|lastday."""
+        if reminder_type == "day2":
+            query = "UPDATE providers SET trial_reminder_day2_sent = TRUE WHERE telegram_id = %s"
+        elif reminder_type == "day5":
             query = "UPDATE providers SET trial_reminder_day5_sent = TRUE WHERE telegram_id = %s"
         elif reminder_type == "lastday":
             query = "UPDATE providers SET trial_reminder_lastday_sent = TRUE WHERE telegram_id = %s"
@@ -527,6 +539,39 @@ class Database:
                 return True
         except Exception as e:
             logger.error(f"❌ Error marking trial expired notified: {e}")
+            self.conn.rollback()
+            return False
+
+    def get_trial_winback_candidates(self, hours_after_expiry: int = 24):
+        """Gets expired trial providers eligible for post-expiry winback message."""
+        query = """
+        SELECT telegram_id, display_name
+        FROM providers
+        WHERE subscription_tier = 'trial'
+          AND is_active = FALSE
+          AND expiry_date IS NOT NULL
+          AND expiry_date <= NOW() - (%s || ' hours')::INTERVAL
+          AND COALESCE(trial_expired_notified, FALSE) = TRUE
+          AND COALESCE(trial_winback_sent, FALSE) = FALSE
+        """
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (hours_after_expiry,))
+                return cur.fetchall()
+        except Exception as e:
+            logger.error(f"❌ Error fetching trial winback candidates: {e}")
+            return []
+
+    def mark_trial_winback_sent(self, tg_id: int) -> bool:
+        """Marks that trial winback message has been sent."""
+        query = "UPDATE providers SET trial_winback_sent = TRUE WHERE telegram_id = %s"
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (tg_id,))
+                self.conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"❌ Error marking trial winback sent: {e}")
             self.conn.rollback()
             return False
 
@@ -580,6 +625,40 @@ class Database:
             logger.error(f"❌ Error logging payment: {e}")
             self.conn.rollback()
             return False
+
+    def get_payment_by_reference(self, tg_id: int, reference: str):
+        """Returns a specific payment record for a provider by reference."""
+        query = """
+        SELECT amount, mpesa_reference, status, package_days, created_at
+        FROM payments
+        WHERE telegram_id = %s AND mpesa_reference = %s
+        ORDER BY created_at DESC
+        LIMIT 1
+        """
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (tg_id, reference))
+                return cur.fetchone()
+        except Exception as e:
+            logger.error(f"❌ Error getting payment by reference: {e}")
+            return None
+
+    def get_latest_payment_for_provider(self, tg_id: int):
+        """Returns latest payment record for a provider."""
+        query = """
+        SELECT amount, mpesa_reference, status, package_days, created_at
+        FROM payments
+        WHERE telegram_id = %s
+        ORDER BY created_at DESC
+        LIMIT 1
+        """
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (tg_id,))
+                return cur.fetchone()
+        except Exception as e:
+            logger.error(f"❌ Error getting latest payment: {e}")
+            return None
 
     # ==================== BLACKLIST METHODS ====================
 
@@ -750,6 +829,98 @@ class Database:
             return []
     
     # ==================== ADMIN FUNCTIONS ====================
+
+    def get_verification_queue(self, queue_filter: str = "all_pending", limit: int = 10, offset: int = 0):
+        """
+        Gets pending verification queue rows with optional filters:
+        - all_pending
+        - new_today
+        - pending_2h
+        - missing_fields
+        """
+        base_where = "is_verified = FALSE AND verification_photo_id IS NOT NULL"
+        if queue_filter == "new_today":
+            extra_where = "AND created_at::date = CURRENT_DATE"
+        elif queue_filter == "pending_2h":
+            extra_where = "AND created_at <= NOW() - INTERVAL '2 hours'"
+        elif queue_filter == "missing_fields":
+            extra_where = """
+            AND (
+                display_name IS NULL OR NULLIF(TRIM(display_name), '') IS NULL OR
+                city IS NULL OR neighborhood IS NULL OR age IS NULL OR
+                build IS NULL OR NULLIF(TRIM(COALESCE(bio, '')), '') IS NULL OR
+                services IS NULL OR services = '[]'::jsonb OR
+                profile_photos IS NULL OR profile_photos = '[]'::jsonb
+            )
+            """
+        else:
+            extra_where = ""
+
+        query = f"""
+        SELECT telegram_id, display_name, city, neighborhood, created_at, verification_photo_id,
+               ROUND(EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0) AS pending_minutes,
+               (
+                    CASE WHEN display_name IS NULL OR NULLIF(TRIM(display_name), '') IS NULL THEN 1 ELSE 0 END +
+                    CASE WHEN city IS NULL THEN 1 ELSE 0 END +
+                    CASE WHEN neighborhood IS NULL THEN 1 ELSE 0 END +
+                    CASE WHEN age IS NULL THEN 1 ELSE 0 END +
+                    CASE WHEN build IS NULL THEN 1 ELSE 0 END +
+                    CASE WHEN NULLIF(TRIM(COALESCE(bio, '')), '') IS NULL THEN 1 ELSE 0 END +
+                    CASE WHEN services IS NULL OR services = '[]'::jsonb THEN 1 ELSE 0 END +
+                    CASE WHEN profile_photos IS NULL OR profile_photos = '[]'::jsonb THEN 1 ELSE 0 END
+               ) AS missing_fields_count
+        FROM providers
+        WHERE {base_where}
+        {extra_where}
+        ORDER BY created_at ASC
+        LIMIT %s OFFSET %s
+        """
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(query, (limit, offset))
+                return cur.fetchall()
+        except Exception as e:
+            logger.error(f"❌ Error getting verification queue: {e}")
+            return []
+
+    def get_verification_queue_count(self, queue_filter: str = "all_pending") -> int:
+        """Gets total count for a specific verification queue filter."""
+        base_where = "is_verified = FALSE AND verification_photo_id IS NOT NULL"
+        if queue_filter == "new_today":
+            extra_where = "AND created_at::date = CURRENT_DATE"
+        elif queue_filter == "pending_2h":
+            extra_where = "AND created_at <= NOW() - INTERVAL '2 hours'"
+        elif queue_filter == "missing_fields":
+            extra_where = """
+            AND (
+                display_name IS NULL OR NULLIF(TRIM(display_name), '') IS NULL OR
+                city IS NULL OR neighborhood IS NULL OR age IS NULL OR
+                build IS NULL OR NULLIF(TRIM(COALESCE(bio, '')), '') IS NULL OR
+                services IS NULL OR services = '[]'::jsonb OR
+                profile_photos IS NULL OR profile_photos = '[]'::jsonb
+            )
+            """
+        else:
+            extra_where = ""
+
+        query = f"SELECT COUNT(*) AS count FROM providers WHERE {base_where} {extra_where}"
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query)
+                result = cur.fetchone()
+                return result["count"] if result else 0
+        except Exception as e:
+            logger.error(f"❌ Error counting verification queue: {e}")
+            return 0
+
+    def get_verification_queue_counts(self) -> dict:
+        """Gets counts for queue filters used in admin moderation view."""
+        return {
+            "all_pending": self.get_verification_queue_count("all_pending"),
+            "new_today": self.get_verification_queue_count("new_today"),
+            "pending_2h": self.get_verification_queue_count("pending_2h"),
+            "missing_fields": self.get_verification_queue_count("missing_fields"),
+        }
     
     def get_providers_by_status(self, status_type: str, limit: int = 10, offset: int = 0):
         """
@@ -992,7 +1163,8 @@ class Database:
         tier_name = tier_info.get("name", "Bronze").lower()
         query = """UPDATE providers 
                    SET is_active = TRUE, expiry_date = %s, subscription_tier = %s,
-                       trial_expired_notified = FALSE
+                       trial_expired_notified = FALSE,
+                       trial_winback_sent = FALSE
                    WHERE telegram_id = %s"""
         try:
             with self.conn.cursor() as cur:

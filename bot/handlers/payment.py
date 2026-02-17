@@ -3,7 +3,7 @@ Blackbook Bot - Payment Handlers
 Handles: /topup, payment menu callbacks, STK push integration
 """
 import logging
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler,
     MessageHandler,
@@ -30,6 +30,7 @@ from utils.keyboards import (
     get_phone_confirm_keyboard,
     get_topup_phone_confirm_keyboard,
     get_payment_failed_keyboard,
+    get_payment_pending_keyboard,
     get_back_button,
     get_boost_keyboard,
 )
@@ -52,6 +53,21 @@ def _is_trial_eligible(provider: dict) -> bool:
         and provider.get("is_active") is False
         and not provider.get("trial_used")
     )
+
+
+def _remember_payment_attempt(context: ContextTypes.DEFAULT_TYPE, reference: str | None, days: int, amount: int) -> None:
+    """Keeps latest payment attempt context for quick status checks."""
+    if reference:
+        context.user_data["last_payment_reference"] = reference
+    context.user_data["last_payment_days"] = days
+    context.user_data["last_payment_amount"] = amount
+
+
+def _log_pending_payment(db, tg_id: int, amount: int, reference: str | None, package_days: int) -> None:
+    """Stores pending payment row once STK prompt has been initiated."""
+    if not reference:
+        return
+    db.log_payment(tg_id, amount, reference, "PENDING", package_days)
 
 
 # ==================== MENU CALLBACKS ====================
@@ -168,6 +184,58 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=get_back_button("menu_profile"),
             parse_mode="Markdown",
         )
+
+    # === PAYMENT STATUS CHECK ===
+    elif action == "pay_status":
+        last_reference = context.user_data.get("last_payment_reference")
+        payment = None
+        if last_reference:
+            payment = db.get_payment_by_reference(user.id, last_reference)
+        if not payment:
+            payment = db.get_latest_payment_for_provider(user.id)
+
+        if not payment:
+            await query.edit_message_text(
+                "No recent payment attempt found.\n\nStart payment from Top up Balance first.",
+                reply_markup=get_back_button("menu_topup"),
+            )
+            return
+
+        status = str(payment.get("status") or "UNKNOWN").upper()
+        created_at = payment.get("created_at")
+        created_at_text = created_at.strftime("%Y-%m-%d %H:%M") if created_at else "N/A"
+        reference = payment.get("mpesa_reference", "N/A")
+        amount = payment.get("amount", 0)
+        package_days = payment.get("package_days", 0)
+        package_label = f"{package_days} day(s)" if package_days else "Boost"
+
+        if status == "SUCCESS":
+            guidance = "Payment confirmed. Your listing should already be active."
+            reply_markup = InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("👤 Open My Profile", callback_data="menu_profile")],
+                    [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")],
+                ]
+            )
+        elif status == "PENDING":
+            guidance = "Still processing. Complete the STK prompt on your phone, then check again."
+            reply_markup = get_payment_pending_keyboard()
+        else:
+            guidance = "Payment not completed. You can retry from Top up Balance."
+            reply_markup = get_payment_failed_keyboard()
+
+        await query.edit_message_text(
+            f"*Latest Payment Status*\n\n"
+            f"Status: *{status}*\n"
+            f"Amount: *{amount} KES*\n"
+            f"Package: *{package_label}*\n"
+            f"Reference: `{reference}`\n"
+            f"Created: `{created_at_text}`\n\n"
+            f"{guidance}",
+            parse_mode="Markdown",
+            reply_markup=reply_markup,
+        )
+        return
     
     # === PAYMENT: USE SAVED PHONE ===
     elif action == "pay_confirm":
@@ -187,6 +255,9 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
         result = await initiate_stk_push(saved_phone, price, user.id, days)
         
         if result["success"]:
+            reference = result.get("reference")
+            _remember_payment_attempt(context, reference, days, price)
+            _log_pending_payment(db, user.id, price, reference, days)
             db.log_funnel_event(
                 user.id,
                 "paid_intent",
@@ -197,9 +268,12 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 chat_id=user.id,
                 text="✅ *Transaction Initiated*\n\n"
                      f"📱 Check your phone: `{saved_phone}`\n"
-                     f"💰 Amount: {price} KES\n\n"
+                     f"💰 Amount: {price} KES\n"
+                     f"Ref: `{reference}`\n\n"
+                     "Use the button below if confirmation delays.\n"
                      f"_Your profile will appear in {neighborhood} once confirmed._",
-                parse_mode="Markdown"
+                parse_mode="Markdown",
+                reply_markup=get_payment_pending_keyboard(),
             )
         else:
             await context.bot.send_message(
@@ -442,6 +516,9 @@ async def topup_phone_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     result = await initiate_stk_push(phone_clean, price, user.id, days)
     
     if result["success"]:
+        reference = result.get("reference")
+        _remember_payment_attempt(context, reference, days, price)
+        _log_pending_payment(db, user.id, price, reference, days)
         db.log_funnel_event(
             user.id,
             "paid_intent",
@@ -452,10 +529,12 @@ async def topup_phone_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await update.message.reply_text(
             "✅ *Transaction Initiated.*\n\n"
             f"📱 Check your phone: `{phone_clean}`\n"
-            f"💰 Amount: {price} KES\n\n"
+            f"💰 Amount: {price} KES\n"
+            f"Ref: `{reference}`\n\n"
             "Enter your M-Pesa PIN to confirm.\n\n"
             f"_Your profile will be visible in the {neighborhood} section once confirmed._",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
+            reply_markup=get_payment_pending_keyboard(),
         )
     else:
         await update.message.reply_text(
@@ -465,7 +544,8 @@ async def topup_phone_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="Markdown"
         )
     
-    context.user_data.clear()
+    for key in ("awaiting_phone", "topup_days", "topup_price", "topup_phone", "is_boost"):
+        context.user_data.pop(key, None)
     return ConversationHandler.END
 
 
@@ -505,6 +585,9 @@ async def menu_phone_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     result = await initiate_stk_push(phone_clean, price, user.id, days)
     if result["success"]:
+        reference = result.get("reference")
+        _remember_payment_attempt(context, reference, days, price)
+        _log_pending_payment(db, user.id, price, reference, days)
         db.log_funnel_event(
             user.id,
             "paid_intent",
@@ -515,9 +598,11 @@ async def menu_phone_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text(
             "✅ *Transaction Initiated*\n\n"
             f"📱 Check your phone: `{phone_clean}`\n"
-            f"💰 Amount: {price} KES\n\n"
+            f"💰 Amount: {price} KES\n"
+            f"Ref: `{reference}`\n\n"
             f"_Your profile will appear in {neighborhood} once confirmed._",
             parse_mode="Markdown",
+            reply_markup=get_payment_pending_keyboard(),
         )
     else:
         await update.message.reply_text(
@@ -550,6 +635,9 @@ async def topup_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
         result = await initiate_stk_push(phone, price, user.id, days)
         
         if result["success"]:
+            reference = result.get("reference")
+            _remember_payment_attempt(context, reference, days, price)
+            _log_pending_payment(db, user.id, price, reference, days)
             db.log_funnel_event(
                 user.id,
                 "paid_intent",
@@ -558,10 +646,12 @@ async def topup_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
             await query.message.reply_text(
                 "✅ **M-Pesa Request Sent!**\n\n"
                 f"📱 Check your phone ({phone})\n"
-                f"💰 Amount: {price} KES\n\n"
+                f"💰 Amount: {price} KES\n"
+                f"Ref: `{reference}`\n\n"
                 "_Enter your M-Pesa PIN to complete payment._\n\n"
                 "Your profile will go LIVE automatically once we confirm payment!",
-                parse_mode="Markdown"
+                parse_mode="Markdown",
+                reply_markup=get_payment_pending_keyboard(),
             )
         else:
             await query.message.reply_text(
@@ -571,7 +661,8 @@ async def topup_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
                 parse_mode="Markdown"
             )
         
-        context.user_data.clear()
+        for key in ("awaiting_phone", "topup_days", "topup_price", "topup_phone", "is_boost"):
+            context.user_data.pop(key, None)
         return ConversationHandler.END
         
     elif query.data == "topup_new_phone":
@@ -614,7 +705,7 @@ def register_handlers(application):
     # Menu callback handler
     application.add_handler(CallbackQueryHandler(
         payment_menu_callback,
-        pattern="^menu_(topup|trial_activate|pay_confirm|pay_newphone|pay_\\d+|boost|boost_confirm)$"
+        pattern="^menu_(topup|trial_activate|pay_status|pay_confirm|pay_newphone|pay_\\d+|boost|boost_confirm)$"
     ))
 
     # Handles typed phone input for menu payment flow.

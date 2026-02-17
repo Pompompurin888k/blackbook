@@ -1,30 +1,28 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Blackbook Backup Script
-# Creates a backup of the database
+# Blackbook DB backup script with retention.
+set -euo pipefail
 
-set -e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="${PROJECT_DIR:-$SCRIPT_DIR}"
+BACKUP_DIR="${BACKUP_DIR:-$PROJECT_DIR/backups}"
+RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
+DB_CONTAINER="${DB_CONTAINER:-blackbook_db}"
+DB_USER="${DB_USER:-bb_operator}"
+DB_NAME="${DB_NAME:-blackbook_db}"
 
-BACKUP_DIR="/root/blackbook/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
+DATE="$(date +%Y%m%d_%H%M%S)"
 BACKUP_FILE="$BACKUP_DIR/blackbook_backup_$DATE.sql"
 
-echo "📦 Creating backup..."
+echo "[backup] creating backup in $BACKUP_DIR"
+mkdir -p "$BACKUP_DIR"
 
-# Create backup directory if it doesn't exist
-mkdir -p $BACKUP_DIR
+docker exec "$DB_CONTAINER" pg_dump -U "$DB_USER" "$DB_NAME" > "$BACKUP_FILE"
+gzip "$BACKUP_FILE"
 
-# Backup database
-docker exec blackbook_db pg_dump -U bb_operator blackbook_db > $BACKUP_FILE
+echo "[backup] created: ${BACKUP_FILE}.gz"
+find "$BACKUP_DIR" -name "*.sql.gz" -mtime +"$RETENTION_DAYS" -delete
 
-# Compress backup
-gzip $BACKUP_FILE
-
-echo "✅ Backup created: ${BACKUP_FILE}.gz"
-
-# Keep only last 7 days of backups
-find $BACKUP_DIR -name "*.sql.gz" -mtime +7 -delete
-
-echo "🗑️  Old backups cleaned up"
-echo "📊 Current backups:"
-ls -lh $BACKUP_DIR/*.sql.gz 2>/dev/null || echo "No backups found"
+echo "[backup] pruned backups older than $RETENTION_DAYS day(s)"
+echo "[backup] current files:"
+ls -lh "$BACKUP_DIR"/*.sql.gz 2>/dev/null || echo "[backup] no backups yet"

@@ -1426,12 +1426,19 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
     
     data = query.data
     parts = data.split("_")
-    
-    if len(parts) != 3:
+
+    if len(parts) < 3:
         return
     
     action = parts[1]
     provider_id = int(parts[2])
+    reason_code = parts[3] if action == "reject" and len(parts) > 3 else "generic"
+    reject_reasons = {
+        "photo": "photo quality issue",
+        "mismatch": "identity mismatch",
+        "incomplete": "incomplete profile details",
+        "generic": "verification requirements not met",
+    }
     
     provider = db.get_provider(provider_id)
     display_name = provider.get("display_name", "Unknown") if provider else "Unknown"
@@ -1482,18 +1489,21 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
         logger.info(f"✅ Provider {provider_id} ({display_name}) verified by admin")
         
     elif action == "reject":
+        reason_text = reject_reasons.get(reason_code, reject_reasons["generic"])
+        db.log_funnel_event(provider_id, "verification_rejected", {"reason": reason_text})
         await context.bot.send_message(
             chat_id=provider_id,
             text="❌ **Verification Rejected**\n\n"
-                 "Your verification photo was not approved.\n"
-                 "Please tap 📸 Get Verified in your profile to try again with a clearer photo.",
+                 f"Reason: **{reason_text}**\n\n"
+                 "Please tap 📸 Get Verified in your profile to submit a corrected photo/profile and try again.",
             parse_mode="Markdown"
         )
         
         await query.edit_message_caption(
             caption=f"❌ **REJECTED**\n\n"
                     f"Provider: {display_name}\n"
-                    f"User ID: `{provider_id}`",
+                    f"User ID: `{provider_id}`\n"
+                    f"Reason: {reason_text}",
             parse_mode="Markdown"
         )
         

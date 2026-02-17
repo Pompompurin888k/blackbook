@@ -27,6 +27,7 @@ db = Database()
 
 # Telegram Bot Token for sending notifications
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 MEGAPAY_CALLBACK_SECRET = os.getenv("MEGAPAY_CALLBACK_SECRET")
 ENABLE_SEED_ENDPOINT = os.getenv("ENABLE_SEED_ENDPOINT", "false").strip().lower() == "true"
 LOCALHOSTS = {"127.0.0.1", "::1", "localhost"}
@@ -582,9 +583,15 @@ async def megapay_callback(request: Request):
             if package_days == 0:
                 if not db.boost_provider(telegram_id, BOOST_DURATION_HOURS):
                     logger.error(f"❌ Failed to boost provider {telegram_id}")
+                    await send_admin_alert(
+                        f"Web callback error: failed boost activation for provider {telegram_id}, reference {reference}."
+                    )
                     return JSONResponse({"status": "error", "message": "Failed to activate boost"}, status_code=400)
                 if not db.log_payment(telegram_id, amount, reference, "SUCCESS", package_days):
                     logger.error(f"❌ Failed to log successful boost payment for {telegram_id}")
+                    await send_admin_alert(
+                        f"Web callback error: failed to log boost payment for provider {telegram_id}, reference {reference}."
+                    )
                     return JSONResponse({"status": "error", "message": "Failed to log payment"}, status_code=500)
 
                 from datetime import datetime, timedelta
@@ -608,9 +615,15 @@ async def megapay_callback(request: Request):
             # Subscription transaction
             if not db.activate_subscription(telegram_id, package_days):
                 logger.error(f"❌ Failed to activate subscription for {telegram_id}")
+                await send_admin_alert(
+                    f"Web callback error: failed subscription activation for provider {telegram_id}, reference {reference}."
+                )
                 return JSONResponse({"status": "error", "message": "Failed to activate subscription"}, status_code=500)
             if not db.log_payment(telegram_id, amount, reference, "SUCCESS", package_days):
                 logger.error(f"❌ Failed to log successful payment for {telegram_id}")
+                await send_admin_alert(
+                    f"Web callback error: failed to log successful payment for provider {telegram_id}, reference {reference}."
+                )
                 return JSONResponse({"status": "error", "message": "Failed to log payment"}, status_code=500)
             db.log_funnel_event(
                 telegram_id,
@@ -671,10 +684,11 @@ async def megapay_callback(request: Request):
 
     except Exception as e:
         logger.error(f"❌ Payment callback error: {e}")
+        await send_admin_alert(f"Web callback crashed with exception: {e}")
         return JSONResponse({"status": "error", "message": "Internal callback error"}, status_code=500)
 
 
-async def send_telegram_notification(chat_id: int, message: str):
+async def send_telegram_notification(chat_id: int, message: str, parse_mode: Optional[str] = "Markdown"):
     """Sends a notification to a user via Telegram Bot API."""
     if not TELEGRAM_BOT_TOKEN:
         logger.warning("⚠️ TELEGRAM_TOKEN not set, cannot send notification")
@@ -684,8 +698,9 @@ async def send_telegram_notification(chat_id: int, message: str):
     payload = {
         "chat_id": chat_id,
         "text": message,
-        "parse_mode": "Markdown"
     }
+    if parse_mode:
+        payload["parse_mode"] = parse_mode
     
     try:
         async with httpx.AsyncClient() as client:
@@ -696,6 +711,16 @@ async def send_telegram_notification(chat_id: int, message: str):
                 logger.warning(f"⚠️ Notification failed: {response.text}")
     except Exception as e:
         logger.error(f"❌ Telegram notification error: {e}")
+
+
+async def send_admin_alert(message: str):
+    """Sends basic operational alerts to admin via Telegram."""
+    if not ADMIN_CHAT_ID:
+        return
+    try:
+        await send_telegram_notification(int(ADMIN_CHAT_ID), f"ALERT:\n{message}", parse_mode=None)
+    except Exception as e:
+        logger.error(f"❌ Failed to send admin alert: {e}")
 
 
 # ==================== OTHER ROUTES ====================
@@ -739,5 +764,16 @@ async def api_analytics(request: Request):
 
 @app.get("/health")
 async def health():
-    """Health check endpoint."""
-    return {"status": "healthy"}
+    """Readiness health endpoint (checks DB)."""
+    db_ok = db.healthcheck()
+    status_code = 200 if db_ok else 503
+    return JSONResponse(
+        {"status": "healthy" if db_ok else "unhealthy", "database": "up" if db_ok else "down"},
+        status_code=status_code,
+    )
+
+
+@app.get("/health/live")
+async def health_live():
+    """Liveness endpoint."""
+    return {"status": "alive"}

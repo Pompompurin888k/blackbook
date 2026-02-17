@@ -262,6 +262,22 @@ class Database:
             except Exception:
                 pass
             return 0
+
+    def healthcheck(self) -> bool:
+        """Returns True when DB connection can answer a trivial query."""
+        try:
+            self._ensure_connection()
+            with self.conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                row = cur.fetchone()
+                return bool(row)
+        except Exception as e:
+            logger.error(f"❌ DB healthcheck failed: {e}")
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
+            return False
     
     def get_online_count(self) -> int:
         """Gets count of providers currently online."""
@@ -347,7 +363,8 @@ class Database:
         tier_name = tier_map.get(days, "bronze")
         query = """UPDATE providers 
                    SET is_active = TRUE, expiry_date = %s, subscription_tier = %s,
-                       trial_expired_notified = FALSE
+                       trial_expired_notified = FALSE,
+                       trial_winback_sent = FALSE
                    WHERE telegram_id = %s"""
         try:
             with self.conn.cursor() as cur:

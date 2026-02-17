@@ -13,6 +13,19 @@ from config import is_admin, is_authorized_partner
 
 logger = logging.getLogger(__name__)
 
+QUEUE_FILTER_LABELS = {
+    "all_pending": "All Pending",
+    "new_today": "New Today",
+    "pending_2h": "Pending > 2h",
+    "missing_fields": "Missing Fields",
+}
+
+REJECT_REASON_TEMPLATES = {
+    "photo": "photo quality issue",
+    "mismatch": "identity mismatch",
+    "incomplete": "incomplete profile details",
+}
+
 
 def get_db():
     """Gets the database instance from db_context module."""
@@ -174,6 +187,101 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # ==================== /ADMIN PANEL ====================
 
+def _admin_panel_keyboard(db) -> InlineKeyboardMarkup:
+    """Builds admin panel keyboard with moderation queue entry."""
+    unverified = db.get_provider_count_by_status("unverified")
+    active = db.get_provider_count_by_status("active")
+    inactive = db.get_provider_count_by_status("inactive")
+    total = db.get_provider_count_by_status("all")
+    queue_counts = db.get_verification_queue_counts()
+
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"🧾 Verification Queue ({queue_counts.get('all_pending', 0)})", callback_data="admin_vq")],
+        [InlineKeyboardButton(f"❓ Unverified ({unverified})", callback_data="admin_list_unverified")],
+        [InlineKeyboardButton(f"🟢 Listed/Active ({active})", callback_data="admin_list_active")],
+        [InlineKeyboardButton(f"⚫ Unlisted ({inactive})", callback_data="admin_list_inactive")],
+        [InlineKeyboardButton(f"📋 All Providers ({total})", callback_data="admin_list_all")],
+    ])
+
+
+def _verification_filter_keyboard(counts: dict, active_filter: str) -> InlineKeyboardMarkup:
+    """Filter chips for verification queue."""
+    rows = []
+    for key in ("all_pending", "new_today", "pending_2h", "missing_fields"):
+        marker = "• " if key == active_filter else ""
+        rows.append([
+            InlineKeyboardButton(
+                f"{marker}{QUEUE_FILTER_LABELS[key]} ({counts.get(key, 0)})",
+                callback_data=f"admin_vqf_{key}",
+            )
+        ])
+    rows.append([InlineKeyboardButton("🔙 Back to Panel", callback_data="admin_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+async def _show_verification_queue(update: Update, context: ContextTypes.DEFAULT_TYPE, queue_filter: str, page: int) -> None:
+    """Renders verification queue list with filter and one-tap reject templates."""
+    query = update.callback_query
+    db = get_db()
+    page_size = 3
+    rows = db.get_verification_queue(queue_filter=queue_filter, limit=page_size, offset=page * page_size)
+    total = db.get_verification_queue_count(queue_filter=queue_filter)
+    counts = db.get_verification_queue_counts()
+
+    context.user_data["admin_view"] = "vq"
+    context.user_data["admin_vq_filter"] = queue_filter
+    context.user_data["admin_vq_page"] = page
+
+    header = (
+        f"*Verification Queue - {QUEUE_FILTER_LABELS.get(queue_filter, 'All Pending')}*\n"
+        f"Showing {page * page_size + 1}-{min((page + 1) * page_size, max(total, 1))} of {total}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    )
+
+    if not rows:
+        await query.edit_message_text(
+            header + "No providers in this queue filter.",
+            parse_mode="Markdown",
+            reply_markup=_verification_filter_keyboard(counts, queue_filter),
+        )
+        return
+
+    text = header
+    keyboard = []
+    for item in rows:
+        pid = item.get("telegram_id")
+        name = item.get("display_name") or "Unknown"
+        city = item.get("city") or "?"
+        neighborhood = item.get("neighborhood") or "?"
+        pending_minutes = int(item.get("pending_minutes") or 0)
+        pending_hours = round(pending_minutes / 60.0, 1)
+        missing_count = int(item.get("missing_fields_count") or 0)
+
+        text += (
+            f"*{name}* (`{pid}`)\n"
+            f"Location: {neighborhood}, {city}\n"
+            f"Pending: {pending_hours}h\n"
+            f"Missing fields: {missing_count}\n\n"
+        )
+
+        keyboard.append([InlineKeyboardButton(f"✅ Verify {name}", callback_data=f"admin_verify_{pid}")])
+        keyboard.append([
+            InlineKeyboardButton("❌ Photo Quality", callback_data=f"admin_reject_{pid}_photo"),
+            InlineKeyboardButton("❌ Mismatch", callback_data=f"admin_reject_{pid}_mismatch"),
+        ])
+        keyboard.append([InlineKeyboardButton("❌ Incomplete", callback_data=f"admin_reject_{pid}_incomplete")])
+
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"admin_vqpage_{queue_filter}_{page - 1}"))
+    if (page + 1) * page_size < total:
+        nav.append(InlineKeyboardButton("➡️ Next", callback_data=f"admin_vqpage_{queue_filter}_{page + 1}"))
+    if nav:
+        keyboard.append(nav)
+
+    keyboard.extend(_verification_filter_keyboard(counts, queue_filter).inline_keyboard)
+    await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Admin panel - shows management options."""
     user = update.effective_user
@@ -185,19 +293,9 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             parse_mode="Markdown"
         )
         return
+    context.user_data["admin_view"] = "panel"
     
-    # Get counts
-    unverified = db.get_provider_count_by_status('unverified')
-    active = db.get_provider_count_by_status('active')
-    inactive = db.get_provider_count_by_status('inactive')
-    total = db.get_provider_count_by_status('all')
-    
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(f"❓ Unverified ({unverified})", callback_data="admin_list_unverified")],
-        [InlineKeyboardButton(f"🟢 Listed/Active ({active})", callback_data="admin_list_active")],
-        [InlineKeyboardButton(f"⚫ Unlisted ({inactive})", callback_data="admin_list_inactive")],
-        [InlineKeyboardButton(f"📋 All Providers ({total})", callback_data="admin_list_all")],
-    ])
+    keyboard = _admin_panel_keyboard(db)
     
     await update.message.reply_text(
         "🛠️ *Admin Panel*\n"
@@ -220,11 +318,31 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not is_admin(user.id):
         await query.answer("Access denied!", show_alert=True)
         return
+
+    if data == "admin_vq":
+        return await _show_verification_queue(update, context, queue_filter="all_pending", page=0)
+
+    if data.startswith("admin_vqf_"):
+        queue_filter = data.replace("admin_vqf_", "")
+        return await _show_verification_queue(update, context, queue_filter=queue_filter, page=0)
+
+    if data.startswith("admin_vqpage_"):
+        rest = data.replace("admin_vqpage_", "", 1)
+        if "_" not in rest:
+            return
+        queue_filter, page_raw = rest.rsplit("_", 1)
+        try:
+            page = int(page_raw)
+        except ValueError:
+            page = 0
+        return await _show_verification_queue(update, context, queue_filter=queue_filter, page=max(page, 0))
     
     # List providers by status
     if data.startswith("admin_list_"):
         status = data.replace("admin_list_", "")
         page = context.user_data.get("admin_page", 0)
+        context.user_data["admin_view"] = "list"
+        context.user_data["admin_list_status"] = status
         
         providers = db.get_providers_by_status(status, limit=5, offset=page * 5)
         total = db.get_provider_count_by_status(status)
@@ -300,11 +418,49 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Trigger the list again
         query.data = f"admin_list_{status}"
         return await admin_callback(update, context)
+
+    if data.startswith("admin_reject_"):
+        parts = data.split("_")
+        if len(parts) != 4:
+            await query.answer("Invalid reject action.", show_alert=True)
+            return
+        pid = int(parts[2])
+        reason_code = parts[3]
+        reason_text = REJECT_REASON_TEMPLATES.get(reason_code, "verification requirements not met")
+
+        provider = db.get_provider(pid)
+        display_name = provider.get("display_name", "Unknown") if provider else "Unknown"
+
+        try:
+            await context.bot.send_message(
+                chat_id=pid,
+                text=(
+                    "❌ *Verification Rejected*\n\n"
+                    f"Reason: *{reason_text}*\n\n"
+                    "Please update your profile/photos and submit verification again from your profile."
+                ),
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to send reject template to {pid}: {e}")
+
+        await query.answer(f"Rejected {display_name}: {reason_text}", show_alert=True)
+
+        if context.user_data.get("admin_view") == "vq":
+            return await _show_verification_queue(
+                update,
+                context,
+                queue_filter=context.user_data.get("admin_vq_filter", "all_pending"),
+                page=context.user_data.get("admin_vq_page", 0),
+            )
+        query.data = "admin_list_unverified"
+        return await admin_callback(update, context)
     
     # Verify provider
     if data.startswith("admin_verify_"):
         pid = int(data.replace("admin_verify_", ""))
         db.verify_provider(pid, True)
+        db.log_funnel_event(pid, "verified")
         
         # Notify the provider
         provider = db.get_provider(pid)
@@ -321,6 +477,14 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         await query.answer(f"✅ Verified {provider.get('display_name', 'Unknown')}!", show_alert=True)
         
+        if context.user_data.get("admin_view") == "vq":
+            return await _show_verification_queue(
+                update,
+                context,
+                queue_filter=context.user_data.get("admin_vq_filter", "all_pending"),
+                page=context.user_data.get("admin_vq_page", 0),
+            )
+
         # Refresh the list
         query.data = "admin_list_unverified"
         return await admin_callback(update, context)
@@ -368,18 +532,9 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Back to panel
     if data == "admin_back":
         context.user_data["admin_page"] = 0
-        unverified = db.get_provider_count_by_status('unverified')
-        active = db.get_provider_count_by_status('active')
-        inactive = db.get_provider_count_by_status('inactive')
-        total = db.get_provider_count_by_status('all')
-        
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton(f"❓ Unverified ({unverified})", callback_data="admin_list_unverified")],
-            [InlineKeyboardButton(f"🟢 Listed/Active ({active})", callback_data="admin_list_active")],
-            [InlineKeyboardButton(f"⚫ Unlisted ({inactive})", callback_data="admin_list_inactive")],
-            [InlineKeyboardButton(f"📋 All Providers ({total})", callback_data="admin_list_all")],
-        ])
-        
+        context.user_data["admin_view"] = "panel"
+        keyboard = _admin_panel_keyboard(db)
+
         await query.edit_message_text(
             "🛠️ *Admin Panel*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
