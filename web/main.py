@@ -96,6 +96,32 @@ def _sanitize_phone(value: Optional[str]) -> str:
     return digits
 
 
+def _extract_client_ip(request: Request) -> str:
+    """Best-effort client IP extraction behind reverse proxies."""
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
+def _detect_device_type(user_agent: str) -> str:
+    """Simple device classification for lead analytics."""
+    ua = (user_agent or "").lower()
+    if not ua:
+        return "unknown"
+    if "ipad" in ua or "tablet" in ua:
+        return "tablet"
+    mobile_markers = ["android", "iphone", "mobile", "opera mini", "windows phone"]
+    if any(marker in ua for marker in mobile_markers):
+        return "mobile"
+    return "desktop"
+
+
 def _build_gallery_urls(provider_id: int, photo_ids: list[str]) -> list[str]:
     urls = [f"/photo/{file_id}" for file_id in photo_ids if file_id]
     if urls:
@@ -140,13 +166,11 @@ def _normalize_provider(provider: dict) -> dict:
         if isinstance(amount, (int, float)) and amount > 0:
             rate_cards.append({"label": label, "amount": int(amount)})
     profile["rate_cards"] = rate_cards
-    default_message = quote(f"Hi {profile.get('display_name', '')}, are you available?")
-    profile["call_url"] = f"tel:+{phone_digits}" if phone_digits else f"/contact/{profile.get('id')}/direct"
-    profile["whatsapp_url"] = (
-        f"https://wa.me/{phone_digits}?text={default_message}"
-        if phone_digits
-        else f"/contact/{profile.get('id')}/direct"
-    )
+    provider_id = profile.get("id")
+    profile["call_url"] = f"/connect/{provider_id}?channel=call&mode=direct"
+    profile["whatsapp_url"] = f"/connect/{provider_id}?channel=whatsapp&mode=direct"
+    profile["connect_direct_url"] = f"/connect/{provider_id}?channel=whatsapp&mode=direct"
+    profile["connect_stealth_url"] = f"/connect/{provider_id}?channel=whatsapp&mode=stealth"
     profile["has_phone"] = bool(phone_digits)
     return profile
 
@@ -158,6 +182,23 @@ def _normalize_recommendation(provider: dict) -> dict:
     card["location"] = card.get("neighborhood") or card.get("city") or "Nairobi"
     card["services_list"] = _to_string_list(card.get("services"))[:2]
     return card
+
+
+def _telegram_contact_redirect(provider: dict, is_stealth: bool) -> RedirectResponse:
+    """Fallback contact redirect using Telegram when phone is unavailable."""
+    telegram_id = provider.get("telegram_id")
+    username = provider.get("telegram_username")
+    name = provider.get("display_name", "")
+    if is_stealth:
+        message = "Hi, is this a good time to talk?"
+    else:
+        message = f"Hi {name}, I found you on Blackbook. Are you available?"
+
+    if username:
+        return RedirectResponse(url=f"https://t.me/{username}?text={quote(message)}", status_code=302)
+    if telegram_id:
+        return RedirectResponse(url=f"tg://openmessage?user_id={telegram_id}", status_code=302)
+    return RedirectResponse(url="/", status_code=302)
 
 
 def _is_valid_callback_signature(raw_body: bytes, signature: Optional[str]) -> bool:
@@ -445,48 +486,78 @@ async def contact_page(request: Request, provider_id: int):
     })
 
 
+@app.get("/connect/{provider_id}")
+async def connect_provider(
+    request: Request,
+    provider_id: int,
+    mode: str = Query("direct"),
+    channel: str = Query("whatsapp"),
+):
+    """
+    Tracking bridge for outbound contact actions.
+    Logs lead analytics before redirecting to WhatsApp or phone app.
+    """
+    provider = db.get_provider_by_id(provider_id)
+    if not provider:
+        return RedirectResponse(url="/", status_code=302)
+
+    profile = _normalize_provider(provider)
+    mode_value = (mode or "direct").strip().lower()
+    is_stealth = mode_value == "stealth"
+    contact_method = "call" if (channel or "").strip().lower() == "call" else "whatsapp"
+    name = profile.get("display_name", "there")
+    phone_digits = profile.get("phone_digits", "")
+
+    client_ip = _extract_client_ip(request)
+    device_type = _detect_device_type(request.headers.get("user-agent", ""))
+    db.log_lead_analytics(
+        provider_id=provider_id,
+        client_ip=client_ip,
+        device_type=device_type,
+        contact_method=contact_method,
+        is_stealth=is_stealth,
+    )
+
+    if contact_method == "call":
+        if phone_digits:
+            logger.info(f"Call lead: provider={provider_id} mode={mode_value} ip={client_ip}")
+            return RedirectResponse(url=f"tel:+{phone_digits}", status_code=302)
+        logger.info(f"Call lead fallback to direct contact: provider={provider_id} ip={client_ip}")
+        return _telegram_contact_redirect(provider, is_stealth=False)
+
+    if is_stealth:
+        message = (
+            "Hello, I am interested in the lifestyle management services we discussed. "
+            "Please let me know your availability for a consultation."
+        )
+    else:
+        message = f"Hi {name}, I saw your profile on Blackbook. Are you available?"
+
+    if phone_digits:
+        wa_url = f"https://wa.me/{phone_digits}?text={quote(message)}"
+        logger.info(f"WhatsApp lead: provider={provider_id} mode={mode_value} ip={client_ip}")
+        return RedirectResponse(url=wa_url, status_code=302)
+
+    logger.info(f"WhatsApp lead fallback to Telegram route: provider={provider_id} mode={mode_value}")
+    return _telegram_contact_redirect(provider, is_stealth=is_stealth)
+
+
 @app.get("/contact/{provider_id}/direct")
 async def contact_direct(provider_id: int):
     """Direct message - opens Telegram with a clear first message."""
     provider = db.get_provider_by_id(provider_id)
-    
     if not provider:
         return RedirectResponse(url="/", status_code=302)
-    
-    telegram_id = provider.get("telegram_id")
-    username = provider.get("telegram_username")
-    name = provider.get("display_name", "")
-    message = f"Hi {name}, I found you on Blackbook. Are you available?"
-    
-    logger.info(f"📲 Direct contact: {provider_id} ({name})")
-    
-    if username:
-        return RedirectResponse(url=f"https://t.me/{username}?text={quote(message)}", status_code=302)
-    else:
-        # Fallback: tg://user deep link (works on mobile/desktop Telegram)
-        return RedirectResponse(url=f"tg://openmessage?user_id={telegram_id}", status_code=302)
+    return _telegram_contact_redirect(provider, is_stealth=False)
 
 
 @app.get("/contact/{provider_id}/discreet")
 async def contact_discreet(provider_id: int):
     """Discreet message - opens Telegram with a vague, safe message."""
     provider = db.get_provider_by_id(provider_id)
-    
     if not provider:
         return RedirectResponse(url="/", status_code=302)
-    
-    telegram_id = provider.get("telegram_id")
-    username = provider.get("telegram_username")
-    name = provider.get("display_name", "")
-    # Discreet message that doesn't mention Blackbook or the nature of service
-    message = "Hi, is this a good time to talk?"
-    
-    logger.info(f"🔒 Discreet contact: {provider_id} ({name})")
-    
-    if username:
-        return RedirectResponse(url=f"https://t.me/{username}?text={quote(message)}", status_code=302)
-    else:
-        return RedirectResponse(url=f"tg://openmessage?user_id={telegram_id}", status_code=302)
+    return _telegram_contact_redirect(provider, is_stealth=True)
 
 
 # ==================== PAYMENT CALLBACK ====================

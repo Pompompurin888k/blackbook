@@ -111,6 +111,18 @@ class Database:
             created_at TIMESTAMP DEFAULT NOW()
         );
         """
+
+        lead_analytics_query = """
+        CREATE TABLE IF NOT EXISTS lead_analytics (
+            id BIGSERIAL PRIMARY KEY,
+            provider_id INT NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+            client_ip TEXT,
+            device_type VARCHAR(20),
+            contact_method VARCHAR(20) NOT NULL,
+            is_stealth BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        """
         
         # Add new columns if they don't exist
         add_columns = """
@@ -230,6 +242,7 @@ class Database:
                 cur.execute(blacklist_query)
                 cur.execute(sessions_query)
                 cur.execute(funnel_events_query)
+                cur.execute(lead_analytics_query)
                 cur.execute(add_columns)
                 self.conn.commit()
                 logger.info("🛠️ Database tables initialized.")
@@ -781,7 +794,10 @@ class Database:
             "active_users": 0,
             "online_now": 0,
             "city_breakdown": {},
-            "total_revenue": 0
+            "total_revenue": 0,
+            "total_leads": 0,
+            "leads_last_7d": 0,
+            "top_neighborhoods_by_leads": {},
         }
         try:
             with self.conn.cursor() as cur:
@@ -814,6 +830,31 @@ class Database:
                 cur.execute("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'SUCCESS'")
                 result = cur.fetchone()
                 stats["total_revenue"] = result["total"] if result else 0
+
+                cur.execute("SELECT COUNT(*) AS count FROM lead_analytics")
+                result = cur.fetchone()
+                stats["total_leads"] = result["count"] if result else 0
+
+                cur.execute("""
+                    SELECT COUNT(*) AS count
+                    FROM lead_analytics
+                    WHERE created_at >= NOW() - INTERVAL '7 days'
+                """)
+                result = cur.fetchone()
+                stats["leads_last_7d"] = result["count"] if result else 0
+
+                cur.execute("""
+                    SELECT
+                        COALESCE(p.neighborhood, p.city, 'Unknown') AS area,
+                        COUNT(*) AS count
+                    FROM lead_analytics la
+                    JOIN providers p ON p.id = la.provider_id
+                    GROUP BY area
+                    ORDER BY count DESC
+                    LIMIT 5
+                """)
+                for row in cur.fetchall():
+                    stats["top_neighborhoods_by_leads"][row["area"]] = row["count"]
                     
             return stats
         except Exception as e:

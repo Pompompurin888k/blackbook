@@ -82,11 +82,18 @@ async def partner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         city_lines.append(f"📍 {city} Density: {count}")
     
     city_breakdown = "\n".join(city_lines) if city_lines else "  _No data yet_"
+
+    lead_area_lines = []
+    for area, count in stats.get("top_neighborhoods_by_leads", {}).items():
+        lead_area_lines.append(f"🔥 {area}: {count} leads")
+    lead_areas = "\n".join(lead_area_lines) if lead_area_lines else "_No lead analytics yet_"
     
     total = stats["total_users"]
     verified = stats["verified_users"]
     online = stats.get("online_now", 0)
     revenue = stats.get("total_revenue", 0)
+    total_leads = stats.get("total_leads", 0)
+    leads_7d = stats.get("leads_last_7d", 0)
     
     # Build verification rate string
     if total > 0:
@@ -104,6 +111,10 @@ async def partner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"{city_breakdown}\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"💰 *Total Revenue:* {revenue:,} KES"
+        f"\n📈 *Total Leads:* {total_leads}"
+        f"\n🗓️ *Leads (Last 7d):* {leads_7d}\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{lead_areas}"
     )
     
     await update.message.reply_text(report, parse_mode="Markdown")

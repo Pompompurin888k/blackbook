@@ -229,8 +229,8 @@
             </div>
 
             <div class="grid grid-cols-2 gap-2">
-                <a href="/contact/{{ provider.id }}/direct" class="rounded-xl bg-[#d4af37] text-black text-sm font-bold py-3 text-center uppercase tracking-[0.14em]">Direct</a>
-                <a href="/contact/{{ provider.id }}/discreet" class="rounded-xl bg-white/10 border border-white/20 text-white text-sm font-bold py-3 text-center uppercase tracking-[0.14em]">Discreet</a>
+                <a href="{{ provider.connect_direct_url }}" class="rounded-xl bg-[#d4af37] text-black text-sm font-bold py-3 text-center uppercase tracking-[0.14em]">Direct Connection</a>
+                <a href="{{ provider.connect_stealth_url }}" class="rounded-xl bg-white/10 border border-white/20 text-white text-sm font-bold py-3 text-center uppercase tracking-[0.14em]">Professional Inquiry</a>
             </div>
             <div class="mt-2 flex gap-2">
                 <button type="button" id="saveBtn" class="flex-1 rounded-xl bg-white/7 border border-white/15 py-2.5 text-xs uppercase tracking-[0.14em]" onclick="toggleSave()">Save</button>

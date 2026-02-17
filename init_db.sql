@@ -80,3 +80,13 @@ CREATE TABLE IF NOT EXISTS bot_funnel_events (
     event_payload JSONB,
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS lead_analytics (
+    id BIGSERIAL PRIMARY KEY,
+    provider_id INT NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+    client_ip TEXT,
+    device_type VARCHAR(20),
+    contact_method VARCHAR(20) NOT NULL,
+    is_stealth BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW()
+);

@@ -407,6 +407,47 @@ class Database:
             self.conn.rollback()
             return False
 
+    def log_lead_analytics(
+        self,
+        provider_id: int,
+        client_ip: str,
+        device_type: str,
+        contact_method: str,
+        is_stealth: bool = False,
+    ) -> bool:
+        """Logs provider lead click-through events for contact actions."""
+        self._ensure_connection()
+        method = (contact_method or "").strip().lower()
+        if method not in {"whatsapp", "call"}:
+            method = "whatsapp"
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO lead_analytics (
+                        provider_id,
+                        client_ip,
+                        device_type,
+                        contact_method,
+                        is_stealth
+                    )
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (
+                        provider_id,
+                        (client_ip or "")[:100],
+                        (device_type or "unknown")[:20],
+                        method,
+                        bool(is_stealth),
+                    ),
+                )
+                self.conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error logging lead analytics: {e}")
+            self.conn.rollback()
+            return False
+
     def log_funnel_event(self, tg_id: int, event_name: str, payload: Optional[Dict] = None) -> bool:
         """Stores bot/business funnel events from web-side callbacks."""
         self._ensure_connection()
