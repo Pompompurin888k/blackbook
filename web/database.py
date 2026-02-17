@@ -330,7 +330,7 @@ class Database:
                 cur.execute("""
                     SELECT id, telegram_id, display_name, city, neighborhood, is_online, expiry_date,
                            age, height_cm, weight_kg, build, services, bio, nearby_places,
-                           subscription_tier, referred_by, referral_credits
+                           subscription_tier, referred_by, referral_credits, is_verified
                     FROM providers
                     WHERE telegram_id = %s
                 """, (telegram_id,))

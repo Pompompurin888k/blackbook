@@ -530,8 +530,12 @@ async def megapay_callback(request: Request):
         # Supports both BB_<tg>_<days> and BB_<tg>_<days>_<nonce>.
         parts = account_ref.split("_")
         if len(parts) >= 3 and parts[0] == "BB":
-            telegram_id = int(parts[1])
-            package_days = int(parts[2])
+            try:
+                telegram_id = int(parts[1])
+                package_days = int(parts[2])
+            except ValueError:
+                logger.error(f"❌ Invalid account reference values: {account_ref}")
+                return JSONResponse({"status": "error", "message": "Invalid account reference"}, status_code=400)
         else:
             logger.error(f"❌ Invalid account reference format: {account_ref}")
             return JSONResponse({"status": "error", "message": "Invalid account reference"}, status_code=400)
@@ -563,6 +567,17 @@ async def megapay_callback(request: Request):
         success = str(status).strip().lower() in success_markers
 
         if success:
+            provider_data = db.get_provider_by_telegram_id(telegram_id)
+            if not provider_data:
+                logger.warning(f"⚠️ Callback references unknown provider: {telegram_id}")
+                db.log_payment(telegram_id, amount, reference, "FAILED_NO_PROVIDER", package_days)
+                return JSONResponse({"status": "error", "message": "Provider not found"}, status_code=404)
+
+            if not provider_data.get("is_verified"):
+                logger.warning(f"⚠️ Callback rejected for unverified provider: {telegram_id}")
+                db.log_payment(telegram_id, amount, reference, "REJECTED_UNVERIFIED", package_days)
+                return JSONResponse({"status": "error", "message": "Provider not verified"}, status_code=403)
+
             # Boost transaction
             if package_days == 0:
                 if not db.boost_provider(telegram_id, BOOST_DURATION_HOURS):
@@ -595,7 +610,6 @@ async def megapay_callback(request: Request):
 
             # === REFERRAL REWARD ===
             # If this provider was referred, reward the referrer
-            provider_data = db.get_provider_by_telegram_id(telegram_id)
             referrer_id = provider_data.get("referred_by") if provider_data else None
             if referrer_id:
                 try:
@@ -616,9 +630,7 @@ async def megapay_callback(request: Request):
                 except Exception as ref_err:
                     logger.error(f"⚠️ Referral reward error (non-fatal): {ref_err}")
 
-            # Fetch provider info for enhanced notification
-            provider = db.get_provider_by_telegram_id(telegram_id)
-            neighborhood = provider.get("neighborhood", "your area") if provider else "your area"
+            neighborhood = provider_data.get("neighborhood", "your area")
 
             # Calculate expiry date
             from datetime import datetime, timedelta
