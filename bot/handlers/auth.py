@@ -85,6 +85,13 @@ def is_profile_complete(provider: dict) -> bool:
     return all(provider.get(field) for field in PROFILE_REQUIRED_FIELDS)
 
 
+def is_verification_pending(provider: dict) -> bool:
+    """Returns True when provider has submitted verification and is awaiting admin action."""
+    if not provider:
+        return False
+    return bool(provider.get("verification_photo_id")) and not bool(provider.get("is_verified"))
+
+
 def build_go_live_checklist(provider: dict) -> tuple[str, InlineKeyboardMarkup]:
     """Builds checklist text + actionable keyboard for activation funnel."""
     complete = is_profile_complete(provider)
@@ -361,6 +368,24 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     
     # === VERIFY PROMPTS ===
     elif action == "verify_start":
+        if provider and provider.get("is_verified"):
+            await query.edit_message_text(
+                "✅ *Already Verified*\n\nYour profile already has admin approval.",
+                reply_markup=get_back_button("menu_profile"),
+                parse_mode="Markdown",
+            )
+            return
+
+        if provider and is_verification_pending(provider):
+            await query.edit_message_text(
+                "⏳ *Verification Pending*\n\n"
+                "Your profile is awaiting admin approval.\n"
+                "You will get notified once approved.",
+                reply_markup=get_back_button("menu_profile"),
+                parse_mode="Markdown",
+            )
+            return
+
         await query.edit_message_text(
             "📸 *Profile Verification*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -374,6 +399,24 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
     
     elif action == "verify_go":
+        if provider and provider.get("is_verified"):
+            await query.edit_message_text(
+                "✅ *Already Verified*\n\nYour profile already has admin approval.",
+                reply_markup=get_back_button("menu_profile"),
+                parse_mode="Markdown",
+            )
+            return
+
+        if provider and is_verification_pending(provider):
+            await query.edit_message_text(
+                "⏳ *Verification Pending*\n\n"
+                "Your profile is awaiting admin approval.\n"
+                "You will get notified once approved.",
+                reply_markup=get_back_button("menu_profile"),
+                parse_mode="Markdown",
+            )
+            return
+
         await query.edit_message_text(
             "📸 *Profile Verification*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -822,6 +865,15 @@ async def verify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text(
             "✅ You are already verified! ✔️",
             parse_mode="Markdown"
+        )
+        return ConversationHandler.END
+
+    if is_verification_pending(provider):
+        await update.message.reply_text(
+            "⏳ *Verification Pending*\n\n"
+            "Your profile is already awaiting admin approval.\n"
+            "You will be notified once approved.",
+            parse_mode="Markdown",
         )
         return ConversationHandler.END
     
@@ -1385,6 +1437,7 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
     """Saves the complete profile to database."""
     user = update.effective_user
     db = get_db()
+    provider_before = db.get_provider(user.id) or {}
     
     # Pack data
     import json
@@ -1411,6 +1464,34 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
     # Save photos (store as JSON array of file_ids)
     photos = context.user_data["p_photos"]
     db.save_provider_photos(user.id, photos)
+
+    # Auto-submit verification request once profile is complete.
+    # We use the first profile photo as verification media for admin queue.
+    auto_submitted_for_review = False
+    if photos and not provider_before.get("is_verified") and not is_verification_pending(provider_before):
+        db.save_verification_photo(user.id, photos[0])
+        provider_after = db.get_provider(user.id) or {}
+        if ADMIN_CHAT_ID:
+            try:
+                caption = (
+                    "🔍 *NEW VERIFICATION REQUEST*\n"
+                    "━━━━━━━━━━━━━━━\n"
+                    f"👤 Provider: {provider_after.get('display_name', 'Unknown')}\n"
+                    f"📍 City: {provider_after.get('city', 'N/A')}\n"
+                    f"🆔 User ID: `{user.id}`\n"
+                    "Source: Profile completion"
+                )
+                await context.bot.send_photo(
+                    chat_id=int(ADMIN_CHAT_ID),
+                    photo=photos[0],
+                    caption=caption,
+                    reply_markup=get_admin_verification_keyboard(user.id),
+                    parse_mode="Markdown",
+                )
+                db.log_funnel_event(user.id, "verification_submitted", {"source": "profile_complete_auto"})
+                auto_submitted_for_review = True
+            except Exception as e:
+                logger.error(f"❌ Failed to auto-submit verification request for {user.id}: {e}")
     db.log_funnel_event(
         user.id,
         "profile_complete",
@@ -1445,6 +1526,9 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
         "• Use 👤 My Profile to view/edit your info\n"
         "• Use 💰 Top up Balance to activate your listing"
     )
+
+    if auto_submitted_for_review:
+        final_text += "\n\n✅ Your verification request has been submitted to admin."
 
     if responder:
         await responder.reply_text(
@@ -1561,6 +1645,7 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
     elif action == "reject":
         reason_text = reject_reasons.get(reason_code, reject_reasons["generic"])
         db.log_funnel_event(provider_id, "verification_rejected", {"reason": reason_text})
+        db.update_provider_profile(provider_id, {"verification_photo_id": None})
         await context.bot.send_message(
             chat_id=provider_id,
             text="❌ **Verification Rejected**\n\n"

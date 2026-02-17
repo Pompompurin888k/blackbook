@@ -430,6 +430,8 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         provider = db.get_provider(pid)
         display_name = provider.get("display_name", "Unknown") if provider else "Unknown"
+        db.update_provider_profile(pid, {"verification_photo_id": None})
+        db.log_funnel_event(pid, "verification_rejected", {"reason": reason_text, "source": "admin_queue"})
 
         try:
             await context.bot.send_message(
