@@ -21,3 +21,15 @@ def register_all_handlers(application, db):
     safety.register_handlers(application)
     payment.register_handlers(application)
     admin.register_handlers(application)
+
+
+def register_admin_only_handlers(application, db):
+    """
+    Registers only moderation/admin handlers for dedicated admin bot.
+
+    Args:
+        application: The telegram Application instance
+        db: The shared Database instance
+    """
+    auth.register_admin_verification_handlers(application)
+    admin.register_handlers(application)

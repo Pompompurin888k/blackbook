@@ -29,10 +29,35 @@ services:
       - db
     env_file:
       - .env
+    environment:
+      BOT_ROLE: client
+      BOT_HEARTBEAT_FILE: /tmp/blackbook_bot_heartbeat
     volumes:
       - ./bot:/app
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import os,time,sys; p='/tmp/blackbook_bot_heartbeat'; sys.exit(0 if os.path.exists(p) and (time.time()-os.path.getmtime(p)) < 180 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    networks:
+      - blackbook_network
+
+  # 2b. Moderation Bot (Admin Telegram Bot)
+  admin_bot:
+    build: ./bot
+    container_name: blackbook_admin_bot
+    restart: always
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      BOT_ROLE: admin
+      BOT_HEARTBEAT_FILE: /tmp/blackbook_admin_bot_heartbeat
+    volumes:
+      - ./bot:/app
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os,time,sys; p='/tmp/blackbook_admin_bot_heartbeat'; sys.exit(0 if os.path.exists(p) and (time.time()-os.path.getmtime(p)) < 180 else 1)\""]
       interval: 30s
       timeout: 5s
       retries: 5

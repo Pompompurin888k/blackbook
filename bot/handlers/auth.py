@@ -22,6 +22,7 @@ from config import (
     ADMIN_CHAT_ID,
     ADMIN_BOT_TOKEN,
     TELEGRAM_TOKEN,
+    is_admin,
     CITIES,
     RATE_DURATIONS,
     LANGUAGES,
@@ -95,8 +96,7 @@ async def send_admin_verification_request(
     if not ADMIN_CHAT_ID:
         return False
 
-    use_inline_actions = ADMIN_BOT_TOKEN == TELEGRAM_TOKEN
-    if use_inline_actions:
+    if ADMIN_BOT_TOKEN == TELEGRAM_TOKEN:
         await context.bot.send_photo(
             chat_id=int(ADMIN_CHAT_ID),
             photo=photo_file_id,
@@ -106,17 +106,27 @@ async def send_admin_verification_request(
         )
         return True
 
-    # Different admin bot token: send notification-only payload via Bot API.
-    admin_caption = (
-        f"{caption}\n\n"
-        "Action required: Open the client moderation bot and use /admin to approve or reject this profile."
-    )
+    # Different admin bot token: send with inline actions to admin bot.
+    keyboard = get_admin_verification_keyboard(provider_id)
+    reply_markup = {
+        "inline_keyboard": [
+            [
+                {
+                    "text": button.text,
+                    "callback_data": button.callback_data,
+                }
+                for button in row
+            ]
+            for row in keyboard.inline_keyboard
+        ]
+    }
     url = f"https://api.telegram.org/bot{ADMIN_BOT_TOKEN}/sendPhoto"
     payload = {
         "chat_id": int(ADMIN_CHAT_ID),
         "photo": photo_file_id,
-        "caption": admin_caption,
+        "caption": caption,
         "parse_mode": "Markdown",
+        "reply_markup": reply_markup,
     }
     async with httpx.AsyncClient(timeout=20.0) as client:
         resp = await client.post(url, json=payload)
@@ -124,6 +134,49 @@ async def send_admin_verification_request(
             logger.error(f"❌ Failed to send admin verification notification: {resp.text}")
             return False
     return True
+
+
+async def send_provider_message(
+    chat_id: int,
+    text: str,
+    parse_mode: str = "Markdown",
+    reply_markup: InlineKeyboardMarkup | None = None,
+) -> bool:
+    """Sends provider-facing message via client bot token."""
+    if not TELEGRAM_TOKEN:
+        logger.error("❌ TELEGRAM_TOKEN missing; cannot notify provider")
+        return False
+
+    payload = {
+        "chat_id": int(chat_id),
+        "text": text,
+        "parse_mode": parse_mode,
+    }
+    if reply_markup:
+        payload["reply_markup"] = {
+            "inline_keyboard": [
+                [
+                    {
+                        "text": button.text,
+                        "callback_data": button.callback_data,
+                    }
+                    for button in row
+                ]
+                for row in reply_markup.inline_keyboard
+            ]
+        }
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(url, json=payload)
+            if resp.status_code != 200:
+                logger.error(f"❌ Failed provider notification ({chat_id}): {resp.text}")
+                return False
+        return True
+    except Exception as e:
+        logger.error(f"❌ Provider notification error ({chat_id}): {e}")
+        return False
 
 
 def is_profile_complete(provider: dict) -> bool:
@@ -1632,6 +1685,10 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
     query = update.callback_query
     await query.answer()
     db = get_db()
+
+    if not is_admin(query.from_user.id):
+        await query.answer("Access denied.", show_alert=True)
+        return
     
     data = query.data
     parts = data.split("_")
@@ -1661,18 +1718,17 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
         
         if is_active:
             # Already paid - they're now live
-            await context.bot.send_message(
+            await send_provider_message(
                 chat_id=provider_id,
                 text="🎉 *VERIFIED! You're Now Live!*\n\n"
                      "✅ Blue Tick status granted\n"
                      "✅ Profile is active on innbucks.org\n\n"
                      "Your profile is now visible to premium clients!\n\n"
                      "🌐 View your listing at: *https://innbucks.org*",
-                parse_mode="Markdown"
             )
         else:
             # Not paid yet - verified but need subscription
-            await context.bot.send_message(
+            await send_provider_message(
                 chat_id=provider_id,
                 text="✅ *Verification Approved!*\n\n"
                      "🎉 You now have the Blue Tick ✔️\n\n"
@@ -1681,11 +1737,10 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
                      f"🎁 You can start a *{FREE_TRIAL_DAYS}-day free trial* once,\n"
                      "or activate a paid package immediately.\n\n"
                      "💡 Once activated, your profile goes live instantly!",
-                parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton(f"🎁 Start {FREE_TRIAL_DAYS}-Day Free Trial", callback_data="menu_trial_activate")],
                     [InlineKeyboardButton("💰 Choose Paid Package", callback_data="menu_topup")],
-                ])
+                ]),
             )
         
         await query.edit_message_caption(
@@ -1701,12 +1756,11 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
         reason_text = reject_reasons.get(reason_code, reject_reasons["generic"])
         db.log_funnel_event(provider_id, "verification_rejected", {"reason": reason_text})
         db.update_provider_profile(provider_id, {"verification_photo_id": None})
-        await context.bot.send_message(
+        await send_provider_message(
             chat_id=provider_id,
             text="❌ **Verification Rejected**\n\n"
                  f"Reason: **{reason_text}**\n\n"
                  "Please tap 📸 Get Verified in your profile to submit a corrected photo/profile and try again.",
-            parse_mode="Markdown"
         )
         
         await query.edit_message_caption(
@@ -2081,11 +2135,7 @@ def register_handlers(application):
     )
     application.add_handler(verification_handler)
     
-    # Admin verification callback
-    application.add_handler(CallbackQueryHandler(
-        admin_verification_callback,
-        pattern="^verify_(approve|reject)_"
-    ))
+    register_admin_verification_handlers(application)
     
     # Online toggle callback
     application.add_handler(CallbackQueryHandler(
@@ -2128,4 +2178,12 @@ def register_handlers(application):
         filters.TEXT & ~filters.COMMAND,
         handle_menu_buttons
     ), group=1)
+
+
+def register_admin_verification_handlers(application):
+    """Registers admin verification approve/reject callbacks."""
+    application.add_handler(CallbackQueryHandler(
+        admin_verification_callback,
+        pattern="^verify_(approve|reject)_"
+    ))
 

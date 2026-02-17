@@ -3,13 +3,14 @@ Blackbook Bot - Admin Handlers
 Handles: /partner, /maintenance, /broadcast
 """
 import logging
+import httpx
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler,
     ContextTypes,
 )
 
-from config import is_admin, is_authorized_partner
+from config import is_admin, is_authorized_partner, TELEGRAM_TOKEN
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,30 @@ def get_db():
     """Gets the database instance from db_context module."""
     from db_context import get_db as _get_db
     return _get_db()
+
+
+async def send_provider_message(chat_id: int, text: str, parse_mode: str = "Markdown") -> bool:
+    """Sends provider-facing messages via client bot token."""
+    if not TELEGRAM_TOKEN:
+        logger.error("❌ TELEGRAM_TOKEN missing; cannot notify provider.")
+        return False
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+                json={
+                    "chat_id": int(chat_id),
+                    "text": text,
+                    "parse_mode": parse_mode,
+                },
+            )
+            if resp.status_code != 200:
+                logger.warning(f"Failed provider notification ({chat_id}): {resp.text}")
+                return False
+        return True
+    except Exception as e:
+        logger.warning(f"Provider notification error ({chat_id}): {e}")
+        return False
 
 
 # ==================== /PARTNER DASHBOARD ====================
@@ -166,12 +191,15 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     for provider_id in provider_ids:
         try:
-            await context.bot.send_message(
+            ok = await send_provider_message(
                 chat_id=provider_id,
                 text=broadcast_text,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
-            success_count += 1
+            if ok:
+                success_count += 1
+            else:
+                fail_count += 1
         except Exception as e:
             fail_count += 1
             logger.warning(f"Failed to send broadcast to {provider_id}: {e}")
@@ -434,14 +462,13 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         db.log_funnel_event(pid, "verification_rejected", {"reason": reason_text, "source": "admin_queue"})
 
         try:
-            await context.bot.send_message(
+            await send_provider_message(
                 chat_id=pid,
                 text=(
                     "❌ *Verification Rejected*\n\n"
                     f"Reason: *{reason_text}*\n\n"
                     "Please update your profile/photos and submit verification again from your profile."
                 ),
-                parse_mode="Markdown",
             )
         except Exception as e:
             logger.warning(f"Failed to send reject template to {pid}: {e}")
@@ -467,12 +494,11 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Notify the provider
         provider = db.get_provider(pid)
         try:
-            await context.bot.send_message(
+            await send_provider_message(
                 chat_id=pid,
                 text="✅ *Verification Approved!*\n\n"
                      "🎉 You now have the Blue Tick ✔️\n\n"
                      "Your profile has been verified by admin.",
-                parse_mode="Markdown"
             )
         except:
             pass
@@ -498,11 +524,10 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         provider = db.get_provider(pid)
         try:
-            await context.bot.send_message(
+            await send_provider_message(
                 chat_id=pid,
                 text="🟢 *You're Now Listed!*\n\n"
                      "Your profile is now visible on the website.",
-                parse_mode="Markdown"
             )
         except:
             pass
@@ -518,11 +543,10 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         provider = db.get_provider(pid)
         try:
-            await context.bot.send_message(
+            await send_provider_message(
                 chat_id=pid,
                 text="⚫ *Profile Unlisted*\n\n"
                      "Your profile has been removed from the website by admin.",
-                parse_mode="Markdown"
             )
         except:
             pass
