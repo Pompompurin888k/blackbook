@@ -4,6 +4,7 @@ services:
     image: postgres:15-alpine
     container_name: blackbook_db
     restart: always
+    command: ["postgres", "-c", "timezone=Africa/Nairobi"]
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
