@@ -3,6 +3,8 @@ Blackbook Bot - Authentication Handlers
 Handles: /start, /register, /verify, /myprofile, verification callbacks
 """
 import logging
+import os
+from urllib.parse import quote
 import httpx
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -106,7 +108,13 @@ async def send_admin_verification_request(
         )
         return True
 
-    # Different admin bot token: send with inline actions to admin bot.
+    # Different admin bot token: file_id from client bot cannot be reused directly.
+    # Send a publicly reachable photo URL through the web proxy endpoint.
+    public_base_url = os.getenv("PUBLIC_WEB_BASE_URL", "https://innbucks.org").rstrip("/")
+    photo_ref = photo_file_id
+    if not photo_file_id.startswith(("http://", "https://")):
+        photo_ref = f"{public_base_url}/photo/{quote(photo_file_id, safe='')}"
+
     keyboard = get_admin_verification_keyboard(provider_id)
     reply_markup = {
         "inline_keyboard": [
@@ -123,7 +131,7 @@ async def send_admin_verification_request(
     url = f"https://api.telegram.org/bot{ADMIN_BOT_TOKEN}/sendPhoto"
     payload = {
         "chat_id": int(ADMIN_CHAT_ID),
-        "photo": photo_file_id,
+        "photo": photo_ref,
         "caption": caption,
         "parse_mode": "Markdown",
         "reply_markup": reply_markup,
@@ -131,8 +139,21 @@ async def send_admin_verification_request(
     async with httpx.AsyncClient(timeout=20.0) as client:
         resp = await client.post(url, json=payload)
         if resp.status_code != 200:
-            logger.error(f"❌ Failed to send admin verification notification: {resp.text}")
-            return False
+            logger.error(f"❌ Failed to send admin verification photo notification: {resp.text}")
+            # Fallback to plain text notification so moderation still proceeds.
+            fallback_payload = {
+                "chat_id": int(ADMIN_CHAT_ID),
+                "text": f"{caption}\n\nPhoto URL:\n{photo_ref}",
+                "parse_mode": "Markdown",
+                "reply_markup": reply_markup,
+            }
+            resp2 = await client.post(
+                f"https://api.telegram.org/bot{ADMIN_BOT_TOKEN}/sendMessage",
+                json=fallback_payload,
+            )
+            if resp2.status_code != 200:
+                logger.error(f"❌ Failed to send admin verification fallback notification: {resp2.text}")
+                return False
     return True
 
 
