@@ -597,6 +597,11 @@ async def megapay_callback(request: Request):
                     f"📈 Active until: **{boost_until.strftime('%Y-%m-%d %H:%M')}**\n\n"
                     f"Your profile is now prioritized in results."
                 )
+                db.log_funnel_event(
+                    telegram_id,
+                    "boost_purchased",
+                    {"amount": amount, "hours": BOOST_DURATION_HOURS, "reference": reference},
+                )
                 logger.info(f"✅ Boost SUCCESS: Provider {telegram_id} boosted for {BOOST_DURATION_HOURS} hours")
                 return JSONResponse({"status": "success", "message": "Boost activated"})
 
@@ -607,6 +612,16 @@ async def megapay_callback(request: Request):
             if not db.log_payment(telegram_id, amount, reference, "SUCCESS", package_days):
                 logger.error(f"❌ Failed to log successful payment for {telegram_id}")
                 return JSONResponse({"status": "error", "message": "Failed to log payment"}, status_code=500)
+            db.log_funnel_event(
+                telegram_id,
+                "paid_success",
+                {"amount": amount, "days": package_days, "reference": reference},
+            )
+            db.log_funnel_event(
+                telegram_id,
+                "active_live",
+                {"source": "payment", "days": package_days},
+            )
 
             # === REFERRAL REWARD ===
             # If this provider was referred, reward the referrer

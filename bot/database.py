@@ -1,7 +1,7 @@
 import os
 import time
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, Json
 from datetime import datetime, timedelta
 import logging
 
@@ -97,6 +97,16 @@ class Database:
             expected_check_back TIMESTAMP,
             is_active BOOLEAN DEFAULT TRUE,
             admin_alerted BOOLEAN DEFAULT FALSE
+        );
+        """
+
+        funnel_events_query = """
+        CREATE TABLE IF NOT EXISTS bot_funnel_events (
+            id BIGSERIAL PRIMARY KEY,
+            telegram_id BIGINT NOT NULL,
+            event_name VARCHAR(64) NOT NULL,
+            event_payload JSONB,
+            created_at TIMESTAMP DEFAULT NOW()
         );
         """
         
@@ -211,6 +221,7 @@ class Database:
                 cur.execute(payment_reference_index_query)
                 cur.execute(blacklist_query)
                 cur.execute(sessions_query)
+                cur.execute(funnel_events_query)
                 cur.execute(add_columns)
                 self.conn.commit()
                 logger.info("🛠️ Database tables initialized.")
@@ -534,6 +545,23 @@ class Database:
                 return cur.fetchone() is not None
         except Exception as e:
             logger.error(f"❌ Error checking provider payment history: {e}")
+            return False
+
+    def log_funnel_event(self, tg_id: int, event_name: str, payload: dict | None = None) -> bool:
+        """Logs a conversion funnel event for analytics."""
+        query = """
+        INSERT INTO bot_funnel_events (telegram_id, event_name, event_payload)
+        VALUES (%s, %s, %s)
+        """
+        event_payload = payload or {}
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, (tg_id, event_name[:64], Json(event_payload)))
+                self.conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"❌ Error logging funnel event '{event_name}': {e}")
+            self.conn.rollback()
             return False
 
     def log_payment(self, tg_id, amount, reference, status, package_days):

@@ -72,6 +72,7 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
         tier_text = ""
         trial_text = ""
         show_trial = _is_trial_eligible(provider)
+        db.log_funnel_event(user.id, "paid_flow_opened", {"source": "menu_topup"})
         if provider and provider.get("is_active"):
             expiry = provider.get("expiry_date")
             tier = provider.get("subscription_tier", "none")
@@ -152,6 +153,8 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 parse_mode="Markdown",
             )
             return
+        db.log_funnel_event(user.id, "trial_started", {"days": FREE_TRIAL_DAYS})
+        db.log_funnel_event(user.id, "active_live", {"source": "trial"})
 
         provider = db.get_provider(user.id) or {}
         expiry = provider.get("expiry_date")
@@ -184,6 +187,11 @@ async def payment_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
         result = await initiate_stk_push(saved_phone, price, user.id, days)
         
         if result["success"]:
+            db.log_funnel_event(
+                user.id,
+                "paid_intent",
+                {"source": "menu_pay_confirm", "days": days, "amount": price},
+            )
             neighborhood = provider.get('neighborhood', 'your area') if provider else 'your area'
             await context.bot.send_message(
                 chat_id=user.id,
@@ -352,6 +360,7 @@ async def topup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             f"\n\n🎁 *New here?* You can start a *{FREE_TRIAL_DAYS}-day free trial* once."
             "\nAfter that, choose any paid plan to stay live."
         )
+    db.log_funnel_event(user.id, "paid_flow_opened", {"source": "command_topup"})
 
     await update.message.reply_text(
         "💰 *LISTING MANAGEMENT*\n"
@@ -433,6 +442,11 @@ async def topup_phone_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     result = await initiate_stk_push(phone_clean, price, user.id, days)
     
     if result["success"]:
+        db.log_funnel_event(
+            user.id,
+            "paid_intent",
+            {"source": "topup_phone_input", "days": days, "amount": price},
+        )
         provider = db.get_provider(user.id)
         neighborhood = provider.get('neighborhood', 'your area') if provider else 'your area'
         await update.message.reply_text(
@@ -491,6 +505,11 @@ async def menu_phone_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     result = await initiate_stk_push(phone_clean, price, user.id, days)
     if result["success"]:
+        db.log_funnel_event(
+            user.id,
+            "paid_intent",
+            {"source": "menu_phone_input", "days": days, "amount": price},
+        )
         provider = db.get_provider(user.id)
         neighborhood = provider.get('neighborhood', 'your area') if provider else 'your area'
         await update.message.reply_text(
@@ -531,6 +550,11 @@ async def topup_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
         result = await initiate_stk_push(phone, price, user.id, days)
         
         if result["success"]:
+            db.log_funnel_event(
+                user.id,
+                "paid_intent",
+                {"source": "topup_use_saved", "days": days, "amount": price},
+            )
             await query.message.reply_text(
                 "✅ **M-Pesa Request Sent!**\n\n"
                 f"📱 Check your phone ({phone})\n"

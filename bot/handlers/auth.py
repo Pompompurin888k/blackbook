@@ -56,6 +56,8 @@ from utils.formatters import (
 
 logger = logging.getLogger(__name__)
 
+PROFILE_REQUIRED_FIELDS = ["age", "height_cm", "weight_kg", "build", "services", "bio", "profile_photos"]
+
 
 # ==================== HELPER FUNCTIONS ====================
 
@@ -63,6 +65,60 @@ def get_db():
     """Gets the database instance from db_context module."""
     from db_context import get_db as _get_db
     return _get_db()
+
+
+def is_profile_complete(provider: dict) -> bool:
+    """Checks if key profile data required for listing exists."""
+    if not provider:
+        return False
+    return all(provider.get(field) for field in PROFILE_REQUIRED_FIELDS)
+
+
+def build_go_live_checklist(provider: dict) -> tuple[str, InlineKeyboardMarkup]:
+    """Builds checklist text + actionable keyboard for activation funnel."""
+    complete = is_profile_complete(provider)
+    verified = bool(provider.get("is_verified"))
+    active = bool(provider.get("is_active"))
+    trial_used = bool(provider.get("trial_used"))
+    expiry = provider.get("expiry_date")
+    expiry_text = expiry.strftime("%Y-%m-%d %H:%M") if expiry else "N/A"
+    tier = (provider.get("subscription_tier") or "none").title()
+
+    checks = [
+        f"{'✅' if complete else '❌'} Profile completed",
+        f"{'✅' if verified else '❌'} Verification approved",
+        f"{'✅' if active else '❌'} Listing active",
+    ]
+
+    next_step = "🎯 *Next:* "
+    buttons = []
+    if not complete:
+        next_step += "Tap *✏️ Complete Profile* and finish missing details."
+        buttons.append([InlineKeyboardButton("✏️ Complete Profile", callback_data="menu_complete_profile")])
+    elif not verified:
+        next_step += "Tap *📸 Get Verified* to submit verification photos."
+        buttons.append([InlineKeyboardButton("📸 Get Verified", callback_data="menu_verify_start")])
+    elif not active:
+        if not trial_used:
+            next_step += "Start your *7-day free trial* or choose a paid package."
+            buttons.append([InlineKeyboardButton("🎁 Start Free Trial", callback_data="menu_trial_activate")])
+        else:
+            next_step += "Choose a paid package to go live."
+        buttons.append([InlineKeyboardButton("💰 Go Live Now", callback_data="menu_topup")])
+    else:
+        next_step += "You are live. Keep status online and refresh photos/rates regularly."
+        buttons.append([InlineKeyboardButton("🟢 Toggle Status", callback_data="menu_status")])
+
+    buttons.append([InlineKeyboardButton("🔙 Back to Profile", callback_data="menu_profile")])
+    text = (
+        "🚀 *GO LIVE CHECKLIST*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"{checks[0]}\n{checks[1]}\n{checks[2]}\n\n"
+        f"👑 Tier: *{tier}*\n"
+        f"⏱️ Expires: *{expiry_text}*\n\n"
+        f"{next_step}"
+    )
+    return text, InlineKeyboardMarkup(buttons)
 
 
 # ==================== /START COMMAND ====================
@@ -89,6 +145,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     logger.info(f"📊 Looking up provider for user {user.id}")
     provider = db.get_provider(user.id)
+    db.log_funnel_event(user.id, "start_seen", {"has_provider": bool(provider)})
     
     if provider:
         logger.info(f"👋 Returning user: {provider.get('display_name', 'Unknown')}")
@@ -279,6 +336,17 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 reply_markup=get_profile_keyboard(provider),
                 parse_mode="Markdown"
             )
+
+    # === GO LIVE CHECKLIST ===
+    elif action == "checklist":
+        if provider:
+            db.log_funnel_event(user.id, "checklist_viewed")
+            checklist_text, checklist_keyboard = build_go_live_checklist(provider)
+            await query.edit_message_text(
+                checklist_text,
+                reply_markup=checklist_keyboard,
+                parse_mode="Markdown",
+            )
     
     # === VERIFY PROMPTS ===
     elif action == "verify_start":
@@ -380,6 +448,11 @@ async def stage_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         if referrer and referrer["telegram_id"] != user.id:
             db.set_referred_by(user.id, referrer["telegram_id"])
             logger.info(f"🤝 User {user.id} referred by {referrer['telegram_id']}")
+    db.log_funnel_event(
+        user.id,
+        "registered",
+        {"city_pending": True, "has_username": bool(user.username)},
+    )
     
     await update.message.reply_text(
         f"✅ Excellent, *{stage_name_input}*.\n\n"
@@ -748,6 +821,7 @@ async def verify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         "📷 Send your photo now:",
         parse_mode="Markdown"
     )
+    db.log_funnel_event(user.id, "verification_started")
     return AWAITING_PHOTO
 
 
@@ -794,6 +868,7 @@ async def handle_verification_photo(update: Update, context: ContextTypes.DEFAUL
         reply_markup=get_admin_verification_keyboard(user.id),
         parse_mode="Markdown"
     )
+    db.log_funnel_event(user.id, "verification_submitted")
     
     await update.message.reply_text(
         "✅ *Photo Uploaded Successfully*\n\n"
@@ -1288,6 +1363,11 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
     # Save photos (store as JSON array of file_ids)
     photos = context.user_data["p_photos"]
     db.save_provider_photos(user.id, photos)
+    db.log_funnel_event(
+        user.id,
+        "profile_complete",
+        {"photo_count": len(photos), "languages_count": len(languages_list)},
+    )
     
     photo_count = len(photos)
     bonus_msg = ""
@@ -1358,6 +1438,7 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
     
     if action == "approve":
         db.verify_provider(provider_id, True)
+        db.log_funnel_event(provider_id, "verified")
         
         # Check if they have an active subscription
         is_active = provider.get("is_active", False) if provider else False
@@ -1437,8 +1518,7 @@ async def myprofile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     
     # Check if this is a new registration that needs completion
-    profile_fields = ['age', 'height_cm', 'weight_kg', 'build', 'services', 'bio', 'profile_photos']
-    is_incomplete = any(not provider.get(field) for field in profile_fields)
+    is_incomplete = not is_profile_complete(provider)
     
     if is_incomplete:
         # Prompt to complete profile
@@ -1808,7 +1888,7 @@ def register_handlers(application):
     # Menu callbacks (auth section)
     application.add_handler(CallbackQueryHandler(
         menu_callback,
-        pattern="^menu_(main|profile|verify_start|verify_go|status)$"
+        pattern="^menu_(main|profile|checklist|verify_start|verify_go|status)$"
     ))
     
     # Edit cancel callback

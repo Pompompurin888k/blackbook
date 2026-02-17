@@ -388,6 +388,35 @@ class Database:
             self.conn.rollback()
             return False
 
+    def log_funnel_event(self, tg_id: int, event_name: str, payload: Optional[Dict] = None) -> bool:
+        """Stores bot/business funnel events from web-side callbacks."""
+        self._ensure_connection()
+        event_payload = payload or {}
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS bot_funnel_events (
+                        id BIGSERIAL PRIMARY KEY,
+                        telegram_id BIGINT NOT NULL,
+                        event_name VARCHAR(64) NOT NULL,
+                        event_payload JSONB,
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+                cur.execute(
+                    """
+                    INSERT INTO bot_funnel_events (telegram_id, event_name, event_payload)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (tg_id, event_name[:64], Json(event_payload)),
+                )
+                self.conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error logging funnel event '{event_name}': {e}")
+            self.conn.rollback()
+            return False
+
     def boost_provider(self, tg_id: int, hours: int = 12) -> bool:
         """Boosts a provider's visibility for X hours (only if provider is active)."""
         boost_until = datetime.now() + timedelta(hours=hours)

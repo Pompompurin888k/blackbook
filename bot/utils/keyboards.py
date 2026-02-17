@@ -121,6 +121,8 @@ def get_full_profile_keyboard(provider: dict) -> InlineKeyboardMarkup:
     # Go live (if not active)
     if not provider.get("is_active"):
         buttons.append([InlineKeyboardButton("💳 Go Live Now", callback_data="menu_topup")])
+
+    buttons.append([InlineKeyboardButton("🚀 Go Live Checklist", callback_data="menu_checklist")])
     
     return InlineKeyboardMarkup(buttons)
 
@@ -149,6 +151,7 @@ def get_profile_keyboard(provider: dict) -> InlineKeyboardMarkup:
         buttons.append([InlineKeyboardButton(f"🎁 Start {FREE_TRIAL_DAYS}-Day Free Trial", callback_data="menu_trial_activate")])
     if not provider.get("is_active"):
         buttons.append([InlineKeyboardButton("💰 Go Live Now", callback_data="menu_topup")])
+    buttons.append([InlineKeyboardButton("🚀 Go Live Checklist", callback_data="menu_checklist")])
     buttons.append([InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")])
     return InlineKeyboardMarkup(buttons)
 

@@ -70,3 +70,11 @@ CREATE TABLE IF NOT EXISTS sessions (
     is_active BOOLEAN DEFAULT TRUE,
     admin_alerted BOOLEAN DEFAULT FALSE
 );
+
+CREATE TABLE IF NOT EXISTS bot_funnel_events (
+    id BIGSERIAL PRIMARY KEY,
+    telegram_id BIGINT NOT NULL,
+    event_name VARCHAR(64) NOT NULL,
+    event_payload JSONB,
+    created_at TIMESTAMP DEFAULT NOW()
+);
