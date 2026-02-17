@@ -57,6 +57,7 @@ from utils.formatters import (
 logger = logging.getLogger(__name__)
 
 PROFILE_REQUIRED_FIELDS = ["age", "height_cm", "weight_kg", "build", "services", "bio", "profile_photos"]
+PROFILE_FLOW_TOTAL_STEPS = 11
 
 
 # ==================== HELPER FUNCTIONS ====================
@@ -65,6 +66,16 @@ def get_db():
     """Gets the database instance from db_context module."""
     from db_context import get_db as _get_db
     return _get_db()
+
+
+def format_profile_step(step: int, title: str, body: str) -> str:
+    """Returns a consistent, premium-looking profile step message."""
+    return (
+        "✨ *Professional Portfolio Builder*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"*Step {step}/{PROFILE_FLOW_TOTAL_STEPS}: {title}*\n\n"
+        f"{body}"
+    )
 
 
 def is_profile_complete(provider: dict) -> bool:
@@ -912,12 +923,14 @@ async def complete_profile_from_button(update: Update, context: ContextTypes.DEF
         return ConversationHandler.END
     
     await query.message.reply_text(
-        "✨ *Professional Portfolio Builder*\n\n"
-        "Let's make your profile stand out to high-value clients.\n"
-        "We'll collect your stats, services, bio, and photos.\n\n"
-        "*Step 1/8: Age*\n"
-        "Please enter your age (e.g., 24):",
-        parse_mode="Markdown"
+        format_profile_step(
+            1,
+            "Age",
+            "Let's make your profile stand out to high-value clients.\n"
+            "We will collect your stats, services, bio, photos, rates, and languages.\n\n"
+            "Please enter your age (e.g., 24).",
+        ),
+        parse_mode="Markdown",
     )
     logger.info(f"→ Conversation started, waiting for age input in PROFILE_AGE state")
     return PROFILE_AGE
@@ -934,12 +947,14 @@ async def complete_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return ConversationHandler.END
         
     await update.message.reply_text(
-        "✨ *Professional Portfolio Builder*\n\n"
-        "Let's make your profile stand out to high-value clients.\n"
-        "We'll collect your stats, services, bio, and photos.\n\n"
-        "*Step 1/8: Age*\n"
-        "Please enter your age (e.g., 24):",
-        parse_mode="Markdown"
+        format_profile_step(
+            1,
+            "Age",
+            "Let's make your profile stand out to high-value clients.\n"
+            "We will collect your stats, services, bio, photos, rates, and languages.\n\n"
+            "Please enter your age (e.g., 24).",
+        ),
+        parse_mode="Markdown",
     )
     return PROFILE_AGE
 
@@ -969,8 +984,12 @@ async def profile_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         return PROFILE_AGE
         
     await update.message.reply_text(
-        "📏 **Step 2/8: Height**\n"
-        "Enter your height in cm (e.g., 170):"
+        format_profile_step(
+            2,
+            "Height",
+            "Enter your height in cm (e.g., 170).",
+        ),
+        parse_mode="Markdown",
     )
     logger.info(f"→ Moving to PROFILE_HEIGHT state")
     return PROFILE_HEIGHT
@@ -993,8 +1012,12 @@ async def profile_height(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return PROFILE_HEIGHT
         
     await update.message.reply_text(
-        "⚖️ **Step 3/8: Weight**\n"
-        "Enter your weight in kg (e.g., 55):"
+        format_profile_step(
+            3,
+            "Weight",
+            "Enter your weight in kg (e.g., 55).",
+        ),
+        parse_mode="Markdown",
     )
     return PROFILE_WEIGHT
 
@@ -1022,9 +1045,13 @@ async def profile_weight(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
     logger.info(f"→ Sending build keyboard and moving to PROFILE_BUILD state")
     await update.message.reply_text(
-        "🧘‍♀️ **Step 4/8: Body Build**\n"
-        "Select your body type:",
-        reply_markup=get_build_keyboard()
+        format_profile_step(
+            4,
+            "Body Build",
+            "Select your body type from the options below.",
+        ),
+        parse_mode="Markdown",
+        reply_markup=get_build_keyboard(),
     )
     logger.info(f"✅ Build keyboard sent successfully")
     return PROFILE_BUILD
@@ -1038,10 +1065,13 @@ async def profile_build(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     context.user_data["p_build"] = build
     
     await query.edit_message_text(
-        f"✅ Build: {build}\n\n"
-        "🏠 **Step 5/8: Availability**\n"
-        "Where do you provide services?",
-        reply_markup=get_availability_keyboard()
+        format_profile_step(
+            5,
+            "Availability",
+            f"✅ Build selected: *{build}*\n\nWhere do you provide services?",
+        ),
+        parse_mode="Markdown",
+        reply_markup=get_availability_keyboard(),
     )
     return PROFILE_AVAILABILITY
 
@@ -1056,10 +1086,15 @@ async def profile_availability(update: Update, context: ContextTypes.DEFAULT_TYP
     context.user_data["p_services"] = [] # Initialize services list
     
     await query.edit_message_text(
-        f"✅ Availability: {avail}\n\n"
-        "💆‍♀️ **Step 6/8: Services Menu**\n"
-        "Select all that apply (Multi-select). Click Done when finished.",
-        reply_markup=get_services_keyboard([])
+        format_profile_step(
+            6,
+            "Services Menu",
+            f"✅ Availability selected: *{avail}*\n\n"
+            "Select all services that apply.\n"
+            "You can multi-select, then tap *Done / Continue*.",
+        ),
+        parse_mode="Markdown",
+        reply_markup=get_services_keyboard([]),
     )
     return PROFILE_SERVICES
 
@@ -1077,11 +1112,14 @@ async def profile_services(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return PROFILE_SERVICES
             
         await query.edit_message_text(
-            f"✅ Selected: {', '.join(current_services)}\n\n"
-            "📝 **Step 7/8: Your Bio**\n"
-            "Write a short, elegant description about yourself (2-3 sentences). "
-            "Sell the fantasy!",
-            parse_mode="Markdown"
+            format_profile_step(
+                7,
+                "Your Bio",
+                f"✅ Services selected: {', '.join(current_services)}\n\n"
+                "Write a short, elegant description about yourself (2-3 sentences).\n"
+                "Focus on vibe, professionalism, and what makes you memorable.",
+            ),
+            parse_mode="Markdown",
         )
         return PROFILE_BIO
         
@@ -1116,10 +1154,14 @@ async def profile_bio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     context.user_data["p_bio"] = bio
     
     await update.message.reply_text(
-        "🗺️ *Step 7/8: Location Highlights*\n"
-        "List popular malls or landmarks near you (for SEO).\n"
-        "e.g., 'Near Yaya Center, Prestige Plaza'",
-        parse_mode="Markdown"
+        format_profile_step(
+            8,
+            "Location Highlights",
+            "List popular malls or landmarks near you.\n"
+            "This helps discovery in search.\n\n"
+            "Example: `Near Yaya Centre, Prestige Plaza`",
+        ),
+        parse_mode="Markdown",
     )
     return PROFILE_NEARBY
 
@@ -1136,14 +1178,17 @@ async def profile_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data["p_nearby"] = nearby
     
     await update.message.reply_text(
-        "📸 *Step 8/8: Gallery Photos*\n\n"
-        "Upload *3 photos minimum* (you can send up to 5).\n\n"
-        "Tips:\n"
-        "• Use good lighting\n"
-        "• Show variety (full body, face, different angles)\n"
-        "• Professional quality attracts premium clients\n\n"
-        "Send your first photo now:",
-        parse_mode="Markdown"
+        format_profile_step(
+            9,
+            "Gallery Photos",
+            "Upload *3 photos minimum* (you can send up to 5).\n\n"
+            "*Tips:*\n"
+            "• Use good lighting\n"
+            "• Show variety (full body, face, different angles)\n"
+            "• Professional quality attracts premium clients\n\n"
+            "Send your first photo now.",
+        ),
+        parse_mode="Markdown",
     )
     context.user_data["p_photos"] = []
     return PROFILE_PHOTOS
@@ -1206,19 +1251,20 @@ async def profile_photos(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def ask_rates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Asks for hourly rates."""
     await update.message.reply_text(
-        "💰 *Set Your Hourly Rates*\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "Please provide your pricing in KES for each duration.\n\n"
-        "Send them in this exact format (one message):\n\n"
-        "`30min: 2000`\n"
-        "`1hr: 3500`\n"
-        "`2hr: 6000`\n"
-        "`3hr: 8000`\n"
-        "`overnight: 15000`\n\n"
-        "💡 *Example:*\n"
-        "```\n30min: 3000\n1hr: 5000\n2hr: 8500\n3hr: 12000\novernight: 20000```\n\n"
-        "⚠️ Copy the format above and just change the numbers.",
-        parse_mode="Markdown"
+        format_profile_step(
+            10,
+            "Set Your Rates",
+            "Provide your pricing in KES for each duration.\n\n"
+            "Send in this exact format (one message):\n"
+            "`30min: 2000`\n"
+            "`1hr: 3500`\n"
+            "`2hr: 6000`\n"
+            "`3hr: 8000`\n"
+            "`overnight: 15000`\n\n"
+            "Example:\n"
+            "```\n30min: 3000\n1hr: 5000\n2hr: 8500\n3hr: 12000\novernight: 20000\n```",
+        ),
+        parse_mode="Markdown",
     )
     return PROFILE_RATES
 
@@ -1281,13 +1327,15 @@ async def profile_rates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     
     # Ask for languages
     await update.message.reply_text(
-        "🌍 *Languages You Speak*\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "Select all languages you can communicate in.\n"
-        "This helps attract international clients!\n\n"
-        "Tap to select/deselect:",
+        format_profile_step(
+            11,
+            "Languages You Speak",
+            "Select all languages you can communicate in.\n"
+            "This helps attract international and premium clients.\n\n"
+            "Tap to select/deselect, then tap *Done / Continue*.",
+        ),
         reply_markup=get_languages_keyboard(),
-        parse_mode="Markdown"
+        parse_mode="Markdown",
     )
     context.user_data["p_languages"] = []
     return PROFILE_LANGUAGES
@@ -1427,9 +1475,12 @@ async def done_photos(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         return PROFILE_PHOTOS
     
     await update.message.reply_text(
-        f"✅ {len(photos)} photos saved!\n\n"
-        "Moving to rates setup...",
-        parse_mode="Markdown"
+        format_profile_step(
+            10,
+            "Set Your Rates",
+            f"✅ {len(photos)} photos saved.\n\nNow let us set your rates.",
+        ),
+        parse_mode="Markdown",
     )
     
     return await ask_rates(update, context)
