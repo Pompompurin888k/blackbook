@@ -938,15 +938,22 @@ async def photos_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     
     # Add photos
     if data == "photos_add":
+        context.user_data["photo_add_mode"] = True
         await query.edit_message_text(
             "📸 *Add Photos*\n\n"
-            "Tap ✏️ Edit Profile in 👤 My Profile to add more photos.",
-            parse_mode="Markdown"
+            "Send your photo(s) now.\n"
+            "You can keep adding until you reach 5 total.\n\n"
+            "Tap *Done* when finished.",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Done", callback_data="photos_manage")]
+            ]),
         )
         return
     
     # Back to photo management
     if data == "photos_manage":
+        context.user_data.pop("photo_add_mode", None)
         await query.edit_message_text(
             "📸 *Photo Gallery Manager*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -985,6 +992,59 @@ async def photos_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 parse_mode="Markdown"
             )
         return
+
+
+async def handle_photo_add_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Accepts photo uploads while user is in gallery add mode."""
+    if not context.user_data.get("photo_add_mode"):
+        return
+
+    user = update.effective_user
+    db = get_db()
+    provider = db.get_provider(user.id)
+    if not provider:
+        context.user_data.pop("photo_add_mode", None)
+        return
+
+    photos = provider.get("profile_photos") or []
+    if isinstance(photos, str):
+        import json
+        try:
+            photos = json.loads(photos)
+        except (json.JSONDecodeError, TypeError):
+            photos = []
+
+    if not update.message.photo:
+        await update.message.reply_text("⚠️ Please send a photo.")
+        return
+
+    if len(photos) >= 5:
+        context.user_data.pop("photo_add_mode", None)
+        await update.message.reply_text(
+            "✅ You already have 5 photos (maximum).",
+            reply_markup=get_photo_management_keyboard(len(photos)),
+            parse_mode="Markdown",
+        )
+        return
+
+    photo_file_id = update.message.photo[-1].file_id
+    photos.append(photo_file_id)
+    db.save_provider_photos(user.id, photos)
+
+    if len(photos) >= 5:
+        context.user_data.pop("photo_add_mode", None)
+        await update.message.reply_text(
+            "✅ *Photo added!* You now have 5/5 photos.",
+            reply_markup=get_photo_management_keyboard(len(photos)),
+            parse_mode="Markdown",
+        )
+        return
+
+    await update.message.reply_text(
+        f"✅ *Photo added!* You now have {len(photos)}/5 photos.\n\n"
+        "Send another photo or tap *Done* in the previous message.",
+        parse_mode="Markdown",
+    )
 
 
 # ==================== VERIFICATION CONVERSATION ====================
@@ -2218,6 +2278,12 @@ def register_handlers(application):
         filters.TEXT & ~filters.COMMAND,
         handle_menu_buttons
     ), group=1)
+
+    # Photo add mode handler (only active when photo_add_mode flag is set)
+    application.add_handler(MessageHandler(
+        filters.PHOTO,
+        handle_photo_add_mode
+    ), group=2)
 
 
 def register_admin_verification_handlers(application):
