@@ -161,14 +161,20 @@ STATE="$(db_query "SELECT is_verified::text || '|' || is_active::text || '|' || 
 STATE="$(echo "$STATE" | tr -d '\r')"
 IFS='|' read -r is_verified is_active tier expiry <<< "$STATE"
 
+is_truthy() {
+  local v
+  v="$(echo "${1:-}" | tr '[:upper:]' '[:lower:]')"
+  [[ "$v" == "t" || "$v" == "true" || "$v" == "1" || "$v" == "yes" ]]
+}
+
 echo "Step 4/4: verify provider state"
 echo "State: is_verified=$is_verified is_active=$is_active tier=$tier expiry=$expiry"
 
-if [[ "$is_verified" != "t" ]]; then
+if ! is_truthy "$is_verified"; then
   echo "FAIL: provider is_verified should be true."
   exit 1
 fi
-if [[ "$is_active" != "t" ]]; then
+if ! is_truthy "$is_active"; then
   echo "FAIL: provider is_active should be true."
   exit 1
 fi
