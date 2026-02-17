@@ -16,6 +16,7 @@ class Database:
         self.user = os.getenv("DB_USER", "bb_operator")
         self.password = os.getenv("DB_PASSWORD")
         self.port = os.getenv("DB_PORT", "5432")
+        self.db_timezone = os.getenv("DB_TIMEZONE", "Africa/Nairobi")
         self.conn = self.connect_with_retry()
         self.init_tables()
 
@@ -29,6 +30,7 @@ class Database:
                     user=self.user,
                     password=self.password,
                     port=self.port,
+                    options=f"-c timezone={self.db_timezone}",
                     cursor_factory=RealDictCursor
                 )
                 logger.info("✅ Successfully connected to the Blackbook Vault.")

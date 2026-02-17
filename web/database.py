@@ -19,6 +19,7 @@ class Database:
         self.user = os.getenv("DB_USER", "bb_operator")
         self.password = os.getenv("DB_PASSWORD")
         self.port = os.getenv("DB_PORT", "5432")
+        self.db_timezone = os.getenv("DB_TIMEZONE", "Africa/Nairobi")
         self.conn = None
         self._connect()
         self._run_startup_migrations()
@@ -34,10 +35,11 @@ class Database:
                     user=self.user,
                     password=self.password,
                     port=self.port,
+                    options=f"-c timezone={self.db_timezone}",
                     cursor_factory=RealDictCursor
                 )
                 self.conn.autocommit = False
-                logger.info("✅ Web app connected to database.")
+                logger.info(f"✅ Web app connected to database (timezone={self.db_timezone}).")
                 return
             except psycopg2.OperationalError:
                 logger.info("⏳ Database is booting up... retrying in 2 seconds.")

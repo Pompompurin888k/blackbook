@@ -8,6 +8,7 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+      TZ: ${TZ:-Africa/Nairobi}
     ports:
       - "0.0.0.0:8291:5432" # Accessible from host (needed for bot running in host mode)
     volumes:
@@ -30,6 +31,8 @@ services:
     env_file:
       - .env
     environment:
+      TZ: ${TZ:-Africa/Nairobi}
+      DB_TIMEZONE: ${DB_TIMEZONE:-Africa/Nairobi}
       BOT_ROLE: client
       BOT_HEARTBEAT_FILE: /tmp/blackbook_bot_heartbeat
     volumes:
@@ -52,6 +55,8 @@ services:
     env_file:
       - .env
     environment:
+      TZ: ${TZ:-Africa/Nairobi}
+      DB_TIMEZONE: ${DB_TIMEZONE:-Africa/Nairobi}
       BOT_ROLE: admin
       BOT_HEARTBEAT_FILE: /tmp/blackbook_admin_bot_heartbeat
     volumes:
@@ -75,6 +80,9 @@ services:
       - "127.0.0.1:8080:8080"  # Only accessible from localhost (nginx will proxy)
     env_file:
       - .env
+    environment:
+      TZ: ${TZ:-Africa/Nairobi}
+      DB_TIMEZONE: ${DB_TIMEZONE:-Africa/Nairobi}
     command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
     volumes:
       - ./web:/app
