@@ -98,9 +98,10 @@ def _sanitize_phone(value: Optional[str]) -> str:
 
 def _build_gallery_urls(provider_id: int, photo_ids: list[str]) -> list[str]:
     urls = [f"/photo/{file_id}" for file_id in photo_ids if file_id]
-    while len(urls) < 5:
-        urls.append(_fallback_image(provider_id, len(urls)))
-    return urls
+    if urls:
+        return urls[:5]
+    # Keep a single fallback only when provider has no uploaded photos at all.
+    return [_fallback_image(provider_id)]
 
 
 def _normalize_provider(provider: dict) -> dict:
