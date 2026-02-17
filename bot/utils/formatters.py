@@ -2,6 +2,8 @@
 Blackbook Bot Text Formatters
 Utility functions for formatting messages and text styling.
 """
+import ast
+import json
 import random
 import string
 
@@ -44,6 +46,46 @@ def format_expiry_date(expiry_date) -> str:
     return "No active subscription"
 
 
+def _clean_item(value: str) -> str:
+    """Cleans list-like text values for pretty display."""
+    cleaned = str(value).strip().strip("\"'").strip()
+    return " ".join(cleaned.split())
+
+
+def _parse_list_field(value) -> list[str]:
+    """Parses list-like DB fields that may be list/json/csv/python-list strings."""
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple)):
+        return [item for item in (_clean_item(v) for v in value) if item]
+
+    raw = str(value).strip()
+    if not raw:
+        return []
+
+    # JSON list string
+    if raw.startswith("[") and raw.endswith("]"):
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                return [item for item in (_clean_item(v) for v in parsed) if item]
+        except Exception:
+            pass
+        try:
+            parsed = ast.literal_eval(raw)
+            if isinstance(parsed, (list, tuple)):
+                return [item for item in (_clean_item(v) for v in parsed) if item]
+        except Exception:
+            pass
+
+    # Comma-separated fallback
+    if "," in raw:
+        return [item for item in (_clean_item(v) for v in raw.split(",")) if item]
+
+    item = _clean_item(raw)
+    return [item] if item else []
+
+
 def format_profile_text(provider: dict) -> str:
     """Formats the full profile text for display."""
     name = provider.get("display_name", "Unknown")
@@ -78,14 +120,9 @@ def format_profile_text(provider: dict) -> str:
     
     # Format languages if available
     languages_section = ""
-    if provider.get("languages"):
-        import json
-        try:
-            languages = json.loads(provider.get("languages"))
-            if languages:
-                languages_section = f"\n🌍 *Languages:* {', '.join(languages)}"
-        except:
-            pass
+    languages = _parse_list_field(provider.get("languages"))
+    if languages:
+        languages_section = f"\n🌍 *Languages:* {', '.join(languages)}"
     
     return (
         f"👤 *YOUR PROFILE*\n"
@@ -175,8 +212,6 @@ def format_main_menu_header(provider: dict) -> str:
 
 def format_full_profile_text(provider: dict) -> str:
     """Formats the complete profile with ALL data for the My Profile view."""
-    import json
-    
     name = provider.get("display_name", "Not set")
     city = provider.get("city", "Not set")
     neighborhood = provider.get("neighborhood", "Not set")
@@ -206,12 +241,8 @@ def format_full_profile_text(provider: dict) -> str:
         nearby = nearby[:47] + "..."
     
     # Services
-    services = provider.get("services") or "Not set"
-    if isinstance(services, str) and services.startswith("["):
-        try:
-            services = ", ".join(json.loads(services))
-        except:
-            pass
+    services = _parse_list_field(provider.get("services"))
+    services_text = " • ".join(services[:6]) if services else "Not set"
     
     # Photos count
     photos = provider.get("profile_photos") or []
@@ -225,43 +256,47 @@ def format_full_profile_text(provider: dict) -> str:
     # Rates
     rates_lines = []
     if provider.get('rate_30min'):
-        rates_lines.append(f"30min: {provider.get('rate_30min'):,}")
+        rates_lines.append(f"• 30 min — {provider.get('rate_30min'):,}")
     if provider.get('rate_1hr'):
-        rates_lines.append(f"1hr: {provider.get('rate_1hr'):,}")
+        rates_lines.append(f"• 1 hour — {provider.get('rate_1hr'):,}")
     if provider.get('rate_2hr'):
-        rates_lines.append(f"2hr: {provider.get('rate_2hr'):,}")
+        rates_lines.append(f"• 2 hours — {provider.get('rate_2hr'):,}")
     if provider.get('rate_3hr'):
-        rates_lines.append(f"3hr: {provider.get('rate_3hr'):,}")
+        rates_lines.append(f"• 3 hours — {provider.get('rate_3hr'):,}")
     if provider.get('rate_overnight'):
-        rates_lines.append(f"overnight: {provider.get('rate_overnight'):,}")
-    rates_text = " | ".join(rates_lines) if rates_lines else "Not set"
+        rates_lines.append(f"• Overnight — {provider.get('rate_overnight'):,}")
+    rates_text = "\n".join(rates_lines) if rates_lines else "• Not set"
     
     # Languages
-    languages = provider.get("languages")
-    if languages:
-        try:
-            languages = ", ".join(json.loads(languages))
-        except:
-            pass
-    else:
-        languages = "Not set"
+    languages = _parse_list_field(provider.get("languages"))
+    languages_text = " • ".join(languages[:6]) if languages else "Not set"
+
+    # Display helpers
+    location_line = f"{neighborhood}, {city}" if neighborhood != "Not set" else city
+    listing_line = "Live on directory" if provider.get("is_active") else "Profile saved, not live"
     
     return (
-        f"👤 *{name}*\n"
+        f"💎 *{name}*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"📍 {neighborhood}, {city}\n"
-        f"{badges['online']} • {badges['verified']}\n\n"
-        "📊 *Stats*\n"
-        f"Age: {age} • Height: {height}cm • Weight: {weight}kg\n"
-        f"Build: {build}\n\n"
-        f"💬 *Bio:* {bio}\n\n"
-        f"📌 *Nearby:* {nearby}\n\n"
-        f"✨ *Services:* {services}\n\n"
-        f"💰 *Rates (KES):* {rates_text}\n\n"
-        f"🌍 *Languages:* {languages}\n\n"
-        f"📸 *Photos:* {photo_count} uploaded\n\n"
+        f"📍 *Location:* {location_line}\n"
+        f"🟢 *Status:* {badges['online']} • {badges['verified']}\n\n"
+        "📌 *About*\n"
+        f"• Age: {age} yrs\n"
+        f"• Height: {height} cm\n"
+        f"• Weight: {weight} kg\n"
+        f"• Build: {build}\n"
+        f"• Nearby: {nearby}\n\n"
+        "📝 *Bio*\n"
+        f"{bio}\n\n"
+        "✨ *Services*\n"
+        f"{services_text}\n\n"
+        "💰 *Rates (KES)*\n"
+        f"{rates_text}\n\n"
+        f"🌍 *Languages:* {languages_text}\n"
+        f"📸 *Gallery:* {photo_count} photo(s)\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"⏱️ Subscription: {expiry_text}\n"
-        f"👑 Tier: {format_tier_badge(provider.get('subscription_tier', 'none'))}"
+        f"⏱️ *Subscription:* {expiry_text}\n"
+        f"👑 *Tier:* {format_tier_badge(provider.get('subscription_tier', 'none'))}\n"
+        f"🚀 *Visibility:* {listing_line}"
     )
 
