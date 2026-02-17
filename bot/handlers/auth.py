@@ -1375,7 +1375,14 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
         bonus_msg = "\n\n🌟 *5-Photo Bonus:* Premium visibility in search results!"
     
     lang_count = len(languages_list)
-    await update.message.reply_text(
+    if update.message:
+        responder = update.message
+    elif update.callback_query and update.callback_query.message:
+        responder = update.callback_query.message
+    else:
+        responder = None
+
+    final_text = (
         f"✅ *Profile Saved Successfully!*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"📸 {photo_count} photos uploaded{bonus_msg}\n"
@@ -1389,9 +1396,21 @@ async def save_complete_profile(update: Update, context: ContextTypes.DEFAULT_TY
         "💡 *While you wait:*\n"
         "• Use 👤 My Profile to view/edit your info\n"
         "• Use 💰 Top up Balance to activate your listing",
-        parse_mode="Markdown",
-        reply_markup=get_persistent_main_menu()
     )
+
+    if responder:
+        await responder.reply_text(
+            final_text,
+            parse_mode="Markdown",
+            reply_markup=get_persistent_main_menu()
+        )
+    else:
+        await context.bot.send_message(
+            chat_id=user.id,
+            text=final_text,
+            parse_mode="Markdown",
+            reply_markup=get_persistent_main_menu()
+        )
     context.user_data.clear()
     return ConversationHandler.END
 
