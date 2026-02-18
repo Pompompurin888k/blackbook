@@ -3,7 +3,10 @@ import logging
 import json
 import hmac
 import hashlib
+import secrets
+import uuid
 from collections import OrderedDict
+from pathlib import Path
 import httpx
 from fastapi import FastAPI, Request, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
@@ -11,12 +14,19 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from typing import Optional
 from urllib.parse import quote
+from starlette.middleware.sessions import SessionMiddleware
 from database import Database
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Blackbook Directory", docs_url=None, redoc_url=None)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("PROVIDER_PORTAL_SESSION_SECRET", "replace-this-portal-secret"),
+    same_site="lax",
+    https_only=os.getenv("SESSION_COOKIE_SECURE", "false").strip().lower() == "true",
+)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Templates
@@ -41,6 +51,11 @@ PACKAGE_PRICES = {
     30: int(os.getenv("PACKAGE_PRICE_30", "1500")),
     90: int(os.getenv("PACKAGE_PRICE_90", "4000")),
 }
+PUBLIC_BASE_URL = os.getenv("PUBLIC_WEB_BASE_URL", "https://innbucks.org").rstrip("/")
+PORTAL_ADMIN_WHATSAPP = os.getenv("PORTAL_ADMIN_WHATSAPP", "")
+PORTAL_MAX_PROFILE_PHOTOS = int(os.getenv("PORTAL_MAX_PROFILE_PHOTOS", "8"))
+PORTAL_MAX_UPLOAD_BYTES = int(os.getenv("PORTAL_MAX_UPLOAD_BYTES", str(6 * 1024 * 1024)))
+ALLOWED_UPLOAD_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 # Photo file-path cache (in-memory for now, consider Redis for production)
 MAX_PHOTO_CACHE_ITEMS = int(os.getenv("MAX_PHOTO_CACHE_ITEMS", "2000"))
@@ -96,6 +111,92 @@ def _sanitize_phone(value: Optional[str]) -> str:
     return digits
 
 
+def _normalize_portal_phone(value: str) -> str:
+    """Normalizes and validates provider phone numbers for portal auth."""
+    digits = _sanitize_phone(value)
+    if not digits.startswith("254"):
+        return ""
+    if len(digits) < 12:
+        return ""
+    return digits[:12]
+
+
+def _hash_password(password: str) -> str:
+    """Hashes password with PBKDF2 for provider portal auth."""
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        120_000,
+    ).hex()
+    return f"{salt}${digest}"
+
+
+def _verify_password(password: str, stored_hash: str) -> bool:
+    """Verifies password against stored PBKDF2 hash."""
+    if not stored_hash or "$" not in stored_hash:
+        return False
+    salt, existing = stored_hash.split("$", 1)
+    candidate = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        120_000,
+    ).hex()
+    return hmac.compare_digest(existing, candidate)
+
+
+def _portal_session_provider_id(request: Request) -> Optional[int]:
+    """Gets provider ID from portal session cookie."""
+    value = request.session.get("provider_portal_id")
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _portal_generate_whatsapp_code() -> str:
+    """Generates short manual verification code for WhatsApp confirmation."""
+    return f"BB-{secrets.randbelow(9000) + 1000}"
+
+
+def _to_int_or_none(value) -> Optional[int]:
+    if value is None:
+        return None
+    text = str(value).replace(",", "").strip()
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+async def _save_provider_upload(provider_id: int, upload, prefix: str) -> Optional[str]:
+    """Saves portal-uploaded image under static/uploads and returns public URL."""
+    if not upload or not getattr(upload, "filename", None):
+        return None
+    ext = Path(upload.filename).suffix.lower()
+    if ext not in ALLOWED_UPLOAD_EXTENSIONS:
+        ext = ".jpg"
+    data = await upload.read()
+    if not data:
+        return None
+    if len(data) > PORTAL_MAX_UPLOAD_BYTES:
+        return None
+    target_dir = Path("static/uploads/providers") / str(provider_id)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{prefix}_{uuid.uuid4().hex}{ext}"
+    target_path = target_dir / filename
+    with open(target_path, "wb") as handle:
+        handle.write(data)
+    relative_url = f"/static/uploads/providers/{provider_id}/{filename}"
+    return f"{PUBLIC_BASE_URL}{relative_url}"
+
+
 def _extract_client_ip(request: Request) -> str:
     """Best-effort client IP extraction behind reverse proxies."""
     forwarded_for = request.headers.get("x-forwarded-for", "")
@@ -123,7 +224,17 @@ def _detect_device_type(user_agent: str) -> str:
 
 
 def _build_gallery_urls(provider_id: int, photo_ids: list[str]) -> list[str]:
-    urls = [f"/photo/{file_id}" for file_id in photo_ids if file_id]
+    urls = []
+    for file_id in photo_ids:
+        if not file_id:
+            continue
+        file_id_str = str(file_id).strip()
+        if not file_id_str:
+            continue
+        if file_id_str.startswith("http://") or file_id_str.startswith("https://") or file_id_str.startswith("/"):
+            urls.append(file_id_str)
+        else:
+            urls.append(f"/photo/{file_id_str}")
     if urls:
         return urls[:5]
     # Keep a single fallback only when provider has no uploaded photos at all.
@@ -178,7 +289,14 @@ def _normalize_provider(provider: dict) -> dict:
 def _normalize_recommendation(provider: dict) -> dict:
     card = dict(provider)
     photo_ids = _to_string_list(card.get("profile_photos"))
-    card["photo_url"] = f"/photo/{photo_ids[0]}" if photo_ids else _fallback_image(card.get("id", 0))
+    if photo_ids:
+        first = str(photo_ids[0]).strip()
+        if first.startswith("http://") or first.startswith("https://") or first.startswith("/"):
+            card["photo_url"] = first
+        else:
+            card["photo_url"] = f"/photo/{first}"
+    else:
+        card["photo_url"] = _fallback_image(card.get("id", 0))
     card["location"] = card.get("neighborhood") or card.get("city") or "Nairobi"
     card["services_list"] = _to_string_list(card.get("services"))[:2]
     return card
@@ -306,6 +424,284 @@ NEIGHBORHOODS = {
     "Eldoret": ["Town Centre", "Elgon View", "Langas", "Kapsoya"],
     "Mombasa": ["Nyali", "Bamburi", "Mtwapa", "Diani", "Town Centre"]
 }
+
+
+@app.get("/provider", response_class=HTMLResponse)
+async def provider_portal_auth(request: Request, error: Optional[str] = None, success: Optional[str] = None):
+    """Provider portal auth page (phone + password)."""
+    provider_id = _portal_session_provider_id(request)
+    if provider_id:
+        return RedirectResponse(url="/provider/dashboard", status_code=302)
+    return templates.TemplateResponse(
+        "provider_auth.html",
+        {
+            "request": request,
+            "error": error,
+            "success": success,
+        },
+    )
+
+
+@app.post("/provider/register")
+async def provider_portal_register(request: Request):
+    """Creates a new non-Telegram provider account."""
+    form = await request.form()
+    display_name = str(form.get("display_name", "")).strip()
+    phone = _normalize_portal_phone(str(form.get("phone", "")).strip())
+    password = str(form.get("password", ""))
+    confirm_password = str(form.get("confirm_password", ""))
+
+    if len(display_name) < 2:
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {"request": request, "error": "Display name must be at least 2 characters.", "success": None},
+            status_code=400,
+        )
+    if not phone:
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {"request": request, "error": "Use a valid Kenyan phone number (e.g. 2547XXXXXXXX).", "success": None},
+            status_code=400,
+        )
+    if len(password) < 6:
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {"request": request, "error": "Password must be at least 6 characters.", "success": None},
+            status_code=400,
+        )
+    if password != confirm_password:
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {"request": request, "error": "Passwords do not match.", "success": None},
+            status_code=400,
+        )
+
+    created = db.create_portal_provider_account(
+        phone=phone,
+        password_hash=_hash_password(password),
+        display_name=display_name,
+    )
+    if not created:
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {
+                "request": request,
+                "error": "This phone is already registered. Please log in instead.",
+                "success": None,
+            },
+            status_code=400,
+        )
+
+    provider_id = int(created["id"])
+    request.session["provider_portal_id"] = provider_id
+    verify_code = _portal_generate_whatsapp_code()
+    db.set_portal_phone_verification_code(provider_id, verify_code)
+    await send_admin_alert(
+        f"New portal signup: {display_name} ({phone}) provider_id={provider_id}. "
+        f"Manual WhatsApp verification code: {verify_code}"
+    )
+    return RedirectResponse(url="/provider/onboarding", status_code=303)
+
+
+@app.post("/provider/login")
+async def provider_portal_login(request: Request):
+    """Logs in an existing portal provider account."""
+    form = await request.form()
+    phone = _normalize_portal_phone(str(form.get("phone", "")).strip())
+    password = str(form.get("password", ""))
+
+    provider = db.get_portal_provider_by_phone(phone) if phone else None
+    stored_hash = provider.get("portal_password_hash") if provider else None
+    if not provider or not _verify_password(password, stored_hash):
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {"request": request, "error": "Invalid phone or password.", "success": None},
+            status_code=401,
+        )
+
+    request.session["provider_portal_id"] = int(provider["id"])
+    return RedirectResponse(url="/provider/dashboard", status_code=303)
+
+
+@app.post("/provider/logout")
+async def provider_portal_logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/provider?success=Logged+out+successfully", status_code=303)
+
+
+@app.get("/provider/onboarding", response_class=HTMLResponse)
+async def provider_portal_onboarding(request: Request):
+    """Mobile-first onboarding form for non-Telegram providers."""
+    provider_id = _portal_session_provider_id(request)
+    if not provider_id:
+        return RedirectResponse(url="/provider", status_code=302)
+    provider = db.get_portal_provider_by_id(provider_id)
+    if not provider:
+        request.session.clear()
+        return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
+
+    return templates.TemplateResponse(
+        "provider_onboarding.html",
+        {
+            "request": request,
+            "provider": provider,
+            "cities": CITIES,
+            "neighborhood_map": NEIGHBORHOODS,
+            "photo_urls": _to_string_list(provider.get("profile_photos")),
+            "services_text": ", ".join(_to_string_list(provider.get("services"))),
+            "languages_text": ", ".join(_to_string_list(provider.get("languages"))),
+            "max_photos": PORTAL_MAX_PROFILE_PHOTOS,
+        },
+    )
+
+
+@app.post("/provider/onboarding")
+async def provider_portal_onboarding_submit(request: Request):
+    """Saves onboarding profile data and media uploads."""
+    provider_id = _portal_session_provider_id(request)
+    if not provider_id:
+        return RedirectResponse(url="/provider", status_code=302)
+    provider = db.get_portal_provider_by_id(provider_id)
+    if not provider:
+        request.session.clear()
+        return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
+
+    form = await request.form()
+    display_name = str(form.get("display_name", "")).strip()
+    city = str(form.get("city", "")).strip()
+    neighborhood = str(form.get("neighborhood", "")).strip()
+    build = str(form.get("build", "")).strip()
+    bio = str(form.get("bio", "")).strip()
+    nearby_places = str(form.get("nearby_places", "")).strip()
+    availability_type = str(form.get("availability_type", "")).strip()
+    services = [item.strip() for item in str(form.get("services", "")).split(",") if item.strip()]
+    languages = [item.strip() for item in str(form.get("languages", "")).split(",") if item.strip()]
+
+    existing_photo_urls = _to_string_list(provider.get("profile_photos"))
+    upload_items = form.getlist("photos")
+    for upload in upload_items:
+        if len(existing_photo_urls) >= PORTAL_MAX_PROFILE_PHOTOS:
+            break
+        saved_url = await _save_provider_upload(provider_id, upload, "profile")
+        if saved_url:
+            existing_photo_urls.append(saved_url)
+
+    verification_photo_upload = form.get("verification_photo")
+    verification_photo_url = await _save_provider_upload(provider_id, verification_photo_upload, "verify")
+
+    update_data = {
+        "display_name": display_name or provider.get("display_name"),
+        "city": city,
+        "neighborhood": neighborhood,
+        "age": _to_int_or_none(form.get("age")),
+        "height_cm": _to_int_or_none(form.get("height_cm")),
+        "weight_kg": _to_int_or_none(form.get("weight_kg")),
+        "build": build,
+        "services": services,
+        "bio": bio,
+        "nearby_places": nearby_places,
+        "availability_type": availability_type,
+        "languages": languages,
+        "profile_photos": existing_photo_urls,
+        "rate_30min": _to_int_or_none(form.get("rate_30min")),
+        "rate_1hr": _to_int_or_none(form.get("rate_1hr")),
+        "rate_2hr": _to_int_or_none(form.get("rate_2hr")),
+        "rate_3hr": _to_int_or_none(form.get("rate_3hr")),
+        "rate_overnight": _to_int_or_none(form.get("rate_overnight")),
+        "is_online": False,
+        "portal_onboarding_complete": bool(display_name and city and neighborhood and bio and existing_photo_urls),
+    }
+    if verification_photo_url:
+        update_data["verification_photo_id"] = verification_photo_url
+
+    db.update_portal_provider_profile(provider_id, update_data)
+    provider_after = db.get_portal_provider_by_id(provider_id) or {}
+    if not provider_after.get("phone_verify_code"):
+        db.set_portal_phone_verification_code(provider_id, _portal_generate_whatsapp_code())
+
+    if verification_photo_url:
+        await send_admin_alert(
+            "Portal verification submitted: "
+            f"provider_id={provider_id}, name={display_name or provider.get('display_name', 'Unknown')}, "
+            f"phone={provider.get('phone', '')}, photo={verification_photo_url}"
+        )
+
+    return RedirectResponse(url="/provider/dashboard?saved=1", status_code=303)
+
+
+@app.get("/provider/dashboard", response_class=HTMLResponse)
+async def provider_portal_dashboard(request: Request, saved: Optional[int] = 0):
+    """Provider dashboard for non-Telegram onboarding users."""
+    provider_id = _portal_session_provider_id(request)
+    if not provider_id:
+        return RedirectResponse(url="/provider", status_code=302)
+    provider = db.get_portal_provider_by_id(provider_id)
+    if not provider:
+        request.session.clear()
+        return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
+
+    phone_code = provider.get("phone_verify_code")
+    if not phone_code:
+        phone_code = _portal_generate_whatsapp_code()
+        db.set_portal_phone_verification_code(provider_id, phone_code)
+        provider = db.get_portal_provider_by_id(provider_id) or provider
+
+    return templates.TemplateResponse(
+        "provider_dashboard.html",
+        {
+            "request": request,
+            "provider": provider,
+            "photo_urls": _to_string_list(provider.get("profile_photos")),
+            "services_list": _to_string_list(provider.get("services")),
+            "languages_list": _to_string_list(provider.get("languages")),
+            "saved": bool(saved),
+            "admin_whatsapp": PORTAL_ADMIN_WHATSAPP,
+            "phone_verify_code": phone_code,
+        },
+    )
+
+
+@app.get("/provider/verify-phone", response_class=HTMLResponse)
+async def provider_portal_verify_phone(request: Request):
+    """Manual WhatsApp-based phone verification instructions page."""
+    provider_id = _portal_session_provider_id(request)
+    if not provider_id:
+        return RedirectResponse(url="/provider", status_code=302)
+    provider = db.get_portal_provider_by_id(provider_id)
+    if not provider:
+        request.session.clear()
+        return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
+
+    phone_code = provider.get("phone_verify_code")
+    if not phone_code:
+        phone_code = _portal_generate_whatsapp_code()
+        db.set_portal_phone_verification_code(provider_id, phone_code)
+    return templates.TemplateResponse(
+        "provider_verify_phone.html",
+        {
+            "request": request,
+            "provider": provider,
+            "admin_whatsapp": PORTAL_ADMIN_WHATSAPP,
+            "phone_verify_code": phone_code,
+        },
+    )
+
+
+@app.post("/provider/verify-phone/regenerate")
+async def provider_portal_regenerate_verify_code(request: Request):
+    """Regenerates manual WhatsApp verification code."""
+    provider_id = _portal_session_provider_id(request)
+    if not provider_id:
+        return RedirectResponse(url="/provider", status_code=302)
+    new_code = _portal_generate_whatsapp_code()
+    db.set_portal_phone_verification_code(provider_id, new_code)
+    provider = db.get_portal_provider_by_id(provider_id)
+    if provider:
+        await send_admin_alert(
+            f"Portal verification code regenerated: provider_id={provider_id}, "
+            f"phone={provider.get('phone', '')}, code={new_code}"
+        )
+    return RedirectResponse(url="/provider/verify-phone", status_code=303)
 
 
 @app.get("/", response_class=HTMLResponse)

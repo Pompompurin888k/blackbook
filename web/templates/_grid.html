@@ -15,7 +15,12 @@
 {% for provider in providers %}
 {# Use real photo if available, otherwise use fallback placeholder #}
 {% if provider.profile_photos and provider.profile_photos|length > 0 %}
-{% set img_url = '/photo/' ~ provider.profile_photos[0] %}
+{% set first_photo = (provider.profile_photos[0] or '')|string %}
+{% if first_photo.startswith('http://') or first_photo.startswith('https://') or first_photo.startswith('/') %}
+{% set img_url = first_photo %}
+{% else %}
+{% set img_url = '/photo/' ~ first_photo %}
+{% endif %}
 {% set all_photos = provider.profile_photos %}
 {% else %}
 {% set img_url = fallback_images[(loop.index0) % 10] %}

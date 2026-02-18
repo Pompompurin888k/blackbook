@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Setup | Innbucks Provider Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: "Manrope", sans-serif; }
+    </style>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100">
+    <main class="max-w-3xl mx-auto px-4 py-6 space-y-5">
+        <div class="flex items-center justify-between">
+            <a href="/provider/dashboard" class="text-xs uppercase tracking-widest text-zinc-300 hover:text-white">← Dashboard</a>
+            <form method="post" action="/provider/logout"><button class="text-xs uppercase tracking-widest text-zinc-400 hover:text-red-200">Logout</button></form>
+        </div>
+
+        <section class="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <p class="text-[11px] uppercase tracking-[0.2em] text-zinc-400">Step-by-step setup</p>
+            <h1 class="mt-2 text-2xl font-extrabold">Build Your Profile</h1>
+            <p class="mt-2 text-sm text-zinc-300">Complete your details, upload photos, then submit verification photo for admin review.</p>
+        </section>
+
+        <form method="post" action="/provider/onboarding" enctype="multipart/form-data" class="space-y-4">
+            <section class="rounded-3xl border border-white/10 bg-zinc-900/70 p-4 grid gap-3 md:grid-cols-2">
+                <div class="md:col-span-2">
+                    <label class="text-xs text-zinc-400">Display Name</label>
+                    <input name="display_name" required value="{{ provider.display_name or '' }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-zinc-400">City</label>
+                    <select name="city" required class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
+                        <option value="">Select city</option>
+                        {% for city in cities %}
+                        <option value="{{ city }}" {% if provider.city == city %}selected{% endif %}>{{ city }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-zinc-400">Neighborhood</label>
+                    <input name="neighborhood" required value="{{ provider.neighborhood or '' }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" placeholder="Kilimani / Westlands / Roysambu">
+                </div>
+                <div>
+                    <label class="text-xs text-zinc-400">Age</label>
+                    <input name="age" type="number" min="18" max="70" value="{{ provider.age or '' }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-zinc-400">Build</label>
+                    <input name="build" value="{{ provider.build or '' }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" placeholder="Athletic / Curvy / Slim">
+                </div>
+                <div>
+                    <label class="text-xs text-zinc-400">Height (cm)</label>
+                    <input name="height_cm" type="number" min="120" max="220" value="{{ provider.height_cm or '' }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-zinc-400">Weight (kg)</label>
+                    <input name="weight_kg" type="number" min="35" max="180" value="{{ provider.weight_kg or '' }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="text-xs text-zinc-400">Bio</label>
+                    <textarea name="bio" rows="3" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" placeholder="Short attractive description">{{ provider.bio or '' }}</textarea>
+                </div>
+                <div>
+                    <label class="text-xs text-zinc-400">Nearby Landmark</label>
+                    <input name="nearby_places" value="{{ provider.nearby_places or '' }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" placeholder="Near Yaya Centre">
+                </div>
+                <div>
+                    <label class="text-xs text-zinc-400">Availability</label>
+                    <input name="availability_type" value="{{ provider.availability_type or '' }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" placeholder="In-call & Out-call">
+                </div>
+            </section>
+
+            <section class="rounded-3xl border border-white/10 bg-zinc-900/70 p-4 grid gap-3 md:grid-cols-2">
+                <div class="md:col-span-2">
+                    <label class="text-xs text-zinc-400">Services (comma separated)</label>
+                    <input name="services" value="{{ services_text }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" placeholder="GFE, Massage, Parties, Overnight">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="text-xs text-zinc-400">Languages (comma separated)</label>
+                    <input name="languages" value="{{ languages_text }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" placeholder="English, Swahili">
+                </div>
+                <div><label class="text-xs text-zinc-400">30 min (KES)</label><input name="rate_30min" type="number" value="{{ provider.rate_30min or '' }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"></div>
+                <div><label class="text-xs text-zinc-400">1 hour (KES)</label><input name="rate_1hr" type="number" value="{{ provider.rate_1hr or '' }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"></div>
+                <div><label class="text-xs text-zinc-400">2 hours (KES)</label><input name="rate_2hr" type="number" value="{{ provider.rate_2hr or '' }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"></div>
+                <div><label class="text-xs text-zinc-400">3 hours (KES)</label><input name="rate_3hr" type="number" value="{{ provider.rate_3hr or '' }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"></div>
+                <div class="md:col-span-2"><label class="text-xs text-zinc-400">Overnight (KES)</label><input name="rate_overnight" type="number" value="{{ provider.rate_overnight or '' }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"></div>
+            </section>
+
+            <section class="rounded-3xl border border-white/10 bg-zinc-900/70 p-4 space-y-3">
+                <h2 class="text-sm font-semibold uppercase tracking-widest text-zinc-300">Photos</h2>
+                <p class="text-xs text-zinc-400">You can keep up to {{ max_photos }} profile photos.</p>
+                <input name="photos" type="file" accept="image/*" multiple class="w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
+                {% if photo_urls %}
+                <div class="grid grid-cols-3 gap-2">
+                    {% for photo in photo_urls %}
+                    <img src="{{ photo }}" class="h-24 w-full rounded-xl object-cover border border-white/10" alt="Profile photo {{ loop.index }}">
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div>
+                    <label class="text-xs text-zinc-400">Verification selfie / ID photo (required for admin approval)</label>
+                    <input name="verification_photo" type="file" accept="image/*" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
+                </div>
+            </section>
+
+            <button class="w-full rounded-2xl bg-amber-400 py-3 text-sm font-bold uppercase tracking-[0.12em] text-black">Save Profile</button>
+        </form>
+    </main>
+</body>
+</html>

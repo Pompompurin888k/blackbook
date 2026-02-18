@@ -190,6 +190,24 @@ class Database:
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='telegram_username') THEN
                 ALTER TABLE providers ADD COLUMN telegram_username VARCHAR(100);
             END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='auth_channel') THEN
+                ALTER TABLE providers ADD COLUMN auth_channel VARCHAR(20) DEFAULT 'telegram';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='portal_password_hash') THEN
+                ALTER TABLE providers ADD COLUMN portal_password_hash TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='phone_verified') THEN
+                ALTER TABLE providers ADD COLUMN phone_verified BOOLEAN DEFAULT FALSE;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='phone_verify_code') THEN
+                ALTER TABLE providers ADD COLUMN phone_verify_code VARCHAR(32);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='phone_verify_code_created_at') THEN
+                ALTER TABLE providers ADD COLUMN phone_verify_code_created_at TIMESTAMP;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='portal_onboarding_complete') THEN
+                ALTER TABLE providers ADD COLUMN portal_onboarding_complete BOOLEAN DEFAULT FALSE;
+            END IF;
             
             -- BUSINESS MODEL COLUMNS
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='subscription_tier') THEN
