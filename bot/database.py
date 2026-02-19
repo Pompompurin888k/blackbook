@@ -1121,6 +1121,52 @@ class Database:
             "pending_2h": self.get_verification_queue_count("pending_2h"),
             "missing_fields": self.get_verification_queue_count("missing_fields"),
         }
+
+    def get_portal_pending_accounts(self, limit: int = 10, offset: int = 0):
+        """Lists portal accounts waiting for admin approval."""
+        query = """
+        SELECT
+            telegram_id,
+            display_name,
+            phone,
+            city,
+            neighborhood,
+            created_at,
+            updated_at,
+            account_state,
+            portal_onboarding_complete,
+            phone_verified,
+            ROUND(EXTRACT(EPOCH FROM (NOW() - COALESCE(updated_at, created_at))) / 60.0) AS pending_minutes
+        FROM providers
+        WHERE COALESCE(auth_channel, 'telegram') = 'portal'
+          AND COALESCE(account_state, 'pending_review') = 'pending_review'
+        ORDER BY COALESCE(updated_at, created_at) ASC
+        LIMIT %s OFFSET %s
+        """
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(query, (limit, offset))
+                return cur.fetchall()
+        except Exception as e:
+            logger.error(f"❌ Error getting portal pending accounts: {e}")
+            return []
+
+    def get_portal_pending_count(self) -> int:
+        """Returns total number of portal accounts pending review."""
+        query = """
+        SELECT COUNT(*) AS count
+        FROM providers
+        WHERE COALESCE(auth_channel, 'telegram') = 'portal'
+          AND COALESCE(account_state, 'pending_review') = 'pending_review'
+        """
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query)
+                result = cur.fetchone()
+                return result["count"] if result else 0
+        except Exception as e:
+            logger.error(f"❌ Error counting portal pending accounts: {e}")
+            return 0
     
     def get_providers_by_status(self, status_type: str, limit: int = 10, offset: int = 0):
         """

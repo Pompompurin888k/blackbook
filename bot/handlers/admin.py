@@ -1,6 +1,6 @@
 """
 Blackbook Bot - Admin Handlers
-Handles: /partner, /maintenance, /broadcast
+Handles: /partner, /maintenance, /broadcast, /portal_pending
 """
 import logging
 import httpx
@@ -26,6 +26,8 @@ REJECT_REASON_TEMPLATES = {
     "mismatch": "identity mismatch",
     "incomplete": "incomplete profile details",
 }
+
+PORTAL_PENDING_PAGE_SIZE = 5
 
 
 def get_db():
@@ -233,9 +235,11 @@ def _admin_panel_keyboard(db) -> InlineKeyboardMarkup:
     inactive = db.get_provider_count_by_status("inactive")
     total = db.get_provider_count_by_status("all")
     queue_counts = db.get_verification_queue_counts()
+    portal_pending = db.get_portal_pending_count()
 
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(f"🧾 Verification Queue ({queue_counts.get('all_pending', 0)})", callback_data="admin_vq")],
+        [InlineKeyboardButton(f"📱 Portal Pending ({portal_pending})", callback_data="admin_portal_pending")],
         [InlineKeyboardButton(f"❓ Unverified ({unverified})", callback_data="admin_list_unverified")],
         [InlineKeyboardButton(f"🟢 Listed/Active ({active})", callback_data="admin_list_active")],
         [InlineKeyboardButton(f"⚫ Unlisted ({inactive})", callback_data="admin_list_inactive")],
@@ -321,6 +325,92 @@ async def _show_verification_queue(update: Update, context: ContextTypes.DEFAULT
     keyboard.extend(_verification_filter_keyboard(counts, queue_filter).inline_keyboard)
     await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
+
+async def _show_portal_pending(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    page: int = 0,
+) -> None:
+    """Shows portal accounts waiting for admin approval."""
+    db = get_db()
+    page = max(page, 0)
+    rows = db.get_portal_pending_accounts(
+        limit=PORTAL_PENDING_PAGE_SIZE,
+        offset=page * PORTAL_PENDING_PAGE_SIZE,
+    )
+    total = db.get_portal_pending_count()
+
+    context.user_data["admin_view"] = "portal_pending"
+    context.user_data["admin_portal_page"] = page
+
+    has_rows = bool(rows)
+    start_index = (page * PORTAL_PENDING_PAGE_SIZE) + 1 if has_rows else 0
+    end_index = min((page + 1) * PORTAL_PENDING_PAGE_SIZE, total) if has_rows else 0
+    text = (
+        "*Portal Pending Approvals*\n"
+        f"Showing {start_index}-{end_index} of {total}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    )
+
+    keyboard = []
+    if not rows:
+        text += "No pending portal accounts right now."
+    else:
+        for item in rows:
+            pid = item.get("telegram_id")
+            name = item.get("display_name") or "Unnamed"
+            phone = item.get("phone") or "-"
+            city = item.get("city") or "?"
+            neighborhood = item.get("neighborhood") or "?"
+            pending_minutes = int(item.get("pending_minutes") or 0)
+            pending_hours = round(pending_minutes / 60.0, 1)
+            onboarding = "yes" if item.get("portal_onboarding_complete") else "no"
+
+            text += (
+                f"*{name}* (`{pid}`)\n"
+                f"📞 {phone}\n"
+                f"📍 {neighborhood}, {city}\n"
+                f"⏱️ Pending: {pending_hours}h\n"
+                f"🧾 Onboarding complete: {onboarding}\n\n"
+            )
+            keyboard.append([InlineKeyboardButton(f"✅ Approve {name}", callback_data=f"admin_verify_{pid}")])
+            keyboard.append([
+                InlineKeyboardButton("❌ Photo", callback_data=f"admin_reject_{pid}_photo"),
+                InlineKeyboardButton("❌ Mismatch", callback_data=f"admin_reject_{pid}_mismatch"),
+            ])
+            keyboard.append([InlineKeyboardButton("❌ Incomplete", callback_data=f"admin_reject_{pid}_incomplete")])
+
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"admin_portalpage_{page - 1}"))
+    if (page + 1) * PORTAL_PENDING_PAGE_SIZE < total:
+        nav.append(InlineKeyboardButton("➡️ Next", callback_data=f"admin_portalpage_{page + 1}"))
+    if nav:
+        keyboard.append(nav)
+
+    keyboard.append([InlineKeyboardButton("🔄 Refresh", callback_data=f"admin_portalpage_{page}")])
+    keyboard.append([InlineKeyboardButton("🔙 Back to Panel", callback_data="admin_back")])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    query = update.callback_query
+    if query:
+        await query.edit_message_text(text, parse_mode="Markdown", reply_markup=reply_markup)
+        return
+    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=reply_markup)
+
+
+async def portal_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin command: show pending portal approvals."""
+    user = update.effective_user
+    if not is_admin(user.id):
+        await update.message.reply_text(
+            "🚫 *Access Denied*\n\nAdmin only command.",
+            parse_mode="Markdown",
+        )
+        logger.warning(f"⚠️ Unauthorized /portal_pending attempt by user {user.id}")
+        return
+    await _show_portal_pending(update, context, page=0)
+
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Admin panel - shows management options."""
     user = update.effective_user
@@ -360,6 +450,17 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if data == "admin_vq":
         return await _show_verification_queue(update, context, queue_filter="all_pending", page=0)
+
+    if data == "admin_portal_pending":
+        return await _show_portal_pending(update, context, page=0)
+
+    if data.startswith("admin_portalpage_"):
+        page_raw = data.replace("admin_portalpage_", "", 1)
+        try:
+            page = int(page_raw)
+        except ValueError:
+            page = 0
+        return await _show_portal_pending(update, context, page=page)
 
     if data.startswith("admin_vqf_"):
         queue_filter = data.replace("admin_vqf_", "")
@@ -468,24 +569,37 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         reason_text = REJECT_REASON_TEMPLATES.get(reason_code, "verification requirements not met")
 
         provider = db.get_provider(pid)
-        display_name = provider.get("display_name", "Unknown") if provider else "Unknown"
-        db.update_provider_profile(pid, {"verification_photo_id": None})
-        db.log_funnel_event(pid, "verification_rejected", {"reason": reason_text, "source": "admin_queue"})
-
-        try:
-            await send_provider_message(
-                chat_id=pid,
-                text=(
-                    "❌ *Verification Rejected*\n\n"
-                    f"Reason: *{reason_text}*\n\n"
-                    "Please update your profile/photos and submit verification again from your profile."
-                ),
-            )
-        except Exception as e:
-            logger.warning(f"Failed to send reject template to {pid}: {e}")
-
+        if not provider:
+            await query.answer("Provider not found.", show_alert=True)
+            return
+        display_name = provider.get("display_name", "Unknown")
+        is_portal_account = str(provider.get("auth_channel") or "telegram").lower() == "portal"
+        updated = db.verify_provider(pid, False, admin_tg_id=user.id, reason=reason_text)
+        if not updated:
+            await query.answer("Reject failed; try again.", show_alert=True)
+            return
+        if not is_portal_account:
+            db.update_provider_profile(pid, {"verification_photo_id": None})
+            db.log_funnel_event(pid, "verification_rejected", {"reason": reason_text, "source": "admin_queue"})
+            try:
+                await send_provider_message(
+                    chat_id=pid,
+                    text=(
+                        "❌ *Verification Rejected*\n\n"
+                        f"Reason: *{reason_text}*\n\n"
+                        "Please update your profile/photos and submit verification again from your profile."
+                    ),
+                )
+            except Exception as e:
+                logger.warning(f"Failed to send reject template to {pid}: {e}")
         await query.answer(f"Rejected {display_name}: {reason_text}", show_alert=True)
 
+        if context.user_data.get("admin_view") == "portal_pending":
+            return await _show_portal_pending(
+                update,
+                context,
+                page=context.user_data.get("admin_portal_page", 0),
+            )
         if context.user_data.get("admin_view") == "vq":
             return await _show_verification_queue(
                 update,
@@ -499,23 +613,34 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Verify provider
     if data.startswith("admin_verify_"):
         pid = int(data.replace("admin_verify_", ""))
-        db.verify_provider(pid, True)
-        db.log_funnel_event(pid, "verified")
-        
-        # Notify the provider
         provider = db.get_provider(pid)
-        try:
-            await send_provider_message(
-                chat_id=pid,
-                text="✅ *Verification Approved!*\n\n"
-                     "🎉 You now have the Blue Tick ✔️\n\n"
-                     "Your profile has been verified by admin.",
-            )
-        except:
-            pass
-        
+        if not provider:
+            await query.answer("Provider not found.", show_alert=True)
+            return
+        is_portal_account = str(provider.get("auth_channel") or "telegram").lower() == "portal"
+        updated = db.verify_provider(pid, True, admin_tg_id=user.id)
+        if not updated:
+            await query.answer("Verify failed; try again.", show_alert=True)
+            return
+        if not is_portal_account:
+            db.log_funnel_event(pid, "verified")
+            try:
+                await send_provider_message(
+                    chat_id=pid,
+                    text="✅ *Verification Approved!*\n\n"
+                         "🎉 You now have the Blue Tick ✔️\n\n"
+                         "Your profile has been verified by admin.",
+                )
+            except Exception as e:
+                logger.warning(f"Failed to send verify notification to {pid}: {e}")
         await query.answer(f"✅ Verified {provider.get('display_name', 'Unknown')}!", show_alert=True)
-        
+
+        if context.user_data.get("admin_view") == "portal_pending":
+            return await _show_portal_pending(
+                update,
+                context,
+                page=context.user_data.get("admin_portal_page", 0),
+            )
         if context.user_data.get("admin_view") == "vq":
             return await _show_verification_queue(
                 update,
@@ -588,6 +713,7 @@ def register_handlers(application):
     from telegram.ext import CallbackQueryHandler
     
     application.add_handler(CommandHandler("partner", partner))
+    application.add_handler(CommandHandler("portal_pending", portal_pending))
     application.add_handler(CommandHandler("maintenance", maintenance))
     application.add_handler(CommandHandler("broadcast", broadcast))
     application.add_handler(CommandHandler("admin", admin_panel))
