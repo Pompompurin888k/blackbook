@@ -175,6 +175,128 @@ def _to_int_or_none(value) -> Optional[int]:
         return None
 
 
+ONBOARDING_TOTAL_STEPS = 4
+ONBOARDING_STEP_META = {
+    1: {
+        "title": "Step 1: Profile Basics",
+        "subtitle": "Start with your name, city, and body stats.",
+    },
+    2: {
+        "title": "Step 2: About You",
+        "subtitle": "Write a strong bio and your availability details.",
+    },
+    3: {
+        "title": "Step 3: Services and Rates",
+        "subtitle": "Add services, languages, and your pricing.",
+    },
+    4: {
+        "title": "Step 4: Photos and Final Preview",
+        "subtitle": "Upload photos, verify, and submit for admin approval.",
+    },
+}
+
+
+def _normalize_onboarding_step(raw_step) -> int:
+    """Coerces onboarding step to a valid range."""
+    try:
+        step = int(raw_step)
+    except (TypeError, ValueError):
+        step = 1
+    return max(1, min(step, ONBOARDING_TOTAL_STEPS))
+
+
+def _parse_csv_values(raw_text: str) -> list[str]:
+    """Normalizes comma-separated text to a clean list."""
+    if not raw_text:
+        return []
+    return [item.strip() for item in str(raw_text).split(",") if item.strip()]
+
+
+def _portal_onboarding_base_draft(provider: dict) -> dict:
+    """Builds onboarding draft defaults from an existing provider profile."""
+    return {
+        "display_name": str(provider.get("display_name") or "").strip(),
+        "city": str(provider.get("city") or "").strip(),
+        "neighborhood": str(provider.get("neighborhood") or "").strip(),
+        "age": str(provider.get("age") or "").strip(),
+        "height_cm": str(provider.get("height_cm") or "").strip(),
+        "weight_kg": str(provider.get("weight_kg") or "").strip(),
+        "build": str(provider.get("build") or "").strip(),
+        "bio": str(provider.get("bio") or "").strip(),
+        "nearby_places": str(provider.get("nearby_places") or "").strip(),
+        "availability_type": str(provider.get("availability_type") or "").strip(),
+        "services_text": ", ".join(_to_string_list(provider.get("services"))),
+        "languages_text": ", ".join(_to_string_list(provider.get("languages"))),
+        "rate_30min": str(provider.get("rate_30min") or "").strip(),
+        "rate_1hr": str(provider.get("rate_1hr") or "").strip(),
+        "rate_2hr": str(provider.get("rate_2hr") or "").strip(),
+        "rate_3hr": str(provider.get("rate_3hr") or "").strip(),
+        "rate_overnight": str(provider.get("rate_overnight") or "").strip(),
+    }
+
+
+def _portal_get_onboarding_draft(request: Request, provider: dict) -> dict:
+    """Returns current onboarding draft from session merged with DB defaults."""
+    draft = _portal_onboarding_base_draft(provider)
+    session_draft = request.session.get("provider_onboarding_draft")
+    if isinstance(session_draft, dict):
+        for key in draft:
+            if key in session_draft:
+                draft[key] = str(session_draft.get(key) or "").strip()
+    return draft
+
+
+def _portal_set_onboarding_draft(request: Request, draft: dict) -> None:
+    """Persists onboarding draft in the session cookie."""
+    request.session["provider_onboarding_draft"] = dict(draft)
+
+
+def _portal_clear_onboarding_draft(request: Request) -> None:
+    """Removes onboarding draft from session."""
+    request.session.pop("provider_onboarding_draft", None)
+
+
+def _portal_build_preview(draft: dict, photo_urls: list[str], has_verification_photo: bool) -> dict:
+    """Builds compact preview values shown on each onboarding step."""
+    rate_chunks = []
+    rate_labels = {
+        "rate_30min": "30m",
+        "rate_1hr": "1h",
+        "rate_2hr": "2h",
+        "rate_3hr": "3h",
+        "rate_overnight": "Overnight",
+    }
+    for key, label in rate_labels.items():
+        amount = _to_int_or_none(draft.get(key))
+        if amount is not None:
+            rate_chunks.append(f"{label}: KES {amount:,}")
+
+    return {
+        "name": draft.get("display_name") or "Your stage name",
+        "location": ", ".join(
+            [item for item in [draft.get("neighborhood"), draft.get("city")] if item]
+        ) or "Location not set",
+        "stats": " | ".join(
+            [
+                part
+                for part in [
+                    f"Age {draft.get('age')}" if draft.get("age") else "",
+                    f"{draft.get('height_cm')}cm" if draft.get("height_cm") else "",
+                    f"{draft.get('weight_kg')}kg" if draft.get("weight_kg") else "",
+                    draft.get("build") or "",
+                ]
+                if part
+            ]
+        ) or "Add your stats",
+        "bio": draft.get("bio") or "Your bio will appear here.",
+        "services": _parse_csv_values(draft.get("services_text", "")),
+        "languages": _parse_csv_values(draft.get("languages_text", "")),
+        "rates": rate_chunks,
+        "photo_count": len(photo_urls),
+        "verification_ready": bool(has_verification_photo),
+    }
+
+
 async def _save_provider_upload(provider_id: int, upload, prefix: str) -> Optional[str]:
     """Saves portal-uploaded image under static/uploads and returns public URL."""
     if not upload or not getattr(upload, "filename", None):
@@ -529,9 +651,43 @@ async def provider_portal_logout(request: Request):
     return RedirectResponse(url="/provider?success=Logged+out+successfully", status_code=303)
 
 
+def _render_provider_onboarding_template(
+    request: Request,
+    provider: dict,
+    draft: dict,
+    step: int,
+    error: Optional[str] = None,
+):
+    """Renders the multi-step portal onboarding screen."""
+    photo_urls = _to_string_list(provider.get("profile_photos"))
+    preview = _portal_build_preview(
+        draft=draft,
+        photo_urls=photo_urls,
+        has_verification_photo=bool(provider.get("verification_photo_id")),
+    )
+    return templates.TemplateResponse(
+        "provider_onboarding.html",
+        {
+            "request": request,
+            "provider": provider,
+            "draft": draft,
+            "step": step,
+            "total_steps": ONBOARDING_TOTAL_STEPS,
+            "step_meta": ONBOARDING_STEP_META.get(step, ONBOARDING_STEP_META[1]),
+            "step_numbers": list(range(1, ONBOARDING_TOTAL_STEPS + 1)),
+            "error": error,
+            "cities": CITIES,
+            "neighborhood_map": NEIGHBORHOODS,
+            "photo_urls": photo_urls,
+            "max_photos": PORTAL_MAX_PROFILE_PHOTOS,
+            "preview": preview,
+        },
+    )
+
+
 @app.get("/provider/onboarding", response_class=HTMLResponse)
-async def provider_portal_onboarding(request: Request):
-    """Mobile-first onboarding form for non-Telegram providers."""
+async def provider_portal_onboarding(request: Request, step: Optional[int] = 1):
+    """Multi-step onboarding wizard for non-Telegram providers."""
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
         return RedirectResponse(url="/provider", status_code=302)
@@ -539,25 +695,20 @@ async def provider_portal_onboarding(request: Request):
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
-
-    return templates.TemplateResponse(
-        "provider_onboarding.html",
-        {
-            "request": request,
-            "provider": provider,
-            "cities": CITIES,
-            "neighborhood_map": NEIGHBORHOODS,
-            "photo_urls": _to_string_list(provider.get("profile_photos")),
-            "services_text": ", ".join(_to_string_list(provider.get("services"))),
-            "languages_text": ", ".join(_to_string_list(provider.get("languages"))),
-            "max_photos": PORTAL_MAX_PROFILE_PHOTOS,
-        },
+    current_step = _normalize_onboarding_step(step)
+    draft = _portal_get_onboarding_draft(request, provider)
+    _portal_set_onboarding_draft(request, draft)
+    return _render_provider_onboarding_template(
+        request=request,
+        provider=provider,
+        draft=draft,
+        step=current_step,
     )
 
 
 @app.post("/provider/onboarding")
 async def provider_portal_onboarding_submit(request: Request):
-    """Saves onboarding profile data and media uploads."""
+    """Handles step navigation and final onboarding submission."""
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
         return RedirectResponse(url="/provider", status_code=302)
@@ -567,16 +718,68 @@ async def provider_portal_onboarding_submit(request: Request):
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
 
     form = await request.form()
-    display_name = str(form.get("display_name", "")).strip()
-    city = str(form.get("city", "")).strip()
-    neighborhood = str(form.get("neighborhood", "")).strip()
-    build = str(form.get("build", "")).strip()
-    bio = str(form.get("bio", "")).strip()
-    nearby_places = str(form.get("nearby_places", "")).strip()
-    availability_type = str(form.get("availability_type", "")).strip()
-    services = [item.strip() for item in str(form.get("services", "")).split(",") if item.strip()]
-    languages = [item.strip() for item in str(form.get("languages", "")).split(",") if item.strip()]
+    step = _normalize_onboarding_step(form.get("step"))
+    action = str(form.get("action", "next")).strip().lower()
+    draft = _portal_get_onboarding_draft(request, provider)
 
+    if step == 1:
+        draft["display_name"] = str(form.get("display_name", "")).strip()
+        draft["city"] = str(form.get("city", "")).strip()
+        draft["neighborhood"] = str(form.get("neighborhood", "")).strip()
+        draft["age"] = str(form.get("age", "")).strip()
+        draft["height_cm"] = str(form.get("height_cm", "")).strip()
+        draft["weight_kg"] = str(form.get("weight_kg", "")).strip()
+        draft["build"] = str(form.get("build", "")).strip()
+        _portal_set_onboarding_draft(request, draft)
+        if action != "back" and (not draft["display_name"] or not draft["city"] or not draft["neighborhood"]):
+            return _render_provider_onboarding_template(
+                request=request,
+                provider=provider,
+                draft=draft,
+                step=step,
+                error="Please set display name, city, and neighborhood before continuing.",
+            )
+    elif step == 2:
+        draft["bio"] = str(form.get("bio", "")).strip()
+        draft["nearby_places"] = str(form.get("nearby_places", "")).strip()
+        draft["availability_type"] = str(form.get("availability_type", "")).strip()
+        _portal_set_onboarding_draft(request, draft)
+        if action != "back" and len(draft["bio"]) < 20:
+            return _render_provider_onboarding_template(
+                request=request,
+                provider=provider,
+                draft=draft,
+                step=step,
+                error="Please write a richer bio (at least 20 characters).",
+            )
+    elif step == 3:
+        draft["services_text"] = str(form.get("services_text", "")).strip()
+        draft["languages_text"] = str(form.get("languages_text", "")).strip()
+        draft["rate_30min"] = str(form.get("rate_30min", "")).strip()
+        draft["rate_1hr"] = str(form.get("rate_1hr", "")).strip()
+        draft["rate_2hr"] = str(form.get("rate_2hr", "")).strip()
+        draft["rate_3hr"] = str(form.get("rate_3hr", "")).strip()
+        draft["rate_overnight"] = str(form.get("rate_overnight", "")).strip()
+        _portal_set_onboarding_draft(request, draft)
+        if action != "back" and not _parse_csv_values(draft["services_text"]):
+            return _render_provider_onboarding_template(
+                request=request,
+                provider=provider,
+                draft=draft,
+                step=step,
+                error="Please add at least one service before continuing.",
+            )
+
+    if action == "back":
+        return RedirectResponse(
+            url=f"/provider/onboarding?step={max(1, step - 1)}",
+            status_code=303,
+        )
+
+    if step < ONBOARDING_TOTAL_STEPS:
+        return RedirectResponse(url=f"/provider/onboarding?step={step + 1}", status_code=303)
+
+    # Final step: save to DB and submit.
     existing_photo_urls = _to_string_list(provider.get("profile_photos"))
     upload_items = form.getlist("photos")
     for upload in upload_items:
@@ -588,33 +791,67 @@ async def provider_portal_onboarding_submit(request: Request):
 
     verification_photo_upload = form.get("verification_photo")
     verification_photo_url = await _save_provider_upload(provider_id, verification_photo_upload, "verify")
+    effective_verification_photo = verification_photo_url or provider.get("verification_photo_id")
+
+    if not existing_photo_urls:
+        return _render_provider_onboarding_template(
+            request=request,
+            provider=provider,
+            draft=draft,
+            step=ONBOARDING_TOTAL_STEPS,
+            error="Please upload at least one profile photo before submitting.",
+        )
+    if not effective_verification_photo:
+        return _render_provider_onboarding_template(
+            request=request,
+            provider=provider,
+            draft=draft,
+            step=ONBOARDING_TOTAL_STEPS,
+            error="Please upload a verification selfie or ID photo to submit.",
+        )
+
+    display_name = draft.get("display_name") or provider.get("display_name")
+    city = draft.get("city", "")
+    neighborhood = draft.get("neighborhood", "")
+    bio = draft.get("bio", "")
+    services = _parse_csv_values(draft.get("services_text", ""))
+    languages = _parse_csv_values(draft.get("languages_text", ""))
 
     update_data = {
-        "display_name": display_name or provider.get("display_name"),
+        "display_name": display_name,
         "city": city,
         "neighborhood": neighborhood,
-        "age": _to_int_or_none(form.get("age")),
-        "height_cm": _to_int_or_none(form.get("height_cm")),
-        "weight_kg": _to_int_or_none(form.get("weight_kg")),
-        "build": build,
+        "age": _to_int_or_none(draft.get("age")),
+        "height_cm": _to_int_or_none(draft.get("height_cm")),
+        "weight_kg": _to_int_or_none(draft.get("weight_kg")),
+        "build": draft.get("build", ""),
         "services": services,
         "bio": bio,
-        "nearby_places": nearby_places,
-        "availability_type": availability_type,
+        "nearby_places": draft.get("nearby_places", ""),
+        "availability_type": draft.get("availability_type", ""),
         "languages": languages,
         "profile_photos": existing_photo_urls,
-        "rate_30min": _to_int_or_none(form.get("rate_30min")),
-        "rate_1hr": _to_int_or_none(form.get("rate_1hr")),
-        "rate_2hr": _to_int_or_none(form.get("rate_2hr")),
-        "rate_3hr": _to_int_or_none(form.get("rate_3hr")),
-        "rate_overnight": _to_int_or_none(form.get("rate_overnight")),
+        "rate_30min": _to_int_or_none(draft.get("rate_30min")),
+        "rate_1hr": _to_int_or_none(draft.get("rate_1hr")),
+        "rate_2hr": _to_int_or_none(draft.get("rate_2hr")),
+        "rate_3hr": _to_int_or_none(draft.get("rate_3hr")),
+        "rate_overnight": _to_int_or_none(draft.get("rate_overnight")),
         "is_online": False,
         "portal_onboarding_complete": bool(display_name and city and neighborhood and bio and existing_photo_urls),
     }
-    if verification_photo_url:
-        update_data["verification_photo_id"] = verification_photo_url
+    if effective_verification_photo:
+        update_data["verification_photo_id"] = effective_verification_photo
 
-    db.update_portal_provider_profile(provider_id, update_data)
+    saved = db.update_portal_provider_profile(provider_id, update_data)
+    if not saved:
+        return _render_provider_onboarding_template(
+            request=request,
+            provider=provider,
+            draft=draft,
+            step=ONBOARDING_TOTAL_STEPS,
+            error="Could not save your profile right now. Please try again.",
+        )
+
     provider_after = db.get_portal_provider_by_id(provider_id) or {}
     if not provider_after.get("phone_verify_code"):
         db.set_portal_phone_verification_code(provider_id, _portal_generate_whatsapp_code())
@@ -626,6 +863,7 @@ async def provider_portal_onboarding_submit(request: Request):
             f"phone={provider.get('phone', '')}, photo={verification_photo_url}"
         )
 
+    _portal_clear_onboarding_draft(request)
     return RedirectResponse(url="/provider/dashboard?saved=1", status_code=303)
 
 
