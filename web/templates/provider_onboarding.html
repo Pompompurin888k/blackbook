@@ -14,9 +14,15 @@
 <body
     class="min-h-screen bg-zinc-950 text-zinc-100"
     data-required-photos="{{ min_photos }}"
+    data-recommended-photos="{{ recommended_photos }}"
     data-existing-photos="{{ photo_urls | length }}"
 >
     <main class="mx-auto max-w-6xl px-4 py-6">
+        {% if show_saved_toast %}
+        <div id="saved-toast" class="fixed right-4 top-4 z-50 rounded-xl border border-emerald-300/40 bg-emerald-400/20 px-4 py-2 text-xs font-semibold text-emerald-100 shadow-lg shadow-emerald-900/30">
+            Draft saved. Keep going.
+        </div>
+        {% endif %}
         <div class="mb-4 flex items-center justify-between">
             <a href="/provider/dashboard" class="text-xs uppercase tracking-widest text-zinc-300 hover:text-white">Back to Dashboard</a>
             <form method="post" action="/provider/logout">
@@ -62,6 +68,7 @@
                     <div class="md:col-span-2">
                         <label class="text-xs text-zinc-400">Display Name</label>
                         <input name="display_name" required value="{{ draft.display_name }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" placeholder="Your profile name">
+                        <p class="mt-1 text-[11px] text-zinc-500">Use a short memorable stage name. Example: Sasha Luxe.</p>
                     </div>
                     <div>
                         <label class="text-xs text-zinc-400">City</label>
@@ -75,6 +82,7 @@
                     <div>
                         <label class="text-xs text-zinc-400">Neighborhood</label>
                         <input name="neighborhood" required value="{{ draft.neighborhood }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" placeholder="Westlands / Kilimani / Roysambu">
+                        <p class="mt-1 text-[11px] text-zinc-500">Be specific. Clients search by neighborhood first.</p>
                     </div>
                     <div>
                         <label class="text-xs text-zinc-400">Age</label>
@@ -98,6 +106,7 @@
                     <div>
                         <label class="text-xs text-zinc-400">Bio</label>
                         <textarea name="bio" rows="5" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" placeholder="Write a warm, confident bio that helps clients trust and choose you.">{{ draft.bio }}</textarea>
+                        <p class="mt-1 text-[11px] text-zinc-500">Strong example: Elegant, discreet, and friendly. Clean environment, excellent hygiene, and premium conversation.</p>
                     </div>
                     <div>
                         <label class="text-xs text-zinc-400">Nearby Landmark</label>
@@ -106,6 +115,7 @@
                     <div>
                         <label class="text-xs text-zinc-400">Availability</label>
                         <input name="availability_type" value="{{ draft.availability_type }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" placeholder="In-call, out-call, or by booking">
+                        <p class="mt-1 text-[11px] text-zinc-500">Example: In-call in Westlands, out-call by booking 10:00-22:00.</p>
                     </div>
                 </section>
                 {% elif step == 3 %}
@@ -113,10 +123,12 @@
                     <div class="md:col-span-2">
                         <label class="text-xs text-zinc-400">Services (comma separated)</label>
                         <input name="services_text" value="{{ draft.services_text }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" placeholder="GFE, Massage, Parties, Overnight">
+                        <p class="mt-1 text-[11px] text-zinc-500">Tip: 3-6 services convert better than only one.</p>
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-zinc-400">Languages (comma separated)</label>
                         <input name="languages_text" value="{{ draft.languages_text }}" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" placeholder="English, Swahili, French">
+                        <p class="mt-1 text-[11px] text-zinc-500">At least 2 languages helps you rank for more clients.</p>
                     </div>
                     <div>
                         <label class="text-xs text-zinc-400">30 min (KES)</label>
@@ -144,9 +156,10 @@
                     <div>
                         <h2 class="text-sm font-semibold uppercase tracking-widest text-zinc-300">Upload Photos</h2>
                         <p class="mt-1 text-xs text-zinc-400">
-                            Upload at least {{ min_photos }} photos (max {{ max_photos }}).
-                            Better photos get more clicks.
+                            Upload at least {{ min_photos }} photos to submit.
+                            {{ recommended_photos }} photos is recommended for stronger ranking.
                         </p>
+                        <p class="mt-1 text-[11px] text-zinc-500">Mobile tip: tap a box to use your camera or gallery.</p>
                         <p id="photo-count-status" class="mt-2 text-xs text-amber-200"></p>
                     </div>
 
@@ -159,12 +172,13 @@
                     {% endif %}
 
                     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-                        {% for idx in range(min_photos) %}
+                        {% for idx in range(photo_slot_count) %}
                         <input
                             type="file"
                             id="photo-input-{{ idx }}"
                             name="photos"
                             accept="image/*"
+                            capture="environment"
                             class="hidden photo-input"
                         >
                         <button
@@ -187,7 +201,7 @@
 
                     <div>
                         <label class="text-xs text-zinc-400">Verification selfie or ID photo</label>
-                        <input name="verification_photo" type="file" accept="image/*" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
+                        <input name="verification_photo" type="file" accept="image/*" capture="user" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
                     </div>
 
                     <div class="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-3 text-xs text-emerald-100">
@@ -195,6 +209,7 @@
                         <ul class="mt-2 list-disc space-y-1 pl-4">
                             <li>Preview card looks complete and attractive</li>
                             <li>At least {{ min_photos }} profile photos uploaded</li>
+                            <li>{{ recommended_photos }} photos recommended for better visibility</li>
                             <li>Verification photo uploaded</li>
                         </ul>
                     </div>
@@ -266,19 +281,56 @@
                     </div>
                 </section>
 
+                <section class="rounded-3xl border border-white/10 bg-zinc-900/80 p-4">
+                    <p class="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Profile Strength</p>
+                    <div class="mt-2 flex items-end justify-between">
+                        <p class="text-2xl font-extrabold text-white">{{ profile_strength.score }}%</p>
+                        <p class="text-xs uppercase tracking-widest text-zinc-400">{{ profile_strength.label }}</p>
+                    </div>
+                    <div class="mt-2 h-2 overflow-hidden rounded-full bg-zinc-800">
+                        <div class="h-full rounded-full bg-cyan-300" style="width: {{ profile_strength.score }}%;"></div>
+                    </div>
+                    <p class="mt-2 text-xs text-zinc-400">{{ profile_strength.completed }} of {{ profile_strength.total }} quality signals complete</p>
+                    {% if profile_strength.missing %}
+                    <div class="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3">
+                        <p class="text-[11px] uppercase tracking-widest text-zinc-500">Improve Next</p>
+                        <ul class="mt-2 list-disc space-y-1 pl-4 text-xs text-zinc-300">
+                            {% for hint in profile_strength.missing %}
+                            <li>{{ hint }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </section>
+
                 <section class="rounded-3xl border border-white/10 bg-black/40 p-4 text-sm text-zinc-300">
                     <p class="text-xs uppercase tracking-widest text-zinc-400">Submission Status</p>
                     <div class="mt-2 space-y-1">
-                        <p>Profile photos: <span class="font-semibold text-white">{{ preview.photo_count }}</span> / {{ min_photos }} minimum</p>
+                        <p>Profile photos: <span class="font-semibold text-white">{{ preview.photo_count }}</span> / {{ min_photos }} minimum ({{ recommended_photos }} recommended)</p>
                         <p>Verification photo: <span class="font-semibold {% if preview.verification_ready %}text-emerald-300{% else %}text-zinc-400{% endif %}">{% if preview.verification_ready %}Ready{% else %}Pending{% endif %}</span></p>
                     </div>
                 </section>
+
+                {% if step == total_steps %}
+                <section class="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-50">
+                    <p class="text-xs uppercase tracking-widest text-amber-200">Ranking Tips</p>
+                    <ul class="mt-2 space-y-2">
+                        {% for tip in ranking_tips %}
+                        <li class="flex items-start justify-between gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+                            <span class="text-xs text-zinc-200">{{ tip.title }}</span>
+                            <span class="text-[11px] font-semibold {% if tip.done %}text-emerald-300{% else %}text-amber-200{% endif %}">{% if tip.done %}Done{% else %}Pending{% endif %}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+                {% endif %}
             </aside>
         </div>
     </main>
     <script>
         (function () {
-            const requiredPhotos = Number(document.body.dataset.requiredPhotos || "5");
+            const requiredPhotos = Number(document.body.dataset.requiredPhotos || "3");
+            const recommendedPhotos = Number(document.body.dataset.recommendedPhotos || "5");
             const existingPhotos = Number(document.body.dataset.existingPhotos || "0");
             const slots = Array.from(document.querySelectorAll(".photo-slot"));
             const statusEl = document.getElementById("photo-count-status");
@@ -318,7 +370,12 @@
                 const needed = Math.max(requiredPhotos - total, 0);
                 if (!statusEl) return;
                 if (needed === 0) {
-                    statusEl.textContent = `Great. You now have ${total} photo(s), enough to submit.`;
+                    if (total >= recommendedPhotos) {
+                        statusEl.textContent = `Excellent. You have ${total} photo(s), ready to submit with strong visibility.`;
+                    } else {
+                        const moreForRecommended = Math.max(recommendedPhotos - total, 0);
+                        statusEl.textContent = `Great. You can submit now. Add ${moreForRecommended} more photo(s) to reach the recommended ${recommendedPhotos}.`;
+                    }
                     statusEl.className = "mt-2 text-xs text-emerald-200";
                 } else {
                     statusEl.textContent = `You currently have ${total} photo(s). Add ${needed} more photo(s) to submit.`;
@@ -347,6 +404,14 @@
                         errorEl.classList.add("hidden");
                     }
                 });
+            }
+
+            const toast = document.getElementById("saved-toast");
+            if (toast) {
+                window.setTimeout(() => {
+                    toast.classList.add("opacity-0", "transition", "duration-500");
+                    window.setTimeout(() => toast.remove(), 550);
+                }, 1800);
             }
         })();
     </script>

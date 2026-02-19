@@ -56,7 +56,14 @@ PORTAL_ADMIN_WHATSAPP = os.getenv("PORTAL_ADMIN_WHATSAPP", "")
 PORTAL_MAX_PROFILE_PHOTOS = int(os.getenv("PORTAL_MAX_PROFILE_PHOTOS", "8"))
 PORTAL_MIN_PROFILE_PHOTOS = max(
     1,
-    min(PORTAL_MAX_PROFILE_PHOTOS, int(os.getenv("PORTAL_MIN_PROFILE_PHOTOS", "5"))),
+    min(PORTAL_MAX_PROFILE_PHOTOS, int(os.getenv("PORTAL_MIN_PROFILE_PHOTOS", "3"))),
+)
+PORTAL_RECOMMENDED_PROFILE_PHOTOS = max(
+    PORTAL_MIN_PROFILE_PHOTOS,
+    min(
+        PORTAL_MAX_PROFILE_PHOTOS,
+        int(os.getenv("PORTAL_RECOMMENDED_PROFILE_PHOTOS", "5")),
+    ),
 )
 PORTAL_MAX_UPLOAD_BYTES = int(os.getenv("PORTAL_MAX_UPLOAD_BYTES", str(6 * 1024 * 1024)))
 ALLOWED_UPLOAD_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -299,6 +306,120 @@ def _portal_build_preview(draft: dict, photo_urls: list[str], has_verification_p
         "photo_count": len(photo_urls),
         "verification_ready": bool(has_verification_photo),
     }
+
+
+def _portal_compute_profile_strength(
+    draft: dict,
+    photo_count: int,
+    has_verification_photo: bool,
+) -> dict:
+    """Builds a 0-100 quality score with focused missing-item guidance."""
+    services_count = len(_parse_csv_values(draft.get("services_text", "")))
+    languages_count = len(_parse_csv_values(draft.get("languages_text", "")))
+    rates_count = sum(
+        1
+        for key in ["rate_30min", "rate_1hr", "rate_2hr", "rate_3hr", "rate_overnight"]
+        if _to_int_or_none(draft.get(key)) is not None
+    )
+    bio_len = len((draft.get("bio") or "").strip())
+
+    checks = [
+        (
+            8,
+            bool((draft.get("display_name") or "").strip()),
+            "Set a memorable display name",
+        ),
+        (6, bool((draft.get("city") or "").strip()), "Select your city"),
+        (
+            6,
+            bool((draft.get("neighborhood") or "").strip()),
+            "Add your neighborhood",
+        ),
+        (4, bool((draft.get("age") or "").strip()), "Add your age"),
+        (4, bool((draft.get("height_cm") or "").strip()), "Add your height"),
+        (4, bool((draft.get("weight_kg") or "").strip()), "Add your weight"),
+        (4, bool((draft.get("build") or "").strip()), "Add your build/body type"),
+        (12, bio_len >= 80, "Write a richer bio (80+ characters)"),
+        (
+            4,
+            bool((draft.get("nearby_places") or "").strip()),
+            "Add a nearby landmark",
+        ),
+        (
+            4,
+            bool((draft.get("availability_type") or "").strip()),
+            "Set clear availability",
+        ),
+        (10, services_count >= 3, "List at least 3 services"),
+        (8, languages_count >= 2, "Add at least 2 languages"),
+        (10, rates_count >= 3, "Set at least 3 rate options"),
+        (
+            12,
+            photo_count >= PORTAL_RECOMMENDED_PROFILE_PHOTOS,
+            (
+                "Upload at least "
+                f"{PORTAL_RECOMMENDED_PROFILE_PHOTOS} profile photos"
+            ),
+        ),
+        (
+            8,
+            bool(has_verification_photo),
+            "Upload verification selfie/ID photo",
+        ),
+    ]
+
+    total_possible = sum(weight for weight, _, _ in checks)
+    achieved = sum(weight for weight, passed, _ in checks if passed)
+    score = int(round((achieved / total_possible) * 100)) if total_possible else 0
+
+    if score >= 85:
+        label = "Excellent"
+    elif score >= 65:
+        label = "Strong"
+    elif score >= 45:
+        label = "Good start"
+    else:
+        label = "Needs work"
+
+    missing = [hint for _, passed, hint in checks if not passed][:4]
+    return {
+        "score": score,
+        "label": label,
+        "missing": missing,
+        "completed": len([1 for _, passed, _ in checks if passed]),
+        "total": len(checks),
+    }
+
+
+def _portal_build_ranking_tips(draft: dict, photo_count: int) -> list[dict]:
+    """Builds lightweight ranking guidance for the final review step."""
+    services_count = len(_parse_csv_values(draft.get("services_text", "")))
+    languages_count = len(_parse_csv_values(draft.get("languages_text", "")))
+    rates_count = sum(
+        1
+        for key in ["rate_30min", "rate_1hr", "rate_2hr", "rate_3hr", "rate_overnight"]
+        if _to_int_or_none(draft.get(key)) is not None
+    )
+    bio_len = len((draft.get("bio") or "").strip())
+
+    tips = [
+        {
+            "title": f"Upload {PORTAL_RECOMMENDED_PROFILE_PHOTOS} clear photos",
+            "done": photo_count >= PORTAL_RECOMMENDED_PROFILE_PHOTOS,
+        },
+        {"title": "Write a bio with personality (80+ chars)", "done": bio_len >= 80},
+        {"title": "List at least 3 services", "done": services_count >= 3},
+        {"title": "Set at least 3 rates", "done": rates_count >= 3},
+        {"title": "Add at least 2 languages", "done": languages_count >= 2},
+        {
+            "title": "Add nearby landmark + availability for trust",
+            "done": bool(
+                (draft.get("nearby_places") or "").strip()
+                and (draft.get("availability_type") or "").strip()
+            ),
+        },
+    ]
+    return tips
 
 
 async def _save_provider_upload(provider_id: int, upload, prefix: str) -> Optional[str]:
@@ -661,6 +782,7 @@ def _render_provider_onboarding_template(
     draft: dict,
     step: int,
     error: Optional[str] = None,
+    show_saved_toast: bool = False,
 ):
     """Renders the multi-step portal onboarding screen."""
     photo_urls = _to_string_list(provider.get("profile_photos"))
@@ -669,6 +791,12 @@ def _render_provider_onboarding_template(
         photo_urls=photo_urls,
         has_verification_photo=bool(provider.get("verification_photo_id")),
     )
+    profile_strength = _portal_compute_profile_strength(
+        draft=draft,
+        photo_count=len(photo_urls),
+        has_verification_photo=bool(provider.get("verification_photo_id")),
+    )
+    ranking_tips = _portal_build_ranking_tips(draft=draft, photo_count=len(photo_urls))
     return templates.TemplateResponse(
         "provider_onboarding.html",
         {
@@ -685,13 +813,22 @@ def _render_provider_onboarding_template(
             "photo_urls": photo_urls,
             "max_photos": PORTAL_MAX_PROFILE_PHOTOS,
             "min_photos": PORTAL_MIN_PROFILE_PHOTOS,
+            "recommended_photos": PORTAL_RECOMMENDED_PROFILE_PHOTOS,
+            "photo_slot_count": min(PORTAL_MAX_PROFILE_PHOTOS, max(5, PORTAL_RECOMMENDED_PROFILE_PHOTOS)),
             "preview": preview,
+            "profile_strength": profile_strength,
+            "ranking_tips": ranking_tips,
+            "show_saved_toast": show_saved_toast,
         },
     )
 
 
 @app.get("/provider/onboarding", response_class=HTMLResponse)
-async def provider_portal_onboarding(request: Request, step: Optional[int] = 1):
+async def provider_portal_onboarding(
+    request: Request,
+    step: Optional[int] = 1,
+    saved: Optional[int] = 0,
+):
     """Multi-step onboarding wizard for non-Telegram providers."""
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
@@ -708,6 +845,7 @@ async def provider_portal_onboarding(request: Request, step: Optional[int] = 1):
         provider=provider,
         draft=draft,
         step=current_step,
+        show_saved_toast=bool(saved),
     )
 
 
@@ -777,12 +915,12 @@ async def provider_portal_onboarding_submit(request: Request):
 
     if action == "back":
         return RedirectResponse(
-            url=f"/provider/onboarding?step={max(1, step - 1)}",
+            url=f"/provider/onboarding?step={max(1, step - 1)}&saved=1",
             status_code=303,
         )
 
     if step < ONBOARDING_TOTAL_STEPS:
-        return RedirectResponse(url=f"/provider/onboarding?step={step + 1}", status_code=303)
+        return RedirectResponse(url=f"/provider/onboarding?step={step + 1}&saved=1", status_code=303)
 
     # Final step: save to DB and submit.
     existing_photo_urls = _to_string_list(provider.get("profile_photos"))
