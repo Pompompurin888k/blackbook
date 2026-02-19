@@ -1,0 +1,15 @@
+[project]
+name = "blackbook-web"
+version = "0.1.0"
+description = "Blackbook FastAPI web service"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "fastapi==0.109.0",
+  "uvicorn==0.27.0",
+  "jinja2==3.1.3",
+  "psycopg2-binary==2.9.9",
+  "httpx>=0.24.0",
+  "python-multipart==0.0.9",
+  "itsdangerous==2.2.0",
+]
+

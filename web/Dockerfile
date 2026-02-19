@@ -13,9 +13,11 @@ RUN apt-get update && apt-get install -y libpq-dev gcc tzdata \
     && echo $TZ > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python requirements
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install uv and Python dependencies from pyproject
+RUN pip install --no-cache-dir uv
+COPY pyproject.toml ./
+RUN uv export --no-dev --format requirements-txt > requirements.lock \
+    && uv pip install --system --no-cache -r requirements.lock
 
 # Copy the rest of the code
 COPY . .
