@@ -54,6 +54,10 @@ PACKAGE_PRICES = {
 PUBLIC_BASE_URL = os.getenv("PUBLIC_WEB_BASE_URL", "https://innbucks.org").rstrip("/")
 PORTAL_ADMIN_WHATSAPP = os.getenv("PORTAL_ADMIN_WHATSAPP", "")
 PORTAL_MAX_PROFILE_PHOTOS = int(os.getenv("PORTAL_MAX_PROFILE_PHOTOS", "8"))
+PORTAL_MIN_PROFILE_PHOTOS = max(
+    1,
+    min(PORTAL_MAX_PROFILE_PHOTOS, int(os.getenv("PORTAL_MIN_PROFILE_PHOTOS", "5"))),
+)
 PORTAL_MAX_UPLOAD_BYTES = int(os.getenv("PORTAL_MAX_UPLOAD_BYTES", str(6 * 1024 * 1024)))
 ALLOWED_UPLOAD_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
@@ -680,6 +684,7 @@ def _render_provider_onboarding_template(
             "neighborhood_map": NEIGHBORHOODS,
             "photo_urls": photo_urls,
             "max_photos": PORTAL_MAX_PROFILE_PHOTOS,
+            "min_photos": PORTAL_MIN_PROFILE_PHOTOS,
             "preview": preview,
         },
     )
@@ -793,13 +798,16 @@ async def provider_portal_onboarding_submit(request: Request):
     verification_photo_url = await _save_provider_upload(provider_id, verification_photo_upload, "verify")
     effective_verification_photo = verification_photo_url or provider.get("verification_photo_id")
 
-    if not existing_photo_urls:
+    if len(existing_photo_urls) < PORTAL_MIN_PROFILE_PHOTOS:
         return _render_provider_onboarding_template(
             request=request,
             provider=provider,
             draft=draft,
             step=ONBOARDING_TOTAL_STEPS,
-            error="Please upload at least one profile photo before submitting.",
+            error=(
+                f"Please upload at least {PORTAL_MIN_PROFILE_PHOTOS} profile photos "
+                "before submitting."
+            ),
         )
     if not effective_verification_photo:
         return _render_provider_onboarding_template(
@@ -837,7 +845,13 @@ async def provider_portal_onboarding_submit(request: Request):
         "rate_3hr": _to_int_or_none(draft.get("rate_3hr")),
         "rate_overnight": _to_int_or_none(draft.get("rate_overnight")),
         "is_online": False,
-        "portal_onboarding_complete": bool(display_name and city and neighborhood and bio and existing_photo_urls),
+        "portal_onboarding_complete": bool(
+            display_name
+            and city
+            and neighborhood
+            and bio
+            and len(existing_photo_urls) >= PORTAL_MIN_PROFILE_PHOTOS
+        ),
     }
     if effective_verification_photo:
         update_data["verification_photo_id"] = effective_verification_photo

@@ -11,7 +11,11 @@
         body { font-family: "Manrope", sans-serif; }
     </style>
 </head>
-<body class="min-h-screen bg-zinc-950 text-zinc-100">
+<body
+    class="min-h-screen bg-zinc-950 text-zinc-100"
+    data-required-photos="{{ min_photos }}"
+    data-existing-photos="{{ photo_urls | length }}"
+>
     <main class="mx-auto max-w-6xl px-4 py-6">
         <div class="mb-4 flex items-center justify-between">
             <a href="/provider/dashboard" class="text-xs uppercase tracking-widest text-zinc-300 hover:text-white">Back to Dashboard</a>
@@ -139,8 +143,11 @@
                 <section class="rounded-3xl border border-white/10 bg-zinc-900/70 p-4 space-y-3">
                     <div>
                         <h2 class="text-sm font-semibold uppercase tracking-widest text-zinc-300">Upload Photos</h2>
-                        <p class="mt-1 text-xs text-zinc-400">Add up to {{ max_photos }} profile photos. Strong photos improve visibility.</p>
-                        <input name="photos" type="file" accept="image/*" multiple class="mt-2 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
+                        <p class="mt-1 text-xs text-zinc-400">
+                            Upload at least {{ min_photos }} photos (max {{ max_photos }}).
+                            Better photos get more clicks.
+                        </p>
+                        <p id="photo-count-status" class="mt-2 text-xs text-amber-200"></p>
                     </div>
 
                     {% if photo_urls %}
@@ -151,6 +158,33 @@
                     </div>
                     {% endif %}
 
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+                        {% for idx in range(min_photos) %}
+                        <input
+                            type="file"
+                            id="photo-input-{{ idx }}"
+                            name="photos"
+                            accept="image/*"
+                            class="hidden photo-input"
+                        >
+                        <button
+                            type="button"
+                            class="photo-slot group relative flex aspect-square items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-white/20 bg-black/30 transition hover:border-amber-300 hover:bg-black/50"
+                            data-target="photo-input-{{ idx }}"
+                        >
+                            <img
+                                class="photo-preview hidden h-full w-full object-cover"
+                                alt="Selected photo preview {{ idx + 1 }}"
+                            >
+                            <div class="photo-placeholder text-center text-zinc-300">
+                                <div class="mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full border border-white/25 text-lg leading-none group-hover:border-amber-300 group-hover:text-amber-200">+</div>
+                                <p class="text-[11px]">Photo {{ idx + 1 }}</p>
+                            </div>
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <p id="photo-upload-error" class="hidden rounded-xl border border-red-400/50 bg-red-400/10 px-3 py-2 text-xs text-red-100"></p>
+
                     <div>
                         <label class="text-xs text-zinc-400">Verification selfie or ID photo</label>
                         <input name="verification_photo" type="file" accept="image/*" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
@@ -160,7 +194,7 @@
                         Final review before submit:
                         <ul class="mt-2 list-disc space-y-1 pl-4">
                             <li>Preview card looks complete and attractive</li>
-                            <li>At least 1 profile photo uploaded</li>
+                            <li>At least {{ min_photos }} profile photos uploaded</li>
                             <li>Verification photo uploaded</li>
                         </ul>
                     </div>
@@ -235,12 +269,86 @@
                 <section class="rounded-3xl border border-white/10 bg-black/40 p-4 text-sm text-zinc-300">
                     <p class="text-xs uppercase tracking-widest text-zinc-400">Submission Status</p>
                     <div class="mt-2 space-y-1">
-                        <p>Profile photos: <span class="font-semibold text-white">{{ preview.photo_count }}</span></p>
+                        <p>Profile photos: <span class="font-semibold text-white">{{ preview.photo_count }}</span> / {{ min_photos }} minimum</p>
                         <p>Verification photo: <span class="font-semibold {% if preview.verification_ready %}text-emerald-300{% else %}text-zinc-400{% endif %}">{% if preview.verification_ready %}Ready{% else %}Pending{% endif %}</span></p>
                     </div>
                 </section>
             </aside>
         </div>
     </main>
+    <script>
+        (function () {
+            const requiredPhotos = Number(document.body.dataset.requiredPhotos || "5");
+            const existingPhotos = Number(document.body.dataset.existingPhotos || "0");
+            const slots = Array.from(document.querySelectorAll(".photo-slot"));
+            const statusEl = document.getElementById("photo-count-status");
+            const errorEl = document.getElementById("photo-upload-error");
+            const submitButton = document.querySelector('button[name="action"][value="submit"]');
+
+            if (!slots.length) {
+                return;
+            }
+
+            const selectedInputs = [];
+            slots.forEach((slot) => {
+                const inputId = slot.getAttribute("data-target");
+                const input = document.getElementById(inputId);
+                const preview = slot.querySelector(".photo-preview");
+                const placeholder = slot.querySelector(".photo-placeholder");
+                if (!input) return;
+
+                slot.addEventListener("click", () => input.click());
+                input.addEventListener("change", () => {
+                    const file = input.files && input.files[0];
+                    if (!file) return;
+                    const objectUrl = URL.createObjectURL(file);
+                    preview.src = objectUrl;
+                    preview.classList.remove("hidden");
+                    placeholder.classList.add("hidden");
+                    if (!selectedInputs.includes(input)) {
+                        selectedInputs.push(input);
+                    }
+                    updateStatus();
+                });
+            });
+
+            function updateStatus() {
+                const selectedCount = selectedInputs.filter((input) => input.files && input.files.length > 0).length;
+                const total = existingPhotos + selectedCount;
+                const needed = Math.max(requiredPhotos - total, 0);
+                if (!statusEl) return;
+                if (needed === 0) {
+                    statusEl.textContent = `Great. You now have ${total} photo(s), enough to submit.`;
+                    statusEl.className = "mt-2 text-xs text-emerald-200";
+                } else {
+                    statusEl.textContent = `You currently have ${total} photo(s). Add ${needed} more photo(s) to submit.`;
+                    statusEl.className = "mt-2 text-xs text-amber-200";
+                }
+            }
+
+            updateStatus();
+
+            if (submitButton) {
+                const form = submitButton.closest("form");
+                form.addEventListener("submit", (event) => {
+                    const submitter = event.submitter;
+                    if (!submitter || submitter.value !== "submit") {
+                        return;
+                    }
+                    const selectedCount = selectedInputs.filter((input) => input.files && input.files.length > 0).length;
+                    const total = existingPhotos + selectedCount;
+                    if (total < requiredPhotos) {
+                        event.preventDefault();
+                        if (errorEl) {
+                            errorEl.textContent = `Please upload at least ${requiredPhotos} photos before submitting.`;
+                            errorEl.classList.remove("hidden");
+                        }
+                    } else if (errorEl) {
+                        errorEl.classList.add("hidden");
+                    }
+                });
+            }
+        })();
+    </script>
 </body>
 </html>
