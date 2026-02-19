@@ -123,6 +123,17 @@ class Database:
             created_at TIMESTAMP DEFAULT NOW()
         );
         """
+
+        verification_events_query = """
+        CREATE TABLE IF NOT EXISTS provider_verification_events (
+            id BIGSERIAL PRIMARY KEY,
+            provider_id INT NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+            event_type VARCHAR(64) NOT NULL,
+            event_payload JSONB,
+            admin_telegram_id BIGINT,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        """
         
         # Add new columns if they don't exist
         add_columns = """
@@ -208,6 +219,36 @@ class Database:
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='portal_onboarding_complete') THEN
                 ALTER TABLE providers ADD COLUMN portal_onboarding_complete BOOLEAN DEFAULT FALSE;
             END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='account_state') THEN
+                ALTER TABLE providers ADD COLUMN account_state VARCHAR(20) DEFAULT 'approved';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='verification_code_hash') THEN
+                ALTER TABLE providers ADD COLUMN verification_code_hash TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='verification_code_expires_at') THEN
+                ALTER TABLE providers ADD COLUMN verification_code_expires_at TIMESTAMP;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='verification_code_used_at') THEN
+                ALTER TABLE providers ADD COLUMN verification_code_used_at TIMESTAMP;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='approved_by_admin') THEN
+                ALTER TABLE providers ADD COLUMN approved_by_admin BIGINT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='approved_at') THEN
+                ALTER TABLE providers ADD COLUMN approved_at TIMESTAMP;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='rejection_reason') THEN
+                ALTER TABLE providers ADD COLUMN rejection_reason TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='login_failed_attempts') THEN
+                ALTER TABLE providers ADD COLUMN login_failed_attempts INT DEFAULT 0;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='locked_until') THEN
+                ALTER TABLE providers ADD COLUMN locked_until TIMESTAMP;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='last_login_attempt_at') THEN
+                ALTER TABLE providers ADD COLUMN last_login_attempt_at TIMESTAMP;
+            END IF;
             
             -- BUSINESS MODEL COLUMNS
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='subscription_tier') THEN
@@ -261,7 +302,18 @@ class Database:
                 cur.execute(sessions_query)
                 cur.execute(funnel_events_query)
                 cur.execute(lead_analytics_query)
+                cur.execute(verification_events_query)
                 cur.execute(add_columns)
+                cur.execute("""
+                    UPDATE providers
+                    SET account_state = CASE
+                        WHEN COALESCE(auth_channel, 'telegram') = 'portal' AND COALESCE(is_verified, FALSE) = FALSE THEN 'pending_review'
+                        WHEN COALESCE(is_verified, FALSE) = TRUE THEN 'approved'
+                        ELSE 'approved'
+                    END
+                    WHERE account_state IS NULL
+                       OR account_state NOT IN ('pending_review', 'approved', 'rejected', 'suspended')
+                """)
                 self.conn.commit()
                 logger.info("🛠️ Database tables initialized.")
         except Exception as e:
@@ -320,7 +372,11 @@ class Database:
             "referred_by", "referral_credits", "is_premium_verified",
             "trial_used", "trial_started_at", "trial_reminder_day2_sent",
             "trial_reminder_day5_sent", "trial_reminder_lastday_sent",
-            "trial_expired_notified", "trial_winback_sent"
+            "trial_expired_notified", "trial_winback_sent",
+            "phone_verified", "phone_verify_code", "phone_verify_code_created_at",
+            "account_state", "verification_code_hash", "verification_code_expires_at",
+            "verification_code_used_at", "approved_by_admin", "approved_at",
+            "rejection_reason", "login_failed_attempts", "locked_until", "last_login_attempt_at"
         }
 
         sanitized_data = {k: v for k, v in data.items() if k in allowed_fields}
@@ -399,16 +455,99 @@ class Database:
             logger.error(f"❌ Error saving provider photos: {e}")
             self.conn.rollback()
 
-    def verify_provider(self, tg_id, verified: bool):
-        """Updates the is_verified status for a provider."""
-        query = "UPDATE providers SET is_verified = %s WHERE telegram_id = %s"
+    def verify_provider(self, tg_id, verified: bool, admin_tg_id: int | None = None, reason: str | None = None):
+        """Updates verification status and portal account state when applicable."""
+        query = """
+        UPDATE providers
+        SET is_verified = %s,
+            account_state = CASE
+                WHEN COALESCE(auth_channel, 'telegram') = 'portal' THEN %s
+                ELSE COALESCE(account_state, 'approved')
+            END,
+            phone_verified = CASE
+                WHEN COALESCE(auth_channel, 'telegram') = 'portal' AND %s THEN TRUE
+                WHEN COALESCE(auth_channel, 'telegram') = 'portal' AND NOT %s THEN FALSE
+                ELSE phone_verified
+            END,
+            approved_by_admin = CASE
+                WHEN COALESCE(auth_channel, 'telegram') = 'portal' AND %s THEN %s
+                ELSE approved_by_admin
+            END,
+            approved_at = CASE
+                WHEN COALESCE(auth_channel, 'telegram') = 'portal' AND %s THEN NOW()
+                ELSE approved_at
+            END,
+            rejection_reason = CASE
+                WHEN COALESCE(auth_channel, 'telegram') = 'portal' AND %s THEN NULL
+                WHEN COALESCE(auth_channel, 'telegram') = 'portal' THEN %s
+                ELSE rejection_reason
+            END,
+            verification_code_used_at = CASE
+                WHEN COALESCE(auth_channel, 'telegram') = 'portal' AND %s THEN NOW()
+                ELSE verification_code_used_at
+            END
+        WHERE telegram_id = %s
+        RETURNING id
+        """
+        next_state = "approved" if verified else "rejected"
         try:
             with self.conn.cursor() as cur:
-                cur.execute(query, (verified, tg_id))
+                cur.execute(
+                    query,
+                    (
+                        verified,
+                        next_state,
+                        verified,
+                        verified,
+                        verified,
+                        admin_tg_id,
+                        verified,
+                        verified,
+                        reason,
+                        verified,
+                        tg_id,
+                    ),
+                )
+                row = cur.fetchone()
+                self.conn.commit()
+                if row:
+                    self.log_provider_verification_event(
+                        provider_id=row["id"],
+                        event_type="approved" if verified else "rejected",
+                        payload={"reason": reason} if reason else {},
+                        admin_telegram_id=admin_tg_id,
+                    )
+                    return True
+                return False
+        except Exception as e:
+            logger.error(f"❌ Error updating verification status: {e}")
+            self.conn.rollback()
+            return False
+
+    def log_provider_verification_event(
+        self,
+        provider_id: int,
+        event_type: str,
+        payload: dict | None = None,
+        admin_telegram_id: int | None = None,
+    ) -> bool:
+        """Stores verification/security audit entries."""
+        normalized = str(event_type or "").strip().lower()[:64]
+        if not normalized:
+            return False
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO provider_verification_events (provider_id, event_type, event_payload, admin_telegram_id)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (provider_id, normalized, Json(payload or {}), admin_telegram_id),
+                )
                 self.conn.commit()
                 return True
         except Exception as e:
-            logger.error(f"❌ Error updating verification status: {e}")
+            logger.error(f"❌ Error logging provider verification event: {e}")
             self.conn.rollback()
             return False
 

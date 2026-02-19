@@ -5,6 +5,7 @@ import hmac
 import hashlib
 import secrets
 import uuid
+from datetime import datetime
 from collections import OrderedDict
 from pathlib import Path
 import httpx
@@ -67,6 +68,18 @@ PORTAL_RECOMMENDED_PROFILE_PHOTOS = max(
 )
 PORTAL_MAX_UPLOAD_BYTES = int(os.getenv("PORTAL_MAX_UPLOAD_BYTES", str(6 * 1024 * 1024)))
 ALLOWED_UPLOAD_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+PORTAL_VERIFY_CODE_TTL_MINUTES = int(os.getenv("PORTAL_VERIFY_CODE_TTL_MINUTES", "30"))
+PORTAL_VERIFY_CODE_REGEN_LIMIT_PER_DAY = int(os.getenv("PORTAL_VERIFY_CODE_REGEN_LIMIT_PER_DAY", "5"))
+PORTAL_LOGIN_MAX_ATTEMPTS = int(os.getenv("PORTAL_LOGIN_MAX_ATTEMPTS", "5"))
+PORTAL_LOGIN_LOCK_MINUTES = int(os.getenv("PORTAL_LOGIN_LOCK_MINUTES", "15"))
+PORTAL_VERIFY_CODE_PEPPER = os.getenv(
+    "PORTAL_VERIFY_CODE_PEPPER",
+    os.getenv("PROVIDER_PORTAL_SESSION_SECRET", "replace-this-portal-secret"),
+)
+PORTAL_ACCOUNT_APPROVED = "approved"
+PORTAL_ACCOUNT_PENDING = "pending_review"
+PORTAL_ACCOUNT_REJECTED = "rejected"
+PORTAL_ACCOUNT_SUSPENDED = "suspended"
 
 # Photo file-path cache (in-memory for now, consider Redis for production)
 MAX_PHOTO_CACHE_ITEMS = int(os.getenv("MAX_PHOTO_CACHE_ITEMS", "2000"))
@@ -170,8 +183,56 @@ def _portal_session_provider_id(request: Request) -> Optional[int]:
 
 
 def _portal_generate_whatsapp_code() -> str:
-    """Generates short manual verification code for WhatsApp confirmation."""
-    return f"BB-{secrets.randbelow(9000) + 1000}"
+    """Generates strong manual verification code for WhatsApp confirmation."""
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    return "BB-" + "".join(secrets.choice(alphabet) for _ in range(8))
+
+
+def _portal_hash_verification_code(code: str) -> str:
+    """Hashes verification code with an app-level pepper."""
+    base = f"{PORTAL_VERIFY_CODE_PEPPER}:{code}".encode("utf-8")
+    return hashlib.sha256(base).hexdigest()
+
+
+def _portal_account_state(provider: Optional[dict]) -> str:
+    """Normalizes provider account_state to a known value."""
+    if not provider:
+        return PORTAL_ACCOUNT_PENDING
+    state = str(provider.get("account_state") or "").strip().lower()
+    if state in {
+        PORTAL_ACCOUNT_APPROVED,
+        PORTAL_ACCOUNT_PENDING,
+        PORTAL_ACCOUNT_REJECTED,
+        PORTAL_ACCOUNT_SUSPENDED,
+    }:
+        return state
+    return PORTAL_ACCOUNT_APPROVED if provider.get("is_verified") else PORTAL_ACCOUNT_PENDING
+
+
+def _portal_is_locked(provider: dict) -> bool:
+    """Checks whether login is currently locked for this provider."""
+    locked_until = provider.get("locked_until")
+    if not locked_until:
+        return False
+    try:
+        now = datetime.now(locked_until.tzinfo) if getattr(locked_until, "tzinfo", None) else datetime.now()
+        return locked_until > now
+    except TypeError:
+        return False
+
+
+def _portal_admin_review_keyboard(telegram_id: int) -> dict:
+    """Inline admin actions for portal signup approval workflow."""
+    return {
+        "inline_keyboard": [
+            [{"text": "✅ Approve", "callback_data": f"verify_approve_{telegram_id}"}],
+            [
+                {"text": "❌ Photo Quality", "callback_data": f"verify_reject_{telegram_id}_photo"},
+                {"text": "❌ Identity Mismatch", "callback_data": f"verify_reject_{telegram_id}_mismatch"},
+            ],
+            [{"text": "❌ Incomplete Profile", "callback_data": f"verify_reject_{telegram_id}_incomplete"}],
+        ]
+    }
 
 
 def _to_int_or_none(value) -> Optional[int]:
@@ -671,7 +732,14 @@ async def provider_portal_auth(request: Request, error: Optional[str] = None, su
     """Provider portal auth page (phone + password)."""
     provider_id = _portal_session_provider_id(request)
     if provider_id:
-        return RedirectResponse(url="/provider/dashboard", status_code=302)
+        provider = db.get_portal_provider_by_id(provider_id)
+        if not provider:
+            request.session.clear()
+        else:
+            state = _portal_account_state(provider)
+            if state == PORTAL_ACCOUNT_APPROVED:
+                return RedirectResponse(url="/provider/dashboard", status_code=302)
+            return RedirectResponse(url=f"/provider/verify-phone?status={state}", status_code=302)
     return templates.TemplateResponse(
         "provider_auth.html",
         {
@@ -733,14 +801,40 @@ async def provider_portal_register(request: Request):
         )
 
     provider_id = int(created["id"])
+    provider_tg_id = int(created["telegram_id"])
     request.session["provider_portal_id"] = provider_id
     verify_code = _portal_generate_whatsapp_code()
-    db.set_portal_phone_verification_code(provider_id, verify_code)
-    await send_admin_alert(
-        f"New portal signup: {display_name} ({phone}) provider_id={provider_id}. "
-        f"Manual WhatsApp verification code: {verify_code}"
+    code_hash = _portal_hash_verification_code(verify_code)
+    db.set_portal_phone_verification_code(
+        provider_id,
+        verify_code,
+        code_hash,
+        ttl_minutes=PORTAL_VERIFY_CODE_TTL_MINUTES,
+        mark_pending=True,
     )
-    return RedirectResponse(url="/provider/onboarding", status_code=303)
+    db.log_provider_verification_event(
+        provider_id,
+        "account_created",
+        payload={"phone": phone, "display_name": display_name},
+    )
+    db.log_provider_verification_event(
+        provider_id,
+        "code_issued",
+        payload={"ttl_minutes": PORTAL_VERIFY_CODE_TTL_MINUTES},
+    )
+    await send_admin_alert(
+        (
+            "🆕 Portal signup pending review\n\n"
+            f"Name: {display_name}\n"
+            f"Phone: {phone}\n"
+            f"Provider ID: {provider_id}\n"
+            f"Portal TG ID: {provider_tg_id}\n"
+            f"Verification Code: {verify_code}\n\n"
+            "Confirm WhatsApp sender + code, then approve."
+        ),
+        reply_markup=_portal_admin_review_keyboard(provider_tg_id),
+    )
+    return RedirectResponse(url="/provider/verify-phone?registered=1", status_code=303)
 
 
 @app.post("/provider/login")
@@ -751,15 +845,77 @@ async def provider_portal_login(request: Request):
     password = str(form.get("password", ""))
 
     provider = db.get_portal_provider_by_phone(phone) if phone else None
-    stored_hash = provider.get("portal_password_hash") if provider else None
-    if not provider or not _verify_password(password, stored_hash):
+    if not provider:
         return templates.TemplateResponse(
             "provider_auth.html",
             {"request": request, "error": "Invalid phone or password.", "success": None},
             status_code=401,
         )
+    if _portal_is_locked(provider):
+        locked_until = provider.get("locked_until")
+        locked_text = (
+            locked_until.strftime("%H:%M")
+            if hasattr(locked_until, "strftime")
+            else "later"
+        )
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {
+                "request": request,
+                "error": f"Too many failed logins. Try again after {locked_text}.",
+                "success": None,
+            },
+            status_code=423,
+        )
+    stored_hash = provider.get("portal_password_hash")
+    if not _verify_password(password, stored_hash):
+        failure = db.register_portal_login_failure(
+            int(provider["id"]),
+            max_attempts=PORTAL_LOGIN_MAX_ATTEMPTS,
+            lock_minutes=PORTAL_LOGIN_LOCK_MINUTES,
+        )
+        db.log_provider_verification_event(
+            int(provider["id"]),
+            "login_failed",
+            payload={"phone": phone},
+        )
+        if failure and failure.get("locked_until"):
+            locked_until = failure.get("locked_until")
+            locked_text = (
+                locked_until.strftime("%H:%M")
+                if hasattr(locked_until, "strftime")
+                else "later"
+            )
+            message = f"Too many failed logins. Try again after {locked_text}."
+        else:
+            message = "Invalid phone or password."
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {"request": request, "error": message, "success": None},
+            status_code=401,
+        )
+
+    db.reset_portal_login_failures(int(provider["id"]))
+    db.log_provider_verification_event(
+        int(provider["id"]),
+        "login_success",
+        payload={"phone": phone},
+    )
 
     request.session["provider_portal_id"] = int(provider["id"])
+    state = _portal_account_state(provider)
+    if state == PORTAL_ACCOUNT_SUSPENDED:
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {
+                "request": request,
+                "error": "This account is suspended. Contact support/admin.",
+                "success": None,
+            },
+            status_code=403,
+        )
+    if state != PORTAL_ACCOUNT_APPROVED:
+        return RedirectResponse(url=f"/provider/verify-phone?status={state}", status_code=303)
     return RedirectResponse(url="/provider/dashboard", status_code=303)
 
 
@@ -828,6 +984,8 @@ async def provider_portal_onboarding(
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
+    if _portal_account_state(provider) != PORTAL_ACCOUNT_APPROVED:
+        return RedirectResponse(url=f"/provider/verify-phone?status={_portal_account_state(provider)}", status_code=302)
     current_step = _normalize_onboarding_step(step)
     draft = _portal_get_onboarding_draft(request, provider)
     _portal_set_onboarding_draft(request, draft)
@@ -850,6 +1008,8 @@ async def provider_portal_onboarding_submit(request: Request):
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
+    if _portal_account_state(provider) != PORTAL_ACCOUNT_APPROVED:
+        return RedirectResponse(url=f"/provider/verify-phone?status={_portal_account_state(provider)}", status_code=302)
 
     form = await request.form()
     step = _normalize_onboarding_step(form.get("step"))
@@ -983,12 +1143,23 @@ async def provider_portal_onboarding_submit(request: Request):
     phone_code = provider_after.get("phone_verify_code")
     if not phone_code:
         phone_code = _portal_generate_whatsapp_code()
-        db.set_portal_phone_verification_code(provider_id, phone_code)
+        db.set_portal_phone_verification_code(
+            provider_id,
+            phone_code,
+            _portal_hash_verification_code(phone_code),
+            ttl_minutes=PORTAL_VERIFY_CODE_TTL_MINUTES,
+            mark_pending=False,
+        )
 
     await send_admin_alert(
         "Portal profile submitted: "
         f"provider_id={provider_id}, name={display_name or provider.get('display_name', 'Unknown')}, "
         f"phone={provider.get('phone', '')}, code={phone_code}"
+    )
+    db.log_provider_verification_event(
+        provider_id,
+        "profile_submitted",
+        payload={"photo_count": len(existing_photo_urls), "city": city, "neighborhood": neighborhood},
     )
 
     _portal_clear_onboarding_draft(request)
@@ -1005,11 +1176,19 @@ async def provider_portal_dashboard(request: Request, saved: Optional[int] = 0):
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
+    if _portal_account_state(provider) != PORTAL_ACCOUNT_APPROVED:
+        return RedirectResponse(url=f"/provider/verify-phone?status={_portal_account_state(provider)}", status_code=302)
 
     phone_code = provider.get("phone_verify_code")
     if not phone_code:
         phone_code = _portal_generate_whatsapp_code()
-        db.set_portal_phone_verification_code(provider_id, phone_code)
+        db.set_portal_phone_verification_code(
+            provider_id,
+            phone_code,
+            _portal_hash_verification_code(phone_code),
+            ttl_minutes=PORTAL_VERIFY_CODE_TTL_MINUTES,
+            mark_pending=False,
+        )
         provider = db.get_portal_provider_by_id(provider_id) or provider
 
     return templates.TemplateResponse(
@@ -1028,7 +1207,13 @@ async def provider_portal_dashboard(request: Request, saved: Optional[int] = 0):
 
 
 @app.get("/provider/verify-phone", response_class=HTMLResponse)
-async def provider_portal_verify_phone(request: Request):
+async def provider_portal_verify_phone(
+    request: Request,
+    status: Optional[str] = None,
+    registered: Optional[int] = 0,
+    regenerated: Optional[int] = 0,
+    rate_limited: Optional[int] = 0,
+):
     """Manual WhatsApp-based phone verification instructions page."""
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
@@ -1038,10 +1223,25 @@ async def provider_portal_verify_phone(request: Request):
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
 
+    state = _portal_account_state(provider)
+    if state == PORTAL_ACCOUNT_APPROVED:
+        return RedirectResponse(url="/provider/dashboard", status_code=302)
+
     phone_code = provider.get("phone_verify_code")
     if not phone_code:
         phone_code = _portal_generate_whatsapp_code()
-        db.set_portal_phone_verification_code(provider_id, phone_code)
+        db.set_portal_phone_verification_code(
+            provider_id,
+            phone_code,
+            _portal_hash_verification_code(phone_code),
+            ttl_minutes=PORTAL_VERIFY_CODE_TTL_MINUTES,
+            mark_pending=True,
+        )
+        db.log_provider_verification_event(
+            provider_id,
+            "code_issued",
+            payload={"ttl_minutes": PORTAL_VERIFY_CODE_TTL_MINUTES, "source": "verify_phone_page"},
+        )
     return templates.TemplateResponse(
         "provider_verify_phone.html",
         {
@@ -1049,6 +1249,16 @@ async def provider_portal_verify_phone(request: Request):
             "provider": provider,
             "admin_whatsapp": PORTAL_ADMIN_WHATSAPP,
             "phone_verify_code": phone_code,
+            "account_state": state,
+            "status": status or state,
+            "registered": bool(registered),
+            "regenerated": bool(regenerated),
+            "rate_limited": bool(rate_limited),
+            "admin_whatsapp_link": (
+                f"https://wa.me/{_sanitize_phone(PORTAL_ADMIN_WHATSAPP)}?text={quote(phone_code)}"
+                if _sanitize_phone(PORTAL_ADMIN_WHATSAPP)
+                else None
+            ),
         },
     )
 
@@ -1059,15 +1269,37 @@ async def provider_portal_regenerate_verify_code(request: Request):
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
         return RedirectResponse(url="/provider", status_code=302)
-    new_code = _portal_generate_whatsapp_code()
-    db.set_portal_phone_verification_code(provider_id, new_code)
     provider = db.get_portal_provider_by_id(provider_id)
+    if not provider:
+        request.session.clear()
+        return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
+    if _portal_account_state(provider) == PORTAL_ACCOUNT_APPROVED:
+        return RedirectResponse(url="/provider/dashboard", status_code=302)
+    regen_count = db.count_provider_verification_events(provider_id, "code_regenerated", hours=24)
+    if regen_count >= PORTAL_VERIFY_CODE_REGEN_LIMIT_PER_DAY:
+        return RedirectResponse(url="/provider/verify-phone?rate_limited=1", status_code=303)
+
+    new_code = _portal_generate_whatsapp_code()
+    db.set_portal_phone_verification_code(
+        provider_id,
+        new_code,
+        _portal_hash_verification_code(new_code),
+        ttl_minutes=PORTAL_VERIFY_CODE_TTL_MINUTES,
+        mark_pending=True,
+    )
+    provider = db.get_portal_provider_by_id(provider_id)
+    db.log_provider_verification_event(
+        provider_id,
+        "code_regenerated",
+        payload={"ttl_minutes": PORTAL_VERIFY_CODE_TTL_MINUTES},
+    )
     if provider:
         await send_admin_alert(
             f"Portal verification code regenerated: provider_id={provider_id}, "
-            f"phone={provider.get('phone', '')}, code={new_code}"
+            f"phone={provider.get('phone', '')}, code={new_code}",
+            reply_markup=_portal_admin_review_keyboard(int(provider.get("telegram_id"))),
         )
-    return RedirectResponse(url="/provider/verify-phone", status_code=303)
+    return RedirectResponse(url="/provider/verify-phone?regenerated=1", status_code=303)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -1528,6 +1760,7 @@ async def send_telegram_notification(
     message: str,
     parse_mode: Optional[str] = "Markdown",
     bot_token: Optional[str] = None,
+    reply_markup: Optional[dict] = None,
 ):
     """Sends a notification to a user via Telegram Bot API."""
     token = bot_token or TELEGRAM_BOT_TOKEN
@@ -1542,6 +1775,8 @@ async def send_telegram_notification(
     }
     if parse_mode:
         payload["parse_mode"] = parse_mode
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
     
     try:
         async with httpx.AsyncClient() as client:
@@ -1554,7 +1789,11 @@ async def send_telegram_notification(
         logger.error(f"❌ Telegram notification error: {e}")
 
 
-async def send_admin_alert(message: str):
+async def send_admin_alert(
+    message: str,
+    parse_mode: Optional[str] = None,
+    reply_markup: Optional[dict] = None,
+):
     """Sends basic operational alerts to admin via Telegram."""
     if not ADMIN_CHAT_ID or not ADMIN_BOT_TOKEN:
         return
@@ -1562,8 +1801,9 @@ async def send_admin_alert(message: str):
         await send_telegram_notification(
             int(ADMIN_CHAT_ID),
             f"ALERT:\n{message}",
-            parse_mode=None,
+            parse_mode=parse_mode,
             bot_token=ADMIN_BOT_TOKEN,
+            reply_markup=reply_markup,
         )
     except Exception as e:
         logger.error(f"❌ Failed to send admin alert: {e}")

@@ -367,6 +367,9 @@ class Database:
                     SELECT id, telegram_id, display_name, phone, city, neighborhood,
                            is_verified, is_active, auth_channel, portal_password_hash,
                            phone_verified, phone_verify_code, phone_verify_code_created_at,
+                           account_state, verification_code_hash, verification_code_expires_at,
+                           verification_code_used_at, approved_by_admin, approved_at,
+                           rejection_reason, login_failed_attempts, locked_until, last_login_attempt_at,
                            portal_onboarding_complete, verification_photo_id,
                            age, height_cm, weight_kg, build, services, bio, nearby_places,
                            availability_type, languages, profile_photos,
@@ -394,6 +397,9 @@ class Database:
                     SELECT id, telegram_id, display_name, phone, city, neighborhood,
                            is_verified, is_active, auth_channel, portal_password_hash,
                            phone_verified, phone_verify_code, phone_verify_code_created_at,
+                           account_state, verification_code_hash, verification_code_expires_at,
+                           verification_code_used_at, approved_by_admin, approved_at,
+                           rejection_reason, login_failed_attempts, locked_until, last_login_attempt_at,
                            portal_onboarding_complete, verification_photo_id,
                            age, height_cm, weight_kg, build, services, bio, nearby_places,
                            availability_type, languages, profile_photos,
@@ -446,11 +452,12 @@ class Database:
                         auth_channel,
                         portal_password_hash,
                         phone_verified,
+                        account_state,
                         portal_onboarding_complete,
                         is_verified,
                         is_active
                     )
-                    VALUES (%s, %s, %s, 'portal', %s, FALSE, FALSE, FALSE, FALSE)
+                    VALUES (%s, %s, %s, 'portal', %s, FALSE, 'pending_review', FALSE, FALSE, FALSE)
                     RETURNING id, telegram_id, display_name, phone, auth_channel
                     """,
                     (synthetic_tg_id, display_name, phone, password_hash),
@@ -490,6 +497,16 @@ class Database:
             "phone_verify_code",
             "phone_verify_code_created_at",
             "phone_verified",
+            "account_state",
+            "verification_code_hash",
+            "verification_code_expires_at",
+            "verification_code_used_at",
+            "approved_by_admin",
+            "approved_at",
+            "rejection_reason",
+            "login_failed_attempts",
+            "locked_until",
+            "last_login_attempt_at",
             "is_online",
         }
         sanitized = {k: v for k, v in data.items() if k in allowed_fields}
@@ -519,7 +536,14 @@ class Database:
             self.conn.rollback()
             return False
 
-    def set_portal_phone_verification_code(self, provider_id: int, code: str) -> bool:
+    def set_portal_phone_verification_code(
+        self,
+        provider_id: int,
+        code: str,
+        code_hash: str,
+        ttl_minutes: int = 30,
+        mark_pending: bool = True,
+    ) -> bool:
         """Stores the latest manual phone verification code for WhatsApp confirmation."""
         self._ensure_connection()
         try:
@@ -528,10 +552,18 @@ class Database:
                     """
                     UPDATE providers
                     SET phone_verify_code = %s,
+                        verification_code_hash = %s,
+                        verification_code_expires_at = NOW() + (%s || ' minutes')::INTERVAL,
+                        verification_code_used_at = NULL,
                         phone_verify_code_created_at = NOW()
+                        ,
+                        account_state = CASE
+                            WHEN %s AND COALESCE(account_state, 'approved') != 'approved' THEN 'pending_review'
+                            ELSE COALESCE(account_state, 'approved')
+                        END
                     WHERE id = %s
                     """,
-                    (code, provider_id),
+                    (code, code_hash, str(max(1, int(ttl_minutes))), bool(mark_pending), provider_id),
                 )
                 self.conn.commit()
                 return cur.rowcount > 0
@@ -539,6 +571,120 @@ class Database:
             logger.error(f"❌ Error setting phone verification code: {e}")
             self.conn.rollback()
             return False
+
+    def register_portal_login_failure(self, provider_id: int, max_attempts: int, lock_minutes: int) -> Optional[Dict]:
+        """Increments failed login attempts and applies lockout when threshold is reached."""
+        self._ensure_connection()
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE providers
+                    SET login_failed_attempts = COALESCE(login_failed_attempts, 0) + 1,
+                        last_login_attempt_at = NOW(),
+                        locked_until = CASE
+                            WHEN COALESCE(login_failed_attempts, 0) + 1 >= %s
+                                THEN NOW() + (%s || ' minutes')::INTERVAL
+                            ELSE locked_until
+                        END
+                    WHERE id = %s
+                    RETURNING login_failed_attempts, locked_until
+                    """,
+                    (int(max_attempts), str(max(1, int(lock_minutes))), provider_id),
+                )
+                row = cur.fetchone()
+                self.conn.commit()
+                return row
+        except Exception as e:
+            logger.error(f"❌ Error tracking failed portal login: {e}")
+            self.conn.rollback()
+            return None
+
+    def reset_portal_login_failures(self, provider_id: int) -> bool:
+        """Clears failed login counters on successful authentication."""
+        self._ensure_connection()
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE providers
+                    SET login_failed_attempts = 0,
+                        locked_until = NULL,
+                        last_login_attempt_at = NOW()
+                    WHERE id = %s
+                    """,
+                    (provider_id,),
+                )
+                self.conn.commit()
+                return cur.rowcount > 0
+        except Exception as e:
+            logger.error(f"❌ Error resetting portal login failures: {e}")
+            self.conn.rollback()
+            return False
+
+    def log_provider_verification_event(
+        self,
+        provider_id: int,
+        event_type: str,
+        payload: Optional[Dict] = None,
+        admin_telegram_id: Optional[int] = None,
+    ) -> bool:
+        """Writes provider verification/security events for auditability."""
+        self._ensure_connection()
+        normalized_event = str(event_type or "").strip().lower()[:64]
+        if not normalized_event:
+            return False
+        event_payload = payload or {}
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO provider_verification_events (
+                        provider_id,
+                        event_type,
+                        event_payload,
+                        admin_telegram_id
+                    )
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (provider_id, normalized_event, Json(event_payload), admin_telegram_id),
+                )
+                self.conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"❌ Error logging provider verification event: {e}")
+            self.conn.rollback()
+            return False
+
+    def count_provider_verification_events(
+        self,
+        provider_id: int,
+        event_type: str,
+        hours: int = 24,
+    ) -> int:
+        """Counts recent verification events for basic rate limiting."""
+        self._ensure_connection()
+        normalized_event = str(event_type or "").strip().lower()[:64]
+        if not normalized_event:
+            return 0
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) AS count
+                    FROM provider_verification_events
+                    WHERE provider_id = %s
+                      AND event_type = %s
+                      AND created_at >= NOW() - (%s || ' hours')::INTERVAL
+                    """,
+                    (provider_id, normalized_event, str(max(1, int(hours)))),
+                )
+                row = cur.fetchone()
+                return int(row["count"]) if row else 0
+        except Exception as e:
+            logger.error(f"❌ Error counting provider verification events: {e}")
+            self.conn.rollback()
+            return 0
     
     def activate_subscription(self, tg_id: int, days: int) -> bool:
         """Activates provider subscription for X days with tier name."""

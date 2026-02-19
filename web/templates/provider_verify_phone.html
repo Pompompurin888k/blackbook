@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -11,12 +11,40 @@
 </head>
 <body class="min-h-screen bg-zinc-950 text-zinc-100">
     <main class="max-w-xl mx-auto px-4 py-6 space-y-4">
-        <a href="/provider/dashboard" class="text-xs uppercase tracking-widest text-zinc-300 hover:text-white">← Back to Dashboard</a>
+        <a href="/provider" class="text-xs uppercase tracking-widest text-zinc-300 hover:text-white"><- Back to Login</a>
+
+        {% if registered %}
+        <div class="rounded-2xl border border-cyan-300/30 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100">
+            Account created. Send the code below from your registered WhatsApp number, then wait for admin approval.
+        </div>
+        {% endif %}
+        {% if regenerated %}
+        <div class="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+            A new verification code was generated and sent to admin review.
+        </div>
+        {% endif %}
+        {% if rate_limited %}
+        <div class="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+            You reached the daily code regeneration limit. Try again tomorrow or contact admin.
+        </div>
+        {% endif %}
 
         <section class="rounded-3xl border border-white/10 bg-white/5 p-5 space-y-3">
             <p class="text-[11px] uppercase tracking-[0.2em] text-zinc-400">Phone Verification</p>
-            <h1 class="text-2xl font-extrabold">WhatsApp Verification Step</h1>
-            <p class="text-sm text-zinc-300">Send the code below to admin from your registered number <span class="font-semibold text-white">{{ provider.phone }}</span>.</p>
+            <h1 class="text-2xl font-extrabold">WhatsApp Approval Step</h1>
+
+            <div class="rounded-xl border px-3 py-2 text-xs {% if account_state == 'rejected' %}border-red-300/30 bg-red-400/10 text-red-100{% else %}border-amber-300/30 bg-amber-400/10 text-amber-100{% endif %}">
+                Status:
+                {% if account_state == 'pending_review' %}Pending admin review{% elif account_state == 'rejected' %}Rejected - request review again{% elif account_state == 'suspended' %}Suspended{% else %}Awaiting review{% endif %}
+            </div>
+            {% if provider.rejection_reason %}
+            <p class="text-xs text-red-200">Last rejection reason: {{ provider.rejection_reason }}</p>
+            {% endif %}
+
+            <p class="text-sm text-zinc-300">
+                Send the code below to admin from your registered number
+                <span class="font-semibold text-white">{{ provider.phone }}</span>.
+            </p>
 
             <div class="rounded-xl border border-amber-300/40 bg-amber-400/10 px-4 py-3 text-lg font-black tracking-[0.14em] text-amber-200">
                 {{ phone_verify_code }}
@@ -25,18 +53,21 @@
             <ol class="list-decimal list-inside space-y-1 text-sm text-zinc-300">
                 <li>Open WhatsApp using your registered phone number.</li>
                 <li>Send only this code: <span class="font-semibold text-white">{{ phone_verify_code }}</span>.</li>
-                <li>Admin compares sender number and code, then marks your phone as verified.</li>
+                <li>Admin compares sender number + code, then taps Approve.</li>
             </ol>
 
             {% if admin_whatsapp %}
             <p class="text-sm text-zinc-300">Admin WhatsApp: <span class="font-semibold text-white">{{ admin_whatsapp }}</span></p>
             {% endif %}
 
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
+                {% if admin_whatsapp_link %}
+                <a href="{{ admin_whatsapp_link }}" target="_blank" class="rounded-xl border border-white/20 px-4 py-2 text-xs uppercase tracking-widest hover:bg-white/10">Open WhatsApp</a>
+                {% endif %}
                 <form method="post" action="/provider/verify-phone/regenerate">
                     <button class="rounded-xl border border-white/20 px-4 py-2 text-xs uppercase tracking-widest hover:bg-white/10">Regenerate Code</button>
                 </form>
-                <a href="/provider/dashboard" class="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold uppercase tracking-widest text-black">Done</a>
+                <a href="/provider" class="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold uppercase tracking-widest text-black">Back to Login</a>
             </div>
         </section>
     </main>

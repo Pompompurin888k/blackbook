@@ -20,6 +20,16 @@ CREATE TABLE IF NOT EXISTS providers (
     phone_verified BOOLEAN DEFAULT FALSE,
     phone_verify_code VARCHAR(32),
     phone_verify_code_created_at TIMESTAMP,
+    account_state VARCHAR(20) DEFAULT 'approved',
+    verification_code_hash TEXT,
+    verification_code_expires_at TIMESTAMP,
+    verification_code_used_at TIMESTAMP,
+    approved_by_admin BIGINT,
+    approved_at TIMESTAMP,
+    rejection_reason TEXT,
+    login_failed_attempts INT DEFAULT 0,
+    locked_until TIMESTAMP,
+    last_login_attempt_at TIMESTAMP,
     portal_onboarding_complete BOOLEAN DEFAULT FALSE,
     age INT,
     height_cm INT,
@@ -94,5 +104,14 @@ CREATE TABLE IF NOT EXISTS lead_analytics (
     device_type VARCHAR(20),
     contact_method VARCHAR(20) NOT NULL,
     is_stealth BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS provider_verification_events (
+    id BIGSERIAL PRIMARY KEY,
+    provider_id INT NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+    event_type VARCHAR(64) NOT NULL,
+    event_payload JSONB,
+    admin_telegram_id BIGINT,
     created_at TIMESTAMP DEFAULT NOW()
 );

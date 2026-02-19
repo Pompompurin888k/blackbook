@@ -1807,71 +1807,83 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
     }
     
     provider = db.get_provider(provider_id)
-    display_name = provider.get("display_name", "Unknown") if provider else "Unknown"
+    if not provider:
+        await query.answer("Provider not found.", show_alert=True)
+        return
+    display_name = provider.get("display_name", "Unknown")
+    is_portal_account = str(provider.get("auth_channel") or "telegram").lower() == "portal"
+
+    async def _edit_admin_result(text: str) -> None:
+        if query.message and query.message.photo:
+            await query.edit_message_caption(caption=text, parse_mode="Markdown")
+        else:
+            await query.edit_message_text(text=text, parse_mode="Markdown")
     
     if action == "approve":
-        db.verify_provider(provider_id, True)
-        db.log_funnel_event(provider_id, "verified")
-        
-        # Check if they have an active subscription
-        is_active = provider.get("is_active", False) if provider else False
-        
-        if is_active:
-            # Already paid - they're now live
-            await send_provider_message(
-                chat_id=provider_id,
-                text="🎉 *VERIFIED! You're Now Live!*\n\n"
-                     "✅ Blue Tick status granted\n"
-                     "✅ Profile is active on innbucks.org\n\n"
-                     "Your profile is now visible to premium clients!\n\n"
-                     "🌐 View your listing at: *https://innbucks.org*",
-            )
-        else:
-            # Not paid yet - verified but need subscription
-            await send_provider_message(
-                chat_id=provider_id,
-                text="✅ *Verification Approved!*\n\n"
-                     "🎉 You now have the Blue Tick ✔️\n\n"
-                     "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                     "📋 *Your profile is saved but not yet live.*\n\n"
-                     f"🎁 You can start a *{FREE_TRIAL_DAYS}-day free trial* once,\n"
-                     "or activate a paid package immediately.\n\n"
-                     "💡 Once activated, your profile goes live instantly!",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton(f"🎁 Start {FREE_TRIAL_DAYS}-Day Free Trial", callback_data="menu_trial_activate")],
-                    [InlineKeyboardButton("💰 Choose Paid Package", callback_data="menu_topup")],
-                ]),
-            )
-        
-        await query.edit_message_caption(
-            caption=f"✅ **APPROVED**\n\n"
-                    f"Provider: {display_name}\n"
-                    f"User ID: `{provider_id}`",
-            parse_mode="Markdown"
+        db.verify_provider(provider_id, True, admin_tg_id=query.from_user.id)
+        if not is_portal_account:
+            db.log_funnel_event(provider_id, "verified")
+            is_active = provider.get("is_active", False)
+            if is_active:
+                await send_provider_message(
+                    chat_id=provider_id,
+                    text="🎉 *VERIFIED! You're Now Live!*\n\n"
+                    "✅ Blue Tick status granted\n"
+                    "✅ Profile is active on innbucks.org\n\n"
+                    "Your profile is now visible to premium clients!\n\n"
+                    "🌐 View your listing at: *https://innbucks.org*",
+                )
+            else:
+                await send_provider_message(
+                    chat_id=provider_id,
+                    text="✅ *Verification Approved!*\n\n"
+                    "🎉 You now have the Blue Tick ✔️\n\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                    "📋 *Your profile is saved but not yet live.*\n\n"
+                    f"🎁 You can start a *{FREE_TRIAL_DAYS}-day free trial* once,\n"
+                    "or activate a paid package immediately.\n\n"
+                    "💡 Once activated, your profile goes live instantly!",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton(f"🎁 Start {FREE_TRIAL_DAYS}-Day Free Trial", callback_data="menu_trial_activate")],
+                        [InlineKeyboardButton("💰 Choose Paid Package", callback_data="menu_topup")],
+                    ]),
+                )
+        approved_text = (
+            f"✅ **APPROVED**\n\n"
+            f"Provider: {display_name}\n"
+            f"User ID: `{provider_id}`"
         )
-        
+        if is_portal_account:
+            approved_text += "\nType: `portal` (login unlocked)"
+        await _edit_admin_result(approved_text)
         logger.info(f"✅ Provider {provider_id} ({display_name}) verified by admin")
-        
+        return
+
     elif action == "reject":
         reason_text = reject_reasons.get(reason_code, reject_reasons["generic"])
-        db.log_funnel_event(provider_id, "verification_rejected", {"reason": reason_text})
-        db.update_provider_profile(provider_id, {"verification_photo_id": None})
-        await send_provider_message(
-            chat_id=provider_id,
-            text="❌ **Verification Rejected**\n\n"
-                 f"Reason: **{reason_text}**\n\n"
-                 "Please tap 📸 Get Verified in your profile to submit a corrected photo/profile and try again.",
+        db.verify_provider(provider_id, False, admin_tg_id=query.from_user.id, reason=reason_text)
+        if not is_portal_account:
+            db.log_funnel_event(provider_id, "verification_rejected", {"reason": reason_text})
+            db.update_provider_profile(provider_id, {"verification_photo_id": None})
+            await send_provider_message(
+                chat_id=provider_id,
+                text="❌ **Verification Rejected**\n\n"
+                     f"Reason: **{reason_text}**\n\n"
+                     "Please tap 📸 Get Verified in your profile to submit a corrected photo/profile and try again.",
+            )
+        rejected_text = (
+            f"❌ **REJECTED**\n\n"
+            f"Provider: {display_name}\n"
+            f"User ID: `{provider_id}`\n"
+            f"Reason: {reason_text}"
         )
-        
-        await query.edit_message_caption(
-            caption=f"❌ **REJECTED**\n\n"
-                    f"Provider: {display_name}\n"
-                    f"User ID: `{provider_id}`\n"
-                    f"Reason: {reason_text}",
-            parse_mode="Markdown"
-        )
-        
+        if is_portal_account:
+            rejected_text += "\nType: `portal` (login remains blocked)"
+        await _edit_admin_result(rejected_text)
         logger.info(f"❌ Provider {provider_id} ({display_name}) rejected by admin")
+        return
+    else:
+        await query.answer("Unknown moderation action.", show_alert=True)
 
 
 # ==================== MY PROFILE COMMAND ====================
