@@ -135,6 +135,10 @@ def main() -> None:
 
     async def on_error(update: object, context) -> None:
         """Global error handler for uncaught bot exceptions."""
+        error_text = str(context.error)
+        if "message is not modified" in error_text.lower():
+            logger.info(f"Ignoring benign Telegram edit no-op ({role}): {error_text}")
+            return
         logger.error(f"Unhandled bot exception ({role}): {context.error}")
         await send_admin_alert(f"Unhandled bot exception ({role}): {context.error}")
 

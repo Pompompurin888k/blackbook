@@ -5,6 +5,7 @@ Handles: /partner, /maintenance, /broadcast, /portal_pending
 import logging
 import httpx
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import BadRequest
 from telegram.ext import (
     CommandHandler,
     ContextTypes,
@@ -34,6 +35,26 @@ def get_db():
     """Gets the database instance from db_context module."""
     from db_context import get_db as _get_db
     return _get_db()
+
+
+async def _safe_edit_message_text(
+    query,
+    text: str,
+    parse_mode: str = "Markdown",
+    reply_markup: InlineKeyboardMarkup | None = None,
+) -> None:
+    """Edits callback message and ignores harmless no-change edits."""
+    try:
+        await query.edit_message_text(
+            text,
+            parse_mode=parse_mode,
+            reply_markup=reply_markup,
+        )
+    except BadRequest as exc:
+        if "message is not modified" in str(exc).lower():
+            logger.debug("Skipped no-op admin message edit")
+            return
+        raise
 
 
 async def send_provider_message(chat_id: int, text: str, parse_mode: str = "Markdown") -> bool:
@@ -282,9 +303,9 @@ async def _show_verification_queue(update: Update, context: ContextTypes.DEFAULT
     )
 
     if not rows:
-        await query.edit_message_text(
+        await _safe_edit_message_text(
+            query,
             header + "No providers in this queue filter.",
-            parse_mode="Markdown",
             reply_markup=_verification_filter_keyboard(counts, queue_filter),
         )
         return
@@ -323,7 +344,11 @@ async def _show_verification_queue(update: Update, context: ContextTypes.DEFAULT
         keyboard.append(nav)
 
     keyboard.extend(_verification_filter_keyboard(counts, queue_filter).inline_keyboard)
-    await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+    await _safe_edit_message_text(
+        query,
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
 
 
 async def _show_portal_pending(
@@ -394,7 +419,7 @@ async def _show_portal_pending(
     reply_markup = InlineKeyboardMarkup(keyboard)
     query = update.callback_query
     if query:
-        await query.edit_message_text(text, parse_mode="Markdown", reply_markup=reply_markup)
+        await _safe_edit_message_text(query, text, reply_markup=reply_markup)
         return
     await update.message.reply_text(text, parse_mode="Markdown", reply_markup=reply_markup)
 
@@ -488,13 +513,13 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         total = db.get_provider_count_by_status(status)
         
         if not providers:
-            await query.edit_message_text(
+            await _safe_edit_message_text(
+                query,
                 f"📋 *No {status} providers found.*\n\n"
                 "Use the button below to go back.",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("🔙 Back to Panel", callback_data="admin_back")]
                 ]),
-                parse_mode="Markdown"
             )
             return
         
@@ -542,10 +567,10 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         keyboard.append([InlineKeyboardButton("🔙 Back to Panel", callback_data="admin_back")])
         
-        await query.edit_message_text(
+        await _safe_edit_message_text(
+            query,
             text,
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
         )
         return
     
@@ -697,12 +722,12 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         context.user_data["admin_view"] = "panel"
         keyboard = _admin_panel_keyboard(db)
 
-        await query.edit_message_text(
+        await _safe_edit_message_text(
+            query,
             "🛠️ *Admin Panel*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "Select a category to manage:\n",
             reply_markup=keyboard,
-            parse_mode="Markdown"
         )
 
 

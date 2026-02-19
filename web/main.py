@@ -824,13 +824,16 @@ async def provider_portal_register(request: Request):
     )
     await send_admin_alert(
         (
-            "🆕 Portal signup pending review\n\n"
-            f"Name: {display_name}\n"
-            f"Phone: {phone}\n"
-            f"Provider ID: {provider_id}\n"
-            f"Portal TG ID: {provider_tg_id}\n"
-            f"Verification Code: {verify_code}\n\n"
-            "Confirm WhatsApp sender + code, then approve."
+            "🆕 PORTAL SIGNUP - PENDING REVIEW\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 Name: {display_name}\n"
+            f"📞 Phone: {phone}\n"
+            f"🆔 Provider ID: {provider_id}\n"
+            f"🔐 WhatsApp Code: {verify_code}\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Next step:\n"
+            "1. Confirm sender number + code on WhatsApp\n"
+            "2. Tap Approve or Reject below"
         ),
         reply_markup=_portal_admin_review_keyboard(provider_tg_id),
     )
@@ -1152,9 +1155,16 @@ async def provider_portal_onboarding_submit(request: Request):
         )
 
     await send_admin_alert(
-        "Portal profile submitted: "
-        f"provider_id={provider_id}, name={display_name or provider.get('display_name', 'Unknown')}, "
-        f"phone={provider.get('phone', '')}, code={phone_code}"
+        (
+            "📝 PORTAL PROFILE SUBMITTED\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 Name: {display_name or provider.get('display_name', 'Unknown')}\n"
+            f"📞 Phone: {provider.get('phone', '')}\n"
+            f"🆔 Provider ID: {provider_id}\n"
+            f"🔐 Active Code: {phone_code}\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Review profile quality, then approve/reject in admin bot."
+        ),
     )
     db.log_provider_verification_event(
         provider_id,
@@ -1295,8 +1305,15 @@ async def provider_portal_regenerate_verify_code(request: Request):
     )
     if provider:
         await send_admin_alert(
-            f"Portal verification code regenerated: provider_id={provider_id}, "
-            f"phone={provider.get('phone', '')}, code={new_code}",
+            (
+                "♻️ PORTAL CODE REGENERATED\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"📞 Phone: {provider.get('phone', '')}\n"
+                f"🆔 Provider ID: {provider_id}\n"
+                f"🔐 New Code: {new_code}\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "Use this latest code for WhatsApp verification."
+            ),
             reply_markup=_portal_admin_review_keyboard(int(provider.get("telegram_id"))),
         )
     return RedirectResponse(url="/provider/verify-phone?regenerated=1", status_code=303)
