@@ -1820,7 +1820,11 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
             await query.edit_message_text(text=text, parse_mode="Markdown")
     
     if action == "approve":
-        db.verify_provider(provider_id, True, admin_tg_id=query.from_user.id)
+        updated = db.verify_provider(provider_id, True, admin_tg_id=query.from_user.id)
+        if not updated:
+            await query.answer("Approve failed. Please retry.", show_alert=True)
+            logger.error(f"❌ Failed to approve provider {provider_id}; verify_provider returned False")
+            return
         if not is_portal_account:
             db.log_funnel_event(provider_id, "verified")
             is_active = provider.get("is_active", False)
@@ -1861,7 +1865,11 @@ async def admin_verification_callback(update: Update, context: ContextTypes.DEFA
 
     elif action == "reject":
         reason_text = reject_reasons.get(reason_code, reject_reasons["generic"])
-        db.verify_provider(provider_id, False, admin_tg_id=query.from_user.id, reason=reason_text)
+        updated = db.verify_provider(provider_id, False, admin_tg_id=query.from_user.id, reason=reason_text)
+        if not updated:
+            await query.answer("Reject failed. Please retry.", show_alert=True)
+            logger.error(f"❌ Failed to reject provider {provider_id}; verify_provider returned False")
+            return
         if not is_portal_account:
             db.log_funnel_event(provider_id, "verification_rejected", {"reason": reason_text})
             db.update_provider_profile(provider_id, {"verification_photo_id": None})

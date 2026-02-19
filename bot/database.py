@@ -2,6 +2,7 @@ import os
 import time
 import psycopg2
 from psycopg2.extras import RealDictCursor, Json
+from psycopg2.extensions import TRANSACTION_STATUS_INERROR, TRANSACTION_STATUS_UNKNOWN
 from datetime import datetime, timedelta
 import logging
 
@@ -318,17 +319,44 @@ class Database:
                 logger.info("🛠️ Database tables initialized.")
         except Exception as e:
             logger.error(f"❌ Failed to initialize tables: {e}")
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
 
     # ==================== PROVIDER METHODS ====================
     
     def _ensure_connection(self):
-        """Checks if the database connection is alive and reconnects if needed."""
+        """Checks connection health and clears aborted transactions."""
+        if self.conn is None or self.conn.closed:
+            logger.warning("⚠️ Database connection missing/closed. Reconnecting...")
+            self.conn = self.connect_with_retry()
+            return
+
         try:
+            status = self.conn.get_transaction_status()
+            if status == TRANSACTION_STATUS_INERROR:
+                logger.warning("⚠️ Recovering aborted DB transaction with rollback.")
+                self.conn.rollback()
+            elif status == TRANSACTION_STATUS_UNKNOWN:
+                logger.warning("⚠️ Database transaction state unknown. Reconnecting...")
+                self.conn = self.connect_with_retry()
+                return
+
             with self.conn.cursor() as cur:
                 cur.execute("SELECT 1")
         except (psycopg2.OperationalError, psycopg2.InterfaceError):
             logger.warning("⚠️ Database connection lost. Reconnecting...")
             self.conn = self.connect_with_retry()
+        except psycopg2.Error:
+            logger.warning("⚠️ DB health probe failed. Rolling back and retrying.")
+            try:
+                self.conn.rollback()
+                with self.conn.cursor() as cur:
+                    cur.execute("SELECT 1")
+            except psycopg2.Error:
+                logger.warning("⚠️ Failed to recover DB connection. Reconnecting...")
+                self.conn = self.connect_with_retry()
 
     def get_provider(self, tg_id):
         """Fetch a specific provider by Telegram ID with all profile fields."""
