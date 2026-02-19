@@ -16,6 +16,8 @@
     data-required-photos="{{ min_photos }}"
     data-recommended-photos="{{ recommended_photos }}"
     data-existing-photos="{{ photo_urls | length }}"
+    data-provider-id="{{ provider.id }}"
+    data-step="{{ step }}"
 >
     <main class="mx-auto max-w-6xl px-4 py-6">
         {% if show_saved_toast %}
@@ -199,18 +201,12 @@
                     </div>
                     <p id="photo-upload-error" class="hidden rounded-xl border border-red-400/50 bg-red-400/10 px-3 py-2 text-xs text-red-100"></p>
 
-                    <div>
-                        <label class="text-xs text-zinc-400">Verification selfie or ID photo</label>
-                        <input name="verification_photo" type="file" accept="image/*" capture="user" class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
-                    </div>
-
                     <div class="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-3 text-xs text-emerald-100">
                         Final review before submit:
                         <ul class="mt-2 list-disc space-y-1 pl-4">
                             <li>Preview card looks complete and attractive</li>
                             <li>At least {{ min_photos }} profile photos uploaded</li>
                             <li>{{ recommended_photos }} photos recommended for better visibility</li>
-                            <li>Verification photo uploaded</li>
                         </ul>
                     </div>
                 </section>
@@ -307,7 +303,6 @@
                     <p class="text-xs uppercase tracking-widest text-zinc-400">Submission Status</p>
                     <div class="mt-2 space-y-1">
                         <p>Profile photos: <span class="font-semibold text-white">{{ preview.photo_count }}</span> / {{ min_photos }} minimum ({{ recommended_photos }} recommended)</p>
-                        <p>Verification photo: <span class="font-semibold {% if preview.verification_ready %}text-emerald-300{% else %}text-zinc-400{% endif %}">{% if preview.verification_ready %}Ready{% else %}Pending{% endif %}</span></p>
                     </div>
                 </section>
 
@@ -332,39 +327,102 @@
             const requiredPhotos = Number(document.body.dataset.requiredPhotos || "3");
             const recommendedPhotos = Number(document.body.dataset.recommendedPhotos || "5");
             const existingPhotos = Number(document.body.dataset.existingPhotos || "0");
+            const providerId = String(document.body.dataset.providerId || "");
+            const step = String(document.body.dataset.step || "1");
+            const form = document.querySelector('form[action="/provider/onboarding"]');
+            const storagePrefix = `provider_onboarding_draft_${providerId}_step_`;
+            const storageKey = `${storagePrefix}${step}`;
             const slots = Array.from(document.querySelectorAll(".photo-slot"));
             const statusEl = document.getElementById("photo-count-status");
             const errorEl = document.getElementById("photo-upload-error");
             const submitButton = document.querySelector('button[name="action"][value="submit"]');
+            const fields = form
+                ? Array.from(
+                    form.querySelectorAll(
+                        'input[name]:not([type="file"]):not([type="hidden"]), textarea[name], select[name]'
+                    )
+                )
+                : [];
 
-            if (!slots.length) {
-                return;
+            function restoreDraft() {
+                if (!fields.length) return;
+                try {
+                    const raw = localStorage.getItem(storageKey);
+                    if (!raw) return;
+                    const saved = JSON.parse(raw);
+                    fields.forEach((field) => {
+                        const name = field.getAttribute("name");
+                        if (!name || !(name in saved)) return;
+                        if (String(field.value || "").trim()) return;
+                        field.value = saved[name];
+                    });
+                } catch (error) {
+                    console.warn("Failed to restore onboarding draft", error);
+                }
             }
 
-            const selectedInputs = [];
-            slots.forEach((slot) => {
-                const inputId = slot.getAttribute("data-target");
-                const input = document.getElementById(inputId);
-                const preview = slot.querySelector(".photo-preview");
-                const placeholder = slot.querySelector(".photo-placeholder");
-                if (!input) return;
+            function saveDraft() {
+                if (!fields.length) return;
+                try {
+                    const payload = {};
+                    fields.forEach((field) => {
+                        const name = field.getAttribute("name");
+                        if (!name) return;
+                        payload[name] = field.value;
+                    });
+                    localStorage.setItem(storageKey, JSON.stringify(payload));
+                } catch (error) {
+                    console.warn("Failed to save onboarding draft", error);
+                }
+            }
 
-                slot.addEventListener("click", () => input.click());
-                input.addEventListener("change", () => {
-                    const file = input.files && input.files[0];
-                    if (!file) return;
-                    const objectUrl = URL.createObjectURL(file);
-                    preview.src = objectUrl;
-                    preview.classList.remove("hidden");
-                    placeholder.classList.add("hidden");
-                    if (!selectedInputs.includes(input)) {
-                        selectedInputs.push(input);
+            function clearAllDrafts() {
+                if (!providerId) return;
+                try {
+                    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith(storagePrefix)) {
+                            localStorage.removeItem(key);
+                        }
                     }
-                    updateStatus();
-                });
+                } catch (error) {
+                    console.warn("Failed to clear onboarding drafts", error);
+                }
+            }
+
+            restoreDraft();
+            fields.forEach((field) => {
+                field.addEventListener("input", saveDraft);
+                field.addEventListener("change", saveDraft);
             });
 
+            const selectedInputs = [];
+            if (slots.length) {
+                slots.forEach((slot) => {
+                    const inputId = slot.getAttribute("data-target");
+                    const input = document.getElementById(inputId);
+                    const preview = slot.querySelector(".photo-preview");
+                    const placeholder = slot.querySelector(".photo-placeholder");
+                    if (!input) return;
+
+                    slot.addEventListener("click", () => input.click());
+                    input.addEventListener("change", () => {
+                        const file = input.files && input.files[0];
+                        if (!file) return;
+                        const objectUrl = URL.createObjectURL(file);
+                        preview.src = objectUrl;
+                        preview.classList.remove("hidden");
+                        placeholder.classList.add("hidden");
+                        if (!selectedInputs.includes(input)) {
+                            selectedInputs.push(input);
+                        }
+                        updateStatus();
+                    });
+                });
+            }
+
             function updateStatus() {
+                if (!slots.length) return;
                 const selectedCount = selectedInputs.filter((input) => input.files && input.files.length > 0).length;
                 const total = existingPhotos + selectedCount;
                 const needed = Math.max(requiredPhotos - total, 0);
@@ -383,25 +441,31 @@
                 }
             }
 
-            updateStatus();
+            if (slots.length) {
+                updateStatus();
+            }
 
-            if (submitButton) {
-                const form = submitButton.closest("form");
+            if (form) {
                 form.addEventListener("submit", (event) => {
+                    saveDraft();
                     const submitter = event.submitter;
-                    if (!submitter || submitter.value !== "submit") {
-                        return;
-                    }
-                    const selectedCount = selectedInputs.filter((input) => input.files && input.files.length > 0).length;
-                    const total = existingPhotos + selectedCount;
-                    if (total < requiredPhotos) {
-                        event.preventDefault();
-                        if (errorEl) {
-                            errorEl.textContent = `Please upload at least ${requiredPhotos} photos before submitting.`;
-                            errorEl.classList.remove("hidden");
+                    if (!submitter) return;
+
+                    if (submitButton && submitter.value === "submit") {
+                        const selectedCount = selectedInputs.filter((input) => input.files && input.files.length > 0).length;
+                        const total = existingPhotos + selectedCount;
+                        if (total < requiredPhotos) {
+                            event.preventDefault();
+                            if (errorEl) {
+                                errorEl.textContent = `Please upload at least ${requiredPhotos} photos before submitting.`;
+                                errorEl.classList.remove("hidden");
+                            }
+                            return;
                         }
-                    } else if (errorEl) {
-                        errorEl.classList.add("hidden");
+                        if (errorEl) {
+                            errorEl.classList.add("hidden");
+                        }
+                        clearAllDrafts();
                     }
                 });
             }

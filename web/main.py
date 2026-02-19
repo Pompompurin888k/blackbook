@@ -267,7 +267,7 @@ def _portal_clear_onboarding_draft(request: Request) -> None:
     request.session.pop("provider_onboarding_draft", None)
 
 
-def _portal_build_preview(draft: dict, photo_urls: list[str], has_verification_photo: bool) -> dict:
+def _portal_build_preview(draft: dict, photo_urls: list[str]) -> dict:
     """Builds compact preview values shown on each onboarding step."""
     rate_chunks = []
     rate_labels = {
@@ -304,14 +304,12 @@ def _portal_build_preview(draft: dict, photo_urls: list[str], has_verification_p
         "languages": _parse_csv_values(draft.get("languages_text", "")),
         "rates": rate_chunks,
         "photo_count": len(photo_urls),
-        "verification_ready": bool(has_verification_photo),
     }
 
 
 def _portal_compute_profile_strength(
     draft: dict,
     photo_count: int,
-    has_verification_photo: bool,
 ) -> dict:
     """Builds a 0-100 quality score with focused missing-item guidance."""
     services_count = len(_parse_csv_values(draft.get("services_text", "")))
@@ -360,11 +358,6 @@ def _portal_compute_profile_strength(
                 "Upload at least "
                 f"{PORTAL_RECOMMENDED_PROFILE_PHOTOS} profile photos"
             ),
-        ),
-        (
-            8,
-            bool(has_verification_photo),
-            "Upload verification selfie/ID photo",
         ),
     ]
 
@@ -789,12 +782,10 @@ def _render_provider_onboarding_template(
     preview = _portal_build_preview(
         draft=draft,
         photo_urls=photo_urls,
-        has_verification_photo=bool(provider.get("verification_photo_id")),
     )
     profile_strength = _portal_compute_profile_strength(
         draft=draft,
         photo_count=len(photo_urls),
-        has_verification_photo=bool(provider.get("verification_photo_id")),
     )
     ranking_tips = _portal_build_ranking_tips(draft=draft, photo_count=len(photo_urls))
     return templates.TemplateResponse(
@@ -932,10 +923,6 @@ async def provider_portal_onboarding_submit(request: Request):
         if saved_url:
             existing_photo_urls.append(saved_url)
 
-    verification_photo_upload = form.get("verification_photo")
-    verification_photo_url = await _save_provider_upload(provider_id, verification_photo_upload, "verify")
-    effective_verification_photo = verification_photo_url or provider.get("verification_photo_id")
-
     if len(existing_photo_urls) < PORTAL_MIN_PROFILE_PHOTOS:
         return _render_provider_onboarding_template(
             request=request,
@@ -947,15 +934,6 @@ async def provider_portal_onboarding_submit(request: Request):
                 "before submitting."
             ),
         )
-    if not effective_verification_photo:
-        return _render_provider_onboarding_template(
-            request=request,
-            provider=provider,
-            draft=draft,
-            step=ONBOARDING_TOTAL_STEPS,
-            error="Please upload a verification selfie or ID photo to submit.",
-        )
-
     display_name = draft.get("display_name") or provider.get("display_name")
     city = draft.get("city", "")
     neighborhood = draft.get("neighborhood", "")
@@ -991,9 +969,6 @@ async def provider_portal_onboarding_submit(request: Request):
             and len(existing_photo_urls) >= PORTAL_MIN_PROFILE_PHOTOS
         ),
     }
-    if effective_verification_photo:
-        update_data["verification_photo_id"] = effective_verification_photo
-
     saved = db.update_portal_provider_profile(provider_id, update_data)
     if not saved:
         return _render_provider_onboarding_template(
@@ -1005,15 +980,16 @@ async def provider_portal_onboarding_submit(request: Request):
         )
 
     provider_after = db.get_portal_provider_by_id(provider_id) or {}
-    if not provider_after.get("phone_verify_code"):
-        db.set_portal_phone_verification_code(provider_id, _portal_generate_whatsapp_code())
+    phone_code = provider_after.get("phone_verify_code")
+    if not phone_code:
+        phone_code = _portal_generate_whatsapp_code()
+        db.set_portal_phone_verification_code(provider_id, phone_code)
 
-    if verification_photo_url:
-        await send_admin_alert(
-            "Portal verification submitted: "
-            f"provider_id={provider_id}, name={display_name or provider.get('display_name', 'Unknown')}, "
-            f"phone={provider.get('phone', '')}, photo={verification_photo_url}"
-        )
+    await send_admin_alert(
+        "Portal profile submitted: "
+        f"provider_id={provider_id}, name={display_name or provider.get('display_name', 'Unknown')}, "
+        f"phone={provider.get('phone', '')}, code={phone_code}"
+    )
 
     _portal_clear_onboarding_draft(request)
     return RedirectResponse(url="/provider/dashboard?saved=1", status_code=303)
