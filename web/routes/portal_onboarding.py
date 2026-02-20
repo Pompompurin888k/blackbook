@@ -22,7 +22,7 @@ from utils.auth import (
     _portal_account_state, _portal_admin_review_keyboard,
     _portal_generate_whatsapp_code, _portal_hash_verification_code,
 )
-from utils.providers import _to_string_list
+from utils.providers import _to_string_list, _normalize_photo_sources
 from utils.onboarding import (
     _normalize_onboarding_step, _parse_csv_values,
     _portal_get_onboarding_draft, _portal_set_onboarding_draft,
@@ -53,11 +53,7 @@ def _render_provider_onboarding_template(
     show_saved_toast: bool = False,
 ):
     """Renders the multi-step portal onboarding screen."""
-    photo_ids = _to_string_list(provider.get("profile_photos"))
-    photo_urls = [
-        item if item.startswith(("http://", "https://", "/")) else f"/photo/{item}"
-        for item in photo_ids
-    ][:PORTAL_MAX_PROFILE_PHOTOS]
+    photo_urls = _normalize_photo_sources(provider.get("profile_photos"))[:PORTAL_MAX_PROFILE_PHOTOS]
     preview = _portal_build_preview(
         draft=draft,
         photo_urls=photo_urls,
@@ -199,7 +195,7 @@ async def provider_portal_onboarding_submit(request: Request):
         return RedirectResponse(url=f"/provider/onboarding?step={step + 1}&saved=1", status_code=303)
 
     # Final step: save to DB and submit.
-    existing_photo_urls = _to_string_list(provider.get("profile_photos"))
+    existing_photo_urls = _normalize_photo_sources(provider.get("profile_photos"))
     upload_items = form.getlist("photos")
     for upload in upload_items:
         if len(existing_photo_urls) >= PORTAL_MAX_PROFILE_PHOTOS:

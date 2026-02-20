@@ -19,7 +19,13 @@ from config import (
 from database import Database
 from services.redis_service import _cache_key, _redis_get_text, _redis_set_text
 from utils.auth import _extract_client_ip, _detect_device_type
-from utils.providers import _cache_photo_path, _normalize_provider, _normalize_recommendation, _telegram_contact_redirect
+from utils.providers import (
+    _cache_photo_path,
+    _normalize_photo_sources,
+    _normalize_provider,
+    _normalize_recommendation,
+    _telegram_contact_redirect,
+)
 
 # We use the router and expect the main app to provide `templates` and `db`
 # A cleaner way is to import them or inject them. For now, we instantiate a local DB reference
@@ -109,7 +115,12 @@ async def home(
         if cached_html:
             return HTMLResponse(content=cached_html)
 
-    providers = db.get_active_providers(city, neighborhood)
+    raw_providers = db.get_active_providers(city, neighborhood)
+    providers = []
+    for item in raw_providers:
+        row = dict(item)
+        row["profile_photos"] = _normalize_photo_sources(row.get("profile_photos"))
+        providers.append(row)
     city_counts = db.get_city_counts()
     total_count = sum(city_counts.values())
 
@@ -234,21 +245,15 @@ async def connect_provider(
 
 
 @router.get("/contact/{provider_id}/direct")
-async def contact_direct(provider_id: int):
-    """Direct message - opens Telegram with a clear first message."""
-    provider = db.get_provider_by_id(provider_id)
-    if not provider:
-        return RedirectResponse(url="/", status_code=302)
-    return _telegram_contact_redirect(provider, is_stealth=False)
+async def contact_direct(request: Request, provider_id: int):
+    """Direct contact shortcut using the normal connect flow."""
+    return await connect_provider(request, provider_id, mode="direct", channel="whatsapp")
 
 
 @router.get("/contact/{provider_id}/discreet")
-async def contact_discreet(provider_id: int):
-    """Discreet message - opens Telegram with a vague, safe message."""
-    provider = db.get_provider_by_id(provider_id)
-    if not provider:
-        return RedirectResponse(url="/", status_code=302)
-    return _telegram_contact_redirect(provider, is_stealth=True)
+async def contact_discreet(request: Request, provider_id: int):
+    """Discreet contact shortcut using the normal connect flow."""
+    return await connect_provider(request, provider_id, mode="stealth", channel="whatsapp")
 
 
 @router.get("/safety", response_class=HTMLResponse)

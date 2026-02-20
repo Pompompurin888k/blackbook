@@ -4,6 +4,7 @@ Provider Utilities — template payload normalization, photo URLs, fallback imag
 import json
 from typing import Optional
 from urllib.parse import quote
+from urllib.parse import urlparse
 
 from fastapi.responses import RedirectResponse
 
@@ -40,18 +41,39 @@ def _fallback_image(seed: int, offset: int = 0) -> str:
     return FALLBACK_PROFILE_IMAGES[index]
 
 
+def _normalize_photo_source(photo_ref: str) -> Optional[str]:
+    """
+    Normalizes a stored photo reference to a URL the current app host can serve.
+
+    - Telegram file IDs become `/photo/{file_id}`
+    - Absolute uploads like `https://domain/static/uploads/...` become `/static/uploads/...`
+    - Relative `/...` paths are kept as-is
+    """
+    value = str(photo_ref or "").strip()
+    if not value:
+        return None
+    if value.startswith("/"):
+        return value
+    if value.startswith(("http://", "https://")):
+        parsed = urlparse(value)
+        if parsed.path.startswith("/static/uploads/"):
+            return parsed.path
+        return value
+    return f"/photo/{value}"
+
+
+def _normalize_photo_sources(value) -> list[str]:
+    """Normalizes a DB photo collection to browser-ready URLs."""
+    normalized: list[str] = []
+    for raw in _to_string_list(value):
+        source = _normalize_photo_source(raw)
+        if source:
+            normalized.append(source)
+    return normalized
+
+
 def _build_gallery_urls(provider_id: int, photo_ids: list[str]) -> list[str]:
-    urls = []
-    for file_id in photo_ids:
-        if not file_id:
-            continue
-        file_id_str = str(file_id).strip()
-        if not file_id_str:
-            continue
-        if file_id_str.startswith("http://") or file_id_str.startswith("https://") or file_id_str.startswith("/"):
-            urls.append(file_id_str)
-        else:
-            urls.append(f"/photo/{file_id_str}")
+    urls = _normalize_photo_sources(photo_ids)
     if urls:
         return urls[:5]
     # Keep a single fallback only when provider has no uploaded photos at all.
@@ -63,12 +85,13 @@ def _normalize_provider(provider: dict) -> dict:
     profile = dict(provider)
     services_list = _to_string_list(profile.get("services"))
     languages_list = _to_string_list(profile.get("languages"))
-    photo_ids = _to_string_list(profile.get("profile_photos"))
+    photo_urls = _normalize_photo_sources(profile.get("profile_photos"))
 
     profile["services_list"] = services_list
     profile["languages_list"] = languages_list
     profile["primary_location"] = profile.get("neighborhood") or profile.get("city") or "Nairobi"
-    profile["photo_urls"] = _build_gallery_urls(profile.get("id", 0), photo_ids)
+    profile["profile_photos"] = photo_urls
+    profile["photo_urls"] = _build_gallery_urls(profile.get("id", 0), photo_urls)
     profile["availability_label"] = profile.get("availability_type") or (
         "Available now" if profile.get("is_online") else "By booking"
     )
@@ -105,13 +128,9 @@ def _normalize_provider(provider: dict) -> dict:
 
 def _normalize_recommendation(provider: dict) -> dict:
     card = dict(provider)
-    photo_ids = _to_string_list(card.get("profile_photos"))
-    if photo_ids:
-        first = str(photo_ids[0]).strip()
-        if first.startswith("http://") or first.startswith("https://") or first.startswith("/"):
-            card["photo_url"] = first
-        else:
-            card["photo_url"] = f"/photo/{first}"
+    photo_urls = _normalize_photo_sources(card.get("profile_photos"))
+    if photo_urls:
+        card["photo_url"] = photo_urls[0]
     else:
         card["photo_url"] = _fallback_image(card.get("id", 0))
     card["location"] = card.get("neighborhood") or card.get("city") or "Nairobi"

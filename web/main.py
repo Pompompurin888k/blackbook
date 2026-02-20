@@ -114,7 +114,7 @@ db = Database()
 # ── File Upload Helper ──────────────────────────────────────
 
 async def _save_provider_upload(provider_id: int, upload, prefix: str) -> Optional[str]:
-    """Saves portal-uploaded image under static/uploads and returns public URL."""
+    """Saves portal-uploaded image under static/uploads and returns app-local URL."""
     if not upload or not getattr(upload, "filename", None):
         return None
     ext = Path(upload.filename).suffix.lower()
@@ -132,7 +132,7 @@ async def _save_provider_upload(provider_id: int, upload, prefix: str) -> Option
     with open(target_path, "wb") as handle:
         handle.write(data)
     relative_url = f"/static/uploads/providers/{provider_id}/{filename}"
-    return f"{PUBLIC_BASE_URL}{relative_url}"
+    return relative_url
 
 
 # ── Photo Proxy ─────────────────────────────────────────────

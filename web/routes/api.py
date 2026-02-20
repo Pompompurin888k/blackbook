@@ -13,6 +13,7 @@ from config import (
 )
 from database import Database
 from services.redis_service import _cache_key, _redis_get_text, _redis_set_text
+from utils.providers import _normalize_photo_sources
 
 db = Database()
 from fastapi.templating import Jinja2Templates
@@ -41,7 +42,12 @@ async def api_grid(
         if cached_html:
             return HTMLResponse(content=cached_html)
 
-    providers = db.get_active_providers(city, neighborhood)
+    raw_providers = db.get_active_providers(city, neighborhood)
+    providers = []
+    for item in raw_providers:
+        row = dict(item)
+        row["profile_photos"] = _normalize_photo_sources(row.get("profile_photos"))
+        providers.append(row)
 
     context = {
         "request": request,

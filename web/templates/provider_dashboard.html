@@ -29,6 +29,24 @@
         {{ error }}
     </div>
     {% endif %}
+    {% if trial_eligible %}
+    <section
+        class="rounded-3xl border border-emerald-300/40 bg-gradient-to-br from-emerald-400/20 via-emerald-500/8 to-transparent p-6 shadow-[0_0_35px_rgba(16,185,129,0.2)]">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <p class="text-[11px] font-extrabold uppercase tracking-[0.2em] text-emerald-300 mb-2">Free Trial Ready</p>
+                <h2 class="text-2xl font-extrabold text-white">Activate your {{ free_trial_days }}-day free trial now</h2>
+                <p class="mt-2 text-sm text-emerald-100/85">Go live immediately, appear in search, and start receiving leads today.</p>
+            </div>
+            <form method="post" action="/provider/wallet/trial-activate">
+                <button type="submit"
+                    class="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-extrabold uppercase tracking-[0.14em] text-white hover:bg-emerald-400 transition-colors shadow-[0_12px_28px_rgba(16,185,129,0.28)]">
+                    Start Free Trial
+                </button>
+            </form>
+        </div>
+    </section>
+    {% endif %}
 
     <!-- Welcome Section -->
     <section class="glass-panel rounded-3xl p-6 sm:p-8 relative overflow-hidden group">
@@ -67,7 +85,7 @@
             </div>
 
             <div class="flex gap-3">
-                <a href="/{{ provider.city|lower }}/{{ provider.neighborhood|lower|replace(' ', '-') }}/escorts/{{ provider.telegram_id }}"
+                <a href="/contact/{{ provider.id }}"
                     target="_blank"
                     class="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors flex items-center gap-2">
                     <i data-feather="external-link" class="w-4 h-4"></i>

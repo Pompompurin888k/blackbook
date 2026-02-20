@@ -29,7 +29,7 @@ from utils.auth import (
     _portal_account_state, _portal_admin_review_keyboard,
     _portal_generate_whatsapp_code, _portal_hash_verification_code,
 )
-from utils.providers import _to_string_list
+from utils.providers import _normalize_photo_sources, _to_string_list
 from utils.onboarding import _portal_compute_profile_strength, _portal_onboarding_base_draft
 
 db = Database()
@@ -70,17 +70,20 @@ async def provider_portal_dashboard(
         )
         provider = db.get_portal_provider_by_id(provider_id) or provider
 
-    photo_ids = _to_string_list(provider.get("profile_photos"))
-    photo_urls = [
-        item if item.startswith(("http://", "https://", "/")) else f"/photo/{item}"
-        for item in photo_ids
-    ][:5]
+    photo_urls = _normalize_photo_sources(provider.get("profile_photos"))[:5]
     services_list = _to_string_list(provider.get("services"))
     languages_list = _to_string_list(provider.get("languages"))
     profile_strength = _portal_compute_profile_strength(
         draft=_portal_onboarding_base_draft(provider),
         photo_count=len(photo_urls),
     )
+    tg_id = int(provider.get("telegram_id") or 0)
+    trial_eligible = (
+        provider.get("is_verified") is True
+        and provider.get("is_active") is False
+        and not provider.get("trial_used")
+        and not db.has_successful_payment_for_provider(tg_id)
+    ) if tg_id else False
 
     return templates.TemplateResponse(
         "provider_dashboard.html",
@@ -94,11 +97,13 @@ async def provider_portal_dashboard(
             "admin_whatsapp": PORTAL_ADMIN_WHATSAPP,
             "phone_verify_code": phone_code,
             "profile_strength": profile_strength,
-            "photo_count": len(photo_ids),
+            "photo_count": len(photo_urls),
             "services_count": len(services_list),
             "languages_count": len(languages_list),
             "notice": notice,
             "error": error,
+            "free_trial_days": FREE_TRIAL_DAYS,
+            "trial_eligible": trial_eligible,
         },
     )
 

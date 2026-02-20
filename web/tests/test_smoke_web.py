@@ -430,6 +430,11 @@ class TestBuildGalleryUrls(unittest.TestCase):
         result = self.fn(1, ids)
         self.assertEqual(len(result), 5)
 
+    def test_absolute_static_upload_url_normalized_to_local_path(self):
+        ids = ["https://old-domain.example/static/uploads/providers/7/profile_abc.jpg"]
+        result = self.fn(7, ids)
+        self.assertEqual(result, ["/static/uploads/providers/7/profile_abc.jpg"])
+
 
 class TestProfileStrength(unittest.TestCase):
     """Tests for _portal_compute_profile_strength helper."""
