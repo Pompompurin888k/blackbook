@@ -129,6 +129,38 @@
                 </div>
             </a>
 
+            <a href="/provider/safety"
+                class="glass-nav-item flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-100 {% if request.url.path == '/provider/safety' %}active{% endif %}">
+                <div class="flex items-center gap-3">
+                    <i data-feather="shield" class="w-4 h-4"></i>
+                    Safety Suite
+                </div>
+            </a>
+
+            <a href="/provider/support"
+                class="glass-nav-item flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-100 {% if request.url.path == '/provider/support' %}active{% endif %}">
+                <div class="flex items-center gap-3">
+                    <i data-feather="phone" class="w-4 h-4"></i>
+                    Support
+                </div>
+            </a>
+
+            <a href="/provider/rules"
+                class="glass-nav-item flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-100 {% if request.url.path == '/provider/rules' %}active{% endif %}">
+                <div class="flex items-center gap-3">
+                    <i data-feather="file-text" class="w-4 h-4"></i>
+                    Rules
+                </div>
+            </a>
+
+            <a href="/"
+                class="glass-nav-item flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-100">
+                <div class="flex items-center gap-3">
+                    <i data-feather="star" class="w-4 h-4"></i>
+                    The Collection
+                </div>
+            </a>
+
             <!-- Verification -->
             <a href="/provider/verify-phone"
                 class="glass-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-amber-500/70 hover:bg-amber-500/10 hover:text-amber-400 {% if request.url.path == '/provider/verify-phone' %}active border-l-[3px] !border-amber-400 !bg-amber-400/10 !text-amber-200{% endif %}">
@@ -205,6 +237,11 @@
             class="mobile-nav-item flex flex-col items-center gap-1.5 p-2 text-zinc-500 hover:text-zinc-300 {% if request.url.path == '/provider/onboarding' %}active{% endif %}">
             <i data-feather="user" class="w-5 h-5"></i>
             <span class="text-[9px] font-bold uppercase tracking-wider">Profile</span>
+        </a>
+        <a href="/provider/safety"
+            class="mobile-nav-item flex flex-col items-center gap-1.5 p-2 text-zinc-500 hover:text-zinc-300 {% if request.url.path == '/provider/safety' %}active{% endif %}">
+            <i data-feather="shield" class="w-5 h-5"></i>
+            <span class="text-[9px] font-bold uppercase tracking-wider">Safety</span>
         </a>
     </nav>
 

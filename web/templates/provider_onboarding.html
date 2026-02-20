@@ -192,14 +192,27 @@
 
                     {% if photo_urls %}
                     <div class="grid grid-cols-3 gap-2">
-                        {% for photo in provider.profile_photos %}
+                        {% for photo in photo_urls %}
                         <div class="relative group aspect-square rounded-xl overflow-hidden bg-black/40">
-                            <img src="/photo/{{ photo }}"
+                            <img src="{{ photo }}"
                                 class="h-24 w-full rounded-xl border border-white/10 object-cover"
                                 onerror="this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400';">
                             <div
-                                class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span class="text-xs font-bold text-white uppercase tracking-wider">Added</span>
+                                class="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity p-2">
+                                {% if loop.index0 > 0 %}
+                                <form method="post" action="/provider/photos/primary/{{ loop.index0 }}" class="w-full">
+                                    <button type="submit"
+                                        class="w-full rounded-lg border border-cyan-300/40 bg-cyan-400/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-100 hover:bg-cyan-400/20">Set
+                                        Primary</button>
+                                </form>
+                                {% else %}
+                                <span
+                                    class="rounded-lg border border-emerald-300/40 bg-emerald-400/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-100">Primary</span>
+                                {% endif %}
+                                <form method="post" action="/provider/photos/delete/{{ loop.index0 }}" class="w-full">
+                                    <button type="submit"
+                                        class="w-full rounded-lg border border-red-300/40 bg-red-400/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-red-100 hover:bg-red-400/20">Delete</button>
+                                </form>
                             </div>
                         </div>
                         {% endfor %}
@@ -376,11 +389,12 @@
 {% block extra_scripts %}
 <script>
     (function () {
-        const requiredPhotos = Number(document.body.dataset.requiredPhotos || "3");
-        const recommendedPhotos = Number(document.body.dataset.recommendedPhotos || "5");
-        const existingPhotos = Number(document.body.dataset.existingPhotos || "0");
-        const providerId = String(document.body.dataset.providerId || "");
-        const step = String(document.body.dataset.step || "1");
+        const root = document.querySelector("[data-required-photos]");
+        const requiredPhotos = Number(root?.dataset.requiredPhotos || "3");
+        const recommendedPhotos = Number(root?.dataset.recommendedPhotos || "5");
+        const existingPhotos = Number(root?.dataset.existingPhotos || "0");
+        const providerId = String(root?.dataset.providerId || "");
+        const step = String(root?.dataset.step || "1");
         const form = document.querySelector('form[action="/provider/onboarding"]');
         const storagePrefix = `provider_onboarding_draft_${providerId}_step_`;
         const storageKey = `${storagePrefix}${step}`;

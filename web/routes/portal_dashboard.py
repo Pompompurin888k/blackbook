@@ -2,10 +2,11 @@
 Portal Dashboard Routes — Verifying phone, dashboard view, code regenerate.
 """
 import logging
+from datetime import datetime
 from typing import Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, Request, Query
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from config import (
@@ -14,6 +15,11 @@ from config import (
     PORTAL_VERIFY_CODE_REGEN_LIMIT_PER_DAY,
     PORTAL_VERIFY_REGEN_WINDOW_SECONDS,
     PORTAL_ACCOUNT_APPROVED,
+    PACKAGE_PRICES,
+    BOOST_PRICE,
+    BOOST_DURATION_HOURS,
+    FREE_TRIAL_DAYS,
+    TELEGRAM_BOT_USERNAME,
 )
 from database import Database
 from services.redis_service import _redis_consume_limit, _get_redis_client
@@ -35,7 +41,12 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/provider/dashboard", response_class=HTMLResponse)
-async def provider_portal_dashboard(request: Request, saved: Optional[int] = 0):
+async def provider_portal_dashboard(
+    request: Request,
+    saved: Optional[int] = 0,
+    notice: Optional[str] = None,
+    error: Optional[str] = None,
+):
     """Provider dashboard for non-Telegram onboarding users."""
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
@@ -59,7 +70,11 @@ async def provider_portal_dashboard(request: Request, saved: Optional[int] = 0):
         )
         provider = db.get_portal_provider_by_id(provider_id) or provider
 
-    photo_urls = _to_string_list(provider.get("profile_photos"))
+    photo_ids = _to_string_list(provider.get("profile_photos"))
+    photo_urls = [
+        item if item.startswith(("http://", "https://", "/")) else f"/photo/{item}"
+        for item in photo_ids
+    ][:5]
     services_list = _to_string_list(provider.get("services"))
     languages_list = _to_string_list(provider.get("languages"))
     profile_strength = _portal_compute_profile_strength(
@@ -79,9 +94,11 @@ async def provider_portal_dashboard(request: Request, saved: Optional[int] = 0):
             "admin_whatsapp": PORTAL_ADMIN_WHATSAPP,
             "phone_verify_code": phone_code,
             "profile_strength": profile_strength,
-            "photo_count": len(photo_urls),
+            "photo_count": len(photo_ids),
             "services_count": len(services_list),
             "languages_count": len(languages_list),
+            "notice": notice,
+            "error": error,
         },
     )
 
@@ -226,7 +243,11 @@ async def provider_portal_analytics(request: Request):
 
 
 @router.get("/provider/wallet", response_class=HTMLResponse)
-async def provider_portal_wallet(request: Request):
+async def provider_portal_wallet(
+    request: Request,
+    notice: Optional[str] = None,
+    error: Optional[str] = None,
+):
     """Provider Wallet page showing subscription status, renewal options, and boost info."""
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
@@ -240,16 +261,38 @@ async def provider_portal_wallet(request: Request):
     if _portal_account_state(provider) != PORTAL_ACCOUNT_APPROVED:
         return RedirectResponse(url=f"/provider/verify-phone?status={_portal_account_state(provider)}", status_code=302)
 
+    tg_id = int(provider.get("telegram_id") or 0)
+    latest_payment = db.get_latest_payment_for_provider(tg_id) if tg_id else None
+    trial_eligible = (
+        provider.get("is_verified") is True
+        and provider.get("is_active") is False
+        and not provider.get("trial_used")
+        and not db.has_successful_payment_for_provider(tg_id)
+    ) if tg_id else False
     return templates.TemplateResponse(
         "provider_wallet.html",
         {
             "request": request,
             "provider": provider,
+            "notice": notice,
+            "error": error,
+            "package_prices": PACKAGE_PRICES,
+            "boost_price": BOOST_PRICE,
+            "boost_duration_hours": BOOST_DURATION_HOURS,
+            "free_trial_days": FREE_TRIAL_DAYS,
+            "trial_eligible": trial_eligible,
+            "latest_payment": latest_payment,
+            "now": datetime.now,
+            "bot_username": TELEGRAM_BOT_USERNAME,
         }
     )
 
 @router.get("/provider/referrals", response_class=HTMLResponse)
-async def provider_portal_referrals(request: Request):
+async def provider_portal_referrals(
+    request: Request,
+    notice: Optional[str] = None,
+    error: Optional[str] = None,
+):
     """Provider Referrals Hub page."""
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
@@ -268,8 +311,12 @@ async def provider_portal_referrals(request: Request):
     stats = {"referral_code": None, "total_referred": 0, "credits": 0}
     history = []
     
-    if tg_id and int(tg_id) > 0:
-        actual_tg_id = int(tg_id)
+    try:
+        actual_tg_id = int(tg_id) if tg_id is not None else 0
+    except (TypeError, ValueError):
+        actual_tg_id = 0
+
+    if actual_tg_id != 0:
         stats = db.get_referral_stats(actual_tg_id)
         history = db.get_referral_history(actual_tg_id)
         
@@ -284,7 +331,10 @@ async def provider_portal_referrals(request: Request):
             "request": request,
             "provider": provider,
             "stats": stats,
-            "history": history
+            "history": history,
+            "bot_username": TELEGRAM_BOT_USERNAME,
+            "notice": notice,
+            "error": error,
         }
     )
 

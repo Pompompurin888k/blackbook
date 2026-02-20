@@ -1,0 +1,23 @@
+{% extends "provider_base.html" %}
+
+{% block title %}Support | Provider Portal{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <section class="glass-panel rounded-3xl p-6 sm:p-8">
+        <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-400 mb-2">Support</p>
+        <h1 class="text-3xl font-extrabold text-white tracking-tight">Need Help?</h1>
+        <p class="mt-2 text-sm text-zinc-400">Same support information as Telegram, now available in portal.</p>
+    </section>
+
+    <section class="glass-panel rounded-3xl p-6 space-y-4">
+        <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300">Contact</h2>
+        <p class="text-sm text-zinc-200">{{ contact_line }}</p>
+        <p class="text-sm text-zinc-400">Expected response time: within 2-4 hours.</p>
+        <div class="flex flex-wrap gap-2">
+            <a href="/provider/safety" class="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-emerald-100 hover:bg-emerald-500/20">Open Safety Suite</a>
+            <a href="/provider/rules" class="rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-zinc-200 hover:bg-white/10">View Rules</a>
+        </div>
+    </section>
+</div>
+{% endblock %}

@@ -80,7 +80,8 @@ class PortalRepository(BaseRepository):
                                availability_type, languages, profile_photos,
                                rate_30min, rate_1hr, rate_2hr, rate_3hr, rate_overnight,
                                created_at, subscription_tier, expiry_date,
-                               boost_until, referral_credits
+                               boost_until, referral_credits,
+                               trial_used, trial_started_at
                         FROM providers
                         WHERE id = %s
                         LIMIT 1
@@ -109,7 +110,8 @@ class PortalRepository(BaseRepository):
                                availability_type, languages, profile_photos,
                                rate_30min, rate_1hr, rate_2hr, rate_3hr, rate_overnight,
                                created_at, subscription_tier, expiry_date,
-                               boost_until, referral_credits
+                               boost_until, referral_credits,
+                               trial_used, trial_started_at
                         FROM providers
                         WHERE phone = %s AND COALESCE(auth_channel, 'telegram') = 'portal'
                         ORDER BY id DESC

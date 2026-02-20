@@ -198,6 +198,7 @@ from routes.public import router as public_router
 from routes.portal_auth import router as portal_auth_router
 from routes.portal_onboarding import router as portal_onboarding_router
 from routes.portal_dashboard import router as portal_dashboard_router
+from routes.portal_actions import router as portal_actions_router
 from routes.payments import router as payments_router
 from routes.api import router as api_router
 
@@ -205,6 +206,7 @@ app.include_router(public_router)
 app.include_router(portal_auth_router)
 app.include_router(portal_onboarding_router)
 app.include_router(portal_dashboard_router)
+app.include_router(portal_actions_router)
 app.include_router(payments_router)
 app.include_router(api_router)
 

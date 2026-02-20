@@ -5,6 +5,17 @@
 {% block content %}
 <div class="space-y-6 animate-fade-in-up" style="animation: fadeInUp 0.4s ease-out forwards;">
 
+    {% if notice %}
+    <div class="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-100 shadow-lg shadow-emerald-500/5">
+        {{ notice }}
+    </div>
+    {% endif %}
+    {% if error %}
+    <div class="rounded-2xl border border-red-400/30 bg-red-500/10 px-5 py-4 text-sm text-red-100 shadow-lg shadow-red-500/5">
+        {{ error }}
+    </div>
+    {% endif %}
+
     <!-- Header Section -->
     <section class="glass-panel rounded-3xl p-6 sm:p-8 relative overflow-hidden group">
         <div
@@ -43,7 +54,7 @@
                     they will be registered as your invitee.</p>
 
                 <div class="relative">
-                    {% set invite_link = "https://t.me/" ~ bot_username ~ "?start=ref_" ~ stats.referral_code %}
+                    {% set invite_link = ("https://t.me/" ~ bot_username ~ "?start=ref_" ~ stats.referral_code) if bot_username else ("Referral code: " ~ stats.referral_code) %}
                     <input type="text" id="ref-link" readonly value="{{ invite_link }}"
                         class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-fuchsia-500/50">
                     <button onclick="copyLink()"
@@ -131,8 +142,20 @@
                                 </div>
                                 {% else %}
                                 <div class="text-right">
-                                    <span class="block font-bold text-amber-400 text-sm">Reward Ready</span>
-                                    <span class="text-[10px] font-bold text-amber-500/70">Check Telegram</span>
+                                    <form method="post" action="/provider/referrals/reward/{{ record.id }}" class="flex flex-col gap-2">
+                                        <input type="hidden" name="choice" value="credit">
+                                        <button type="submit"
+                                            class="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-100 hover:bg-emerald-500/20">
+                                            Claim {{ record.reward_credit }} KES
+                                        </button>
+                                    </form>
+                                    <form method="post" action="/provider/referrals/reward/{{ record.id }}" class="mt-2">
+                                        <input type="hidden" name="choice" value="days">
+                                        <button type="submit"
+                                            class="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-100 hover:bg-cyan-500/20">
+                                            Claim {{ record.reward_days }} Days
+                                        </button>
+                                    </form>
                                 </div>
                                 {% endif %}
                             </div>

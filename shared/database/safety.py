@@ -116,3 +116,19 @@ class SafetyRepository(BaseRepository):
                 self.conn.rollback()
                 return 0
 
+    def get_active_session(self, tg_id: int) -> Optional[Dict]:
+            """Returns the most recent active safety session for a provider."""
+            query = """
+            SELECT id, telegram_id, expected_check_back, created_at
+            FROM sessions
+            WHERE telegram_id = %s AND is_active = TRUE
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+            try:
+                with self.conn.cursor() as cur:
+                    cur.execute(query, (tg_id,))
+                    return cur.fetchone()
+            except Exception as e:
+                logger.error(f"❌ Error getting active session for {tg_id}: {e}")
+                return None

@@ -1,0 +1,76 @@
+{% extends "provider_base.html" %}
+
+{% block title %}Safety Suite | Provider Portal{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <section class="glass-panel rounded-3xl p-6 sm:p-8">
+        <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400 mb-2">Safety Suite</p>
+        <h1 class="text-3xl font-extrabold text-white tracking-tight">Protection Tools</h1>
+        <p class="mt-2 text-sm text-zinc-400">Check numbers, report risky clients, and run safety sessions.</p>
+    </section>
+
+    {% if notice %}
+    <div class="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-100">{{ notice }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="rounded-2xl border border-red-400/30 bg-red-500/10 px-5 py-4 text-sm text-red-100">{{ error }}</div>
+    {% endif %}
+
+    <div class="grid md:grid-cols-2 gap-6">
+        <section class="glass-panel rounded-3xl p-6 space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300">Check Client Number</h2>
+            <form method="post" action="/provider/safety/check" class="space-y-3">
+                <input name="phone" placeholder="0712345678" class="w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" required>
+                <button type="submit" class="rounded-xl bg-cyan-500 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white">Check Number</button>
+            </form>
+
+            {% if check_status %}
+            <div class="rounded-xl border {% if check_status == 'blacklisted' %}border-red-400/30 bg-red-500/10 text-red-100{% else %}border-emerald-400/30 bg-emerald-500/10 text-emerald-100{% endif %} px-4 py-3 text-sm">
+                {% if check_status == "blacklisted" %}
+                <p class="font-bold">Blacklisted: {{ check_phone }}</p>
+                <p class="mt-1 text-xs">Reason: {{ check_reason or "Reported risk" }}</p>
+                {% else %}
+                <p class="font-bold">Clear: {{ check_phone }}</p>
+                <p class="mt-1 text-xs">No reports found for this number.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </section>
+
+        <section class="glass-panel rounded-3xl p-6 space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300">Report Client Number</h2>
+            <form method="post" action="/provider/safety/report" class="space-y-3">
+                <input name="phone" placeholder="0712345678" class="w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" required>
+                <textarea name="reason" rows="3" placeholder="Did not pay / aggressive behavior / safety concern"
+                    class="w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm" required></textarea>
+                <button type="submit" class="rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white">Report Number</button>
+            </form>
+        </section>
+    </div>
+
+    <section class="glass-panel rounded-3xl p-6 space-y-4">
+        <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300">Safety Session Timer</h2>
+
+        {% if active_session %}
+        <div class="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+            <p class="font-bold">Session active</p>
+            <p class="mt-1 text-xs">Check-in due: {{ active_session.expected_check_back.strftime('%d %b %Y %H:%M') }}</p>
+        </div>
+        <form method="post" action="/provider/safety/session/checkin">
+            <button type="submit" class="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white">Check In Now</button>
+        </form>
+        {% else %}
+        <p class="text-sm text-zinc-400">Start a timer before meeting a client. If overdue, admin is alerted.</p>
+        <div class="flex flex-wrap gap-2">
+            {% for mins in [30, 60, 90, 120] %}
+            <form method="post" action="/provider/safety/session/start">
+                <input type="hidden" name="minutes" value="{{ mins }}">
+                <button type="submit" class="rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-zinc-100 hover:bg-white/10">{{ mins }} Min</button>
+            </form>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

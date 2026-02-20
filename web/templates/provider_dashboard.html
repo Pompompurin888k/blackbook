@@ -17,6 +17,18 @@
                 data-feather="x" class="w-4 h-4"></i></button>
     </div>
     {% endif %}
+    {% if notice %}
+    <div
+        class="rounded-2xl border border-cyan-400/30 bg-cyan-500/10 px-5 py-4 text-sm text-cyan-100 shadow-lg shadow-cyan-500/5">
+        {{ notice }}
+    </div>
+    {% endif %}
+    {% if error %}
+    <div
+        class="rounded-2xl border border-red-400/30 bg-red-500/10 px-5 py-4 text-sm text-red-100 shadow-lg shadow-red-500/5">
+        {{ error }}
+    </div>
+    {% endif %}
 
     <!-- Welcome Section -->
     <section class="glass-panel rounded-3xl p-6 sm:p-8 relative overflow-hidden group">
@@ -29,7 +41,7 @@
             <div>
                 <div class="flex items-center gap-2 mb-2">
                     <span class="relative flex h-3 w-3">
-                        {% if provider.is_active %}
+                        {% if provider.is_active and provider.is_online %}
                         <span
                             class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
@@ -38,8 +50,8 @@
                         {% endif %}
                     </span>
                     <span
-                        class="text-xs font-bold uppercase tracking-widest {% if provider.is_active %}text-emerald-400{% else %}text-amber-400{% endif %}">
-                        {% if provider.is_active %}Live Online{% else %}Inactive / Hidden{% endif %}
+                        class="text-xs font-bold uppercase tracking-widest {% if provider.is_active and provider.is_online %}text-emerald-400{% else %}text-amber-400{% endif %}">
+                        {% if provider.is_active and provider.is_online %}Live Online{% else %}Offline / Hidden{% endif %}
                     </span>
                 </div>
 
@@ -61,6 +73,13 @@
                     <i data-feather="external-link" class="w-4 h-4"></i>
                     View Public Profile
                 </a>
+                <form method="post" action="/provider/status/toggle">
+                    <button type="submit"
+                        class="rounded-xl border border-teal-400/30 bg-teal-500/10 px-4 py-2.5 text-sm font-bold text-teal-200 hover:bg-teal-500/20 transition-colors flex items-center gap-2">
+                        <i data-feather="radio" class="w-4 h-4"></i>
+                        Toggle Live
+                    </button>
+                </form>
             </div>
         </div>
     </section>
@@ -173,6 +192,18 @@
                 <h3 class="text-lg font-bold text-teal-300 mb-2">Safety First</h3>
                 <p class="text-sm text-teal-100/70 max-w-sm">Never share verification codes or passwords with anyone. We
                     will never ask for your portal password.</p>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <a href="/provider/safety"
+                        class="rounded-lg border border-teal-300/30 bg-teal-400/10 px-3 py-1.5 text-xs font-bold text-teal-100 hover:bg-teal-400/20">Safety
+                        Suite</a>
+                    <a href="/provider/support"
+                        class="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-bold text-zinc-200 hover:bg-white/10">Support</a>
+                    <a href="/provider/rules"
+                        class="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-bold text-zinc-200 hover:bg-white/10">Rules</a>
+                    <a href="/"
+                        class="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-bold text-zinc-200 hover:bg-white/10">The
+                        Collection</a>
+                </div>
             </section>
 
         </div>
@@ -196,7 +227,7 @@
                         <div
                             class="aspect-square rounded-2xl overflow-hidden border border-white/10 group relative bg-black/40">
                             <!-- We use /photo/{{ photo }} to proxy the Telegram file ID -->
-                            <img src="/photo/{{ photo }}"
+                            <img src="{{ photo }}"
                                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                 alt="Photo {{ loop.index }}"
                                 onerror="this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400';">

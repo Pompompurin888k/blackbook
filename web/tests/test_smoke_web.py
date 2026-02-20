@@ -131,12 +131,28 @@ class TestWebImports(unittest.TestCase):
         from routes.portal_auth import provider_portal_auth, provider_portal_login, provider_portal_register, provider_portal_logout
         from routes.portal_onboarding import provider_portal_onboarding, provider_portal_onboarding_submit
         from routes.portal_dashboard import provider_portal_dashboard
+        from routes.portal_actions import (
+            provider_toggle_status,
+            provider_activate_trial,
+            provider_wallet_pay,
+            provider_safety_page,
+            provider_support_page,
+            provider_rules_page,
+            provider_claim_referral_reward,
+        )
         from routes.payments import megapay_callback
 
         # All should be callable
         self.assertTrue(callable(home))
         self.assertTrue(callable(safety))
         self.assertTrue(callable(health))
+        self.assertTrue(callable(provider_toggle_status))
+        self.assertTrue(callable(provider_activate_trial))
+        self.assertTrue(callable(provider_wallet_pay))
+        self.assertTrue(callable(provider_safety_page))
+        self.assertTrue(callable(provider_support_page))
+        self.assertTrue(callable(provider_rules_page))
+        self.assertTrue(callable(provider_claim_referral_reward))
 
 
 # ──────────────────────────────────────────────────────────
@@ -472,6 +488,26 @@ class TestToIntOrNone(unittest.TestCase):
 
     def test_invalid(self):
         self.assertIsNone(self.fn("abc"))
+
+
+class TestPortalActionHelpers(unittest.TestCase):
+    """Tests for portal action helper logic."""
+
+    def setUp(self):
+        from routes.portal_actions import _normalize_mpesa_phone, _is_trial_eligible
+        self.normalize_phone = _normalize_mpesa_phone
+        self.is_trial_eligible = _is_trial_eligible
+
+    def test_normalize_mpesa_phone(self):
+        self.assertEqual(self.normalize_phone("0712345678"), "254712345678")
+        self.assertEqual(self.normalize_phone("+254712345678"), "254712345678")
+        self.assertEqual(self.normalize_phone("0712"), "")
+
+    def test_trial_eligibility(self):
+        self.assertTrue(self.is_trial_eligible({"is_verified": True, "is_active": False, "trial_used": False}))
+        self.assertFalse(self.is_trial_eligible({"is_verified": False, "is_active": False, "trial_used": False}))
+        self.assertFalse(self.is_trial_eligible({"is_verified": True, "is_active": True, "trial_used": False}))
+        self.assertFalse(self.is_trial_eligible({"is_verified": True, "is_active": False, "trial_used": True}))
 
 
 class TestParseCsvValues(unittest.TestCase):

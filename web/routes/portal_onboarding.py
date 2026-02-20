@@ -53,7 +53,11 @@ def _render_provider_onboarding_template(
     show_saved_toast: bool = False,
 ):
     """Renders the multi-step portal onboarding screen."""
-    photo_urls = _to_string_list(provider.get("profile_photos"))
+    photo_ids = _to_string_list(provider.get("profile_photos"))
+    photo_urls = [
+        item if item.startswith(("http://", "https://", "/")) else f"/photo/{item}"
+        for item in photo_ids
+    ][:PORTAL_MAX_PROFILE_PHOTOS]
     preview = _portal_build_preview(
         draft=draft,
         photo_urls=photo_urls,
@@ -94,6 +98,7 @@ async def provider_portal_onboarding(
     request: Request,
     step: Optional[int] = 1,
     saved: Optional[int] = 0,
+    error: Optional[str] = None,
 ):
     """Multi-step onboarding wizard for non-Telegram providers."""
     provider_id = _portal_session_provider_id(request)
@@ -113,6 +118,7 @@ async def provider_portal_onboarding(
         provider=provider,
         draft=draft,
         step=current_step,
+        error=error,
         show_saved_toast=bool(saved),
     )
 

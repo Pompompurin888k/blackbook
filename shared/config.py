@@ -6,6 +6,7 @@ import os
 
 # ==================== TELEGRAM ====================
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN", TELEGRAM_BOT_TOKEN)
 PARTNER_TELEGRAM_ID = os.getenv("PARTNER_TELEGRAM_ID")
