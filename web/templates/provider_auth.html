@@ -3,92 +3,331 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Provider Portal | Blackbook</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
     <style>
         body {
             font-family: "Manrope", sans-serif;
+            background-color: #030303;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .input-glass {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .input-glass:focus {
+            outline: none;
+            background: rgba(0, 0, 0, 0.6);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
+        }
+
+        .input-glass::placeholder {
+            color: rgba(255, 255, 255, 0.25);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in {
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
+
+        .delay-100 {
+            animation-delay: 100ms;
+            opacity: 0;
+        }
+
+        .delay-200 {
+            animation-delay: 200ms;
+            opacity: 0;
+        }
+
+        /* Premium gradient text */
+        .text-gradient {
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-image: linear-gradient(to right, #fff, #a1a1aa);
+        }
+
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            z-index: -1;
+            background: #000;
+        }
+
+        .glow-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.15;
+            animation: pulse 8s alternate infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.8) translate(0, 0);
+                opacity: 0.1;
+            }
+
+            100% {
+                transform: scale(1.2) translate(5%, 5%);
+                opacity: 0.2;
+            }
         }
     </style>
 </head>
 
-<body class="min-h-screen bg-zinc-950 text-zinc-100">
-    <main class="max-w-3xl mx-auto px-4 py-6 space-y-5">
+<body class="min-h-screen text-zinc-100 relative selection:bg-cyan-500/30">
+
+    <!-- Ambient Background Effects -->
+    <div class="animated-bg">
+        <div class="glow-orb w-[600px] h-[600px] bg-cyan-600 top-[-20%] left-[-10%]"></div>
+        <div class="glow-orb w-[500px] h-[500px] bg-amber-600 bottom-[-10%] right-[-10%]" style="animation-delay: -4s;">
+        </div>
+        <!-- Grid pattern overlay -->
+        <div
+            class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0wIDEwaDQwTTAgMjBoNDBNMCAzMGg0ME0xMCAwdjQwTTIwIDB2NDBNMzAgMHY0MCIgc3Ryb2tlPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDMpIiBmaWxsPSJub25lIi8+Cjwvc3ZnPg==')]">
+        </div>
+    </div>
+
+    <!-- Navigation Header -->
+    <nav class="fixed top-0 inset-x-0 z-40 px-6 py-5 flex items-center justify-between pointer-events-none">
+        <a href="/" class="flex flex-col pointer-events-auto">
+            <span class="text-2xl font-extrabold tracking-tight text-gradient">Blackbook</span>
+            <span class="text-[9px] uppercase tracking-[0.2em] text-teal-400 font-bold mt-0.5">Provider Portal</span>
+        </a>
         <a href="/"
-            class="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-zinc-300 hover:text-white">←
-            Back to Home</a>
+            class="pointer-events-auto glass-panel px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest text-zinc-300 hover:text-white transition-colors flex items-center gap-2">
+            <i data-feather="arrow-left" class="w-3.5 h-3.5"></i> Home
+        </a>
+    </nav>
 
-        <section class="rounded-3xl border border-white/10 bg-white/5 p-5">
-            <p class="text-[11px] uppercase tracking-[0.2em] text-zinc-400">Provider Portal</p>
-            <h1 class="mt-2 text-2xl font-extrabold">Register Without Telegram</h1>
-            <p class="mt-2 text-sm text-zinc-300">Use your phone + password. Finish your profile, upload photos, and
-                submit for admin approval.</p>
-        </section>
+    <main class="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-24 sm:px-6 lg:px-8">
 
-        {% if error %}
-        <div class="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{{ error }}</div>
-        {% endif %}
-        {% if success %}
-        <div class="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{{
-            success }}</div>
-        {% endif %}
+        <div class="w-full max-w-5xl mx-auto">
 
-        <section class="grid gap-4 md:grid-cols-2">
-            <form method="post" action="/provider/register"
-                class="rounded-3xl border border-white/10 bg-zinc-900/70 p-4 space-y-3">
-                <h2 class="text-sm font-semibold uppercase tracking-widest text-zinc-300">Create Account</h2>
-                <div>
-                    <label class="text-xs text-zinc-400">Display Name</label>
-                    <input name="display_name" required minlength="2"
-                        class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
-                        placeholder="Bruno">
-                </div>
-                <div>
-                    <label class="text-xs text-zinc-400">Phone (Kenya)</label>
-                    <input name="phone" required
-                        class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
-                        placeholder="254712345678">
-                </div>
-                <div>
-                    <label class="text-xs text-zinc-400">Password</label>
-                    <input name="password" type="password" minlength="6" required
-                        class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
-                        placeholder="At least 6 characters">
-                </div>
-                <div>
-                    <label class="text-xs text-zinc-400">Confirm Password</label>
-                    <input name="confirm_password" type="password" minlength="6" required
-                        class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
-                        placeholder="Repeat password">
-                </div>
-                <button class="w-full rounded-xl bg-amber-400 py-2.5 text-sm font-bold text-black">Create
-                    Account</button>
-            </form>
+            <!-- Header Text -->
+            <div class="text-center mb-10 animate-fade-in">
+                <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-3">Welcome to Blackbook</h1>
+                <p class="text-zinc-400 text-sm md:text-base max-w-xl mx-auto">Join the exclusive directory. Manage your
+                    profile, track your private analytics, and connect directly with high-end clients.</p>
+            </div>
 
-            <form method="post" action="/provider/login"
-                class="rounded-3xl border border-white/10 bg-zinc-900/70 p-4 space-y-3">
-                <h2 class="text-sm font-semibold uppercase tracking-widest text-zinc-300">Login</h2>
-                <div>
-                    <label class="text-xs text-zinc-400">Phone</label>
-                    <input name="phone" required
-                        class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
-                        placeholder="254712345678">
+            <!-- Alerts -->
+            <div class="max-w-xl mx-auto mb-8 animate-fade-in delay-100">
+                {% if error %}
+                <div
+                    class="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-5 py-4 flex items-center gap-3 text-sm text-rose-200 shadow-[0_0_15px_rgba(244,63,94,0.15)]">
+                    <i data-feather="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+                    <p>{{ error }}</p>
                 </div>
-                <div>
-                    <label class="text-xs text-zinc-400">Password</label>
-                    <input name="password" type="password" required
-                        class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
+                {% endif %}
+
+                {% if success %}
+                <div
+                    class="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4 flex items-center gap-3 text-sm text-emerald-200 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                    <i data-feather="check-circle" class="w-5 h-5 flex-shrink-0"></i>
+                    <p>{{ success }}</p>
                 </div>
-                <button class="w-full rounded-xl bg-cyan-400 py-2.5 text-sm font-bold text-black">Login</button>
-                <p class="text-xs text-zinc-400">No SMS needed. New accounts must be approved by admin via WhatsApp code
-                    before login access is unlocked.</p>
-            </form>
-        </section>
+                {% endif %}
+            </div>
+
+            <!-- Two Column Split -->
+            <div class="grid md:grid-cols-2 gap-6 lg:gap-10 items-start">
+
+                <!-- Login Column -->
+                <div
+                    class="glass-panel rounded-3xl p-6 sm:p-8 animate-fade-in delay-200 relative overflow-hidden group">
+                    <div
+                        class="absolute -top-10 -right-10 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/20 transition-all duration-700">
+                    </div>
+
+                    <div class="flex items-center gap-3 mb-8 relative">
+                        <div
+                            class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                            <i data-feather="log-in" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Access Dashboard</h2>
+                            <p class="text-xs text-zinc-400 mt-0.5">Welcome back, log in securely</p>
+                        </div>
+                    </div>
+
+                    <form method="post" action="/provider/login" class="space-y-5 relative">
+                        <div>
+                            <label
+                                class="block text-[10px] uppercase font-bold tracking-[0.15em] text-zinc-400 mb-2 pl-1">Phone
+                                Number</label>
+                            <div class="relative">
+                                <i data-feather="phone"
+                                    class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
+                                <input name="phone" required
+                                    class="input-glass w-full rounded-2xl py-3.5 pl-11 pr-4 text-sm"
+                                    placeholder="254712345678">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-[10px] uppercase font-bold tracking-[0.15em] text-zinc-400 mb-2 pl-1">Security
+                                PIN / Password</label>
+                            <div class="relative">
+                                <i data-feather="lock"
+                                    class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
+                                <input name="password" type="password" required
+                                    class="input-glass w-full rounded-2xl py-3.5 pl-11 pr-4 text-sm"
+                                    placeholder="••••••••">
+                            </div>
+                        </div>
+
+                        <button
+                            class="w-full relative group overflow-hidden rounded-2xl bg-cyan-500 py-3.5 text-black font-extrabold uppercase tracking-widest text-sm mt-2 transition-all hover:bg-cyan-400 focus:ring-4 focus:ring-cyan-500/30">
+                            <span class="relative z-10 flex items-center justify-center gap-2">
+                                Login Access <i data-feather="arrow-right" class="w-4 h-4"></i>
+                            </span>
+                        </button>
+
+                        <div
+                            class="mt-4 p-4 rounded-2xl bg-black/30 border border-white/5 flex gap-3 text-xs text-zinc-400 leading-relaxed">
+                            <i data-feather="info" class="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5"></i>
+                            <p>No SMS required. Brand new accounts remain locked until admin approves your initial
+                                WhatsApp message.</p>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Registration Column -->
+                <div
+                    class="glass-panel rounded-3xl p-6 sm:p-8 animate-fade-in delay-200 relative overflow-hidden group">
+                    <div
+                        class="absolute -bottom-10 -left-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-all duration-700">
+                    </div>
+
+                    <div class="flex items-center gap-3 mb-8 relative">
+                        <div
+                            class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                            <i data-feather="user-plus" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Create Account</h2>
+                            <p class="text-xs text-zinc-400 mt-0.5">New provider? Register here</p>
+                        </div>
+                    </div>
+
+                    <form method="post" action="/provider/register" class="space-y-5 relative">
+
+                        <div>
+                            <label
+                                class="block text-[10px] uppercase font-bold tracking-[0.15em] text-zinc-400 mb-2 pl-1">Display
+                                Name</label>
+                            <div class="relative">
+                                <i data-feather="at-sign"
+                                    class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
+                                <input name="display_name" required minlength="2"
+                                    class="input-glass w-full rounded-2xl py-3.5 pl-11 pr-4 text-sm"
+                                    placeholder="Your public name">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-[10px] uppercase font-bold tracking-[0.15em] text-zinc-400 mb-2 pl-1">Phone
+                                (Format: 254...)</label>
+                            <div class="relative">
+                                <i data-feather="smartphone"
+                                    class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
+                                <input name="phone" required type="tel"
+                                    class="input-glass w-full rounded-2xl py-3.5 pl-11 pr-4 text-sm"
+                                    placeholder="254712345678">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label
+                                    class="block text-[10px] uppercase font-bold tracking-[0.15em] text-zinc-400 mb-2 pl-1">New
+                                    PIN</label>
+                                <div class="relative">
+                                    <i data-feather="lock"
+                                        class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
+                                    <input name="password" type="password" minlength="4" required
+                                        class="input-glass w-full rounded-2xl py-3.5 pl-11 pr-4 text-sm"
+                                        placeholder="Secret">
+                                </div>
+                            </div>
+                            <div>
+                                <label
+                                    class="block text-[10px] uppercase font-bold tracking-[0.15em] text-zinc-400 mb-2 pl-1">Repeat
+                                    PIN</label>
+                                <div class="relative">
+                                    <input name="confirm_password" type="password" minlength="4" required
+                                        class="input-glass w-full rounded-2xl py-3.5 px-4 text-sm"
+                                        placeholder="Confirm">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            class="w-full relative group overflow-hidden rounded-2xl bg-amber-400 py-3.5 text-black font-extrabold uppercase tracking-widest text-sm mt-3 transition-all hover:bg-amber-300 focus:ring-4 focus:ring-amber-500/30">
+                            <span class="relative z-10 flex items-center justify-center gap-2">
+                                Register Now <i data-feather="chevron-right" class="w-4 h-4"></i>
+                            </span>
+                        </button>
+
+                    </form>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="mt-16 text-center text-xs text-zinc-500 animate-fade-in delay-200">
+                <p>&copy; 2026 Blackbook Premium Directory. All rights reserved.</p>
+                <div class="flex items-center justify-center gap-4 mt-2">
+                    <a href="/safety" class="hover:text-zinc-300 transition-colors">Safety Tips</a>
+                    <span>&bull;</span>
+                    <a href="#" class="hover:text-zinc-300 transition-colors">Provider Rules</a>
+                </div>
+            </div>
+
+        </div>
     </main>
+
+    <script>
+        feather.replace(); // Initialize feather icons
+    </script>
 </body>
 
 </html>
