@@ -123,6 +123,8 @@ async def megapay_callback(request: Request):
                 db.log_payment(telegram_id, amount, reference, "REJECTED_UNVERIFIED", package_days)
                 return JSONResponse({"status": "error", "message": "Provider not verified"}, status_code=403)
 
+            is_first_payment = not db.has_successful_payment_for_provider(telegram_id)
+
             # Boost transaction
             if package_days == 0:
                 if not db.boost_provider(telegram_id, BOOST_DURATION_HOURS):
@@ -181,24 +183,28 @@ async def megapay_callback(request: Request):
             )
 
             # === REFERRAL REWARD ===
-            # If this provider was referred, reward the referrer
+            # If this provider was referred, reward the referrer on their first payment
             referrer_id = provider_data.get("referred_by") if provider_data else None
-            if referrer_id:
+            if referrer_id and is_first_payment:
                 try:
-                    commission = int(float(amount or 0) * 0.20)  # 20% commission as credit
+                    commission = int(float(amount or 0) * 0.20)  # 20% commission
                     if commission > 0:
-                        db.add_referral_credits(referrer_id, commission)
-                    # Also give 1 free day
-                    db.extend_subscription(referrer_id, 1)
-                    await send_telegram_notification(
-                        referrer_id,
-                        f"🎁 **Referral Reward!**\n\n"
-                        f"Someone you referred just subscribed!\n"
-                        f"💰 +{commission} KES credit added\n"
-                        f"📅 +1 bonus day added\n\n"
-                        f"Keep sharing your link to earn more! 🤝"
-                    )
-                    logger.info(f"🤝 Referral reward: {commission} KES credit + 1 day to {referrer_id}")
+                        reward_id = db.create_referral_reward(referrer_id, telegram_id, amount, commission, 3)
+                        if reward_id:
+                            reply_markup = {
+                                "inline_keyboard": [
+                                    [{"text": f"💰 {commission} KES Credit", "callback_data": f"ref_reward_{reward_id}_credit"}],
+                                    [{"text": "📅 3 Free Days", "callback_data": f"ref_reward_{reward_id}_days"}]
+                                ]
+                            }
+                            await send_telegram_notification(
+                                referrer_id,
+                                f"🎉 **Referral Success!**\n\n"
+                                f"Someone you referred just made their first payment.\n"
+                                f"Choose your reward below:",
+                                reply_markup=reply_markup
+                            )
+                            logger.info(f"🤝 Created pending referral reward {reward_id} for {referrer_id}")
                 except Exception as ref_err:
                     logger.error(f"⚠️ Referral reward error (non-fatal): {ref_err}")
 

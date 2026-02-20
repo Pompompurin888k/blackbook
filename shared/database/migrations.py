@@ -107,6 +107,21 @@ class MigrationsRepository(BaseRepository):
             );
             """
 
+            referral_rewards_query = """
+            CREATE TABLE IF NOT EXISTS referral_rewards (
+                id SERIAL PRIMARY KEY,
+                referrer_tg_id BIGINT NOT NULL,
+                invitee_tg_id BIGINT NOT NULL,
+                amount_paid INT NOT NULL,
+                reward_credit INT NOT NULL,
+                reward_days INT NOT NULL,
+                is_claimed BOOLEAN DEFAULT FALSE,
+                claimed_reward VARCHAR(20),
+                created_at TIMESTAMP DEFAULT NOW(),
+                claimed_at TIMESTAMP
+            );
+            """
+
             # Add new columns if they don't exist
             add_columns = """
             DO $$ 
@@ -275,6 +290,7 @@ class MigrationsRepository(BaseRepository):
                     cur.execute(funnel_events_query)
                     cur.execute(lead_analytics_query)
                     cur.execute(verification_events_query)
+                    cur.execute(referral_rewards_query)
                     cur.execute(add_columns)
                     cur.execute("""
                         UPDATE providers

@@ -10,6 +10,7 @@ from . import profile
 from . import photos
 from . import online
 from . import verification
+from . import referral
 
 
 def register_all_handlers(application, db):
@@ -26,6 +27,7 @@ def register_all_handlers(application, db):
     photos.register_handlers(application)
     online.register_handlers(application)
     verification.register_handlers(application)
+    referral.register_handlers(application)
     safety.register_handlers(application)
     payment.register_handlers(application)
     admin.register_handlers(application)

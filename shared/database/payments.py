@@ -65,6 +65,24 @@ class PaymentsRepository(BaseRepository):
                 self.conn.rollback()
                 return False
 
+    def create_referral_reward(self, referrer_id: int, invitee_id: int, amount_paid: int, reward_credit: int, reward_days: int) -> Optional[int]:
+            """Creates a pending referral reward record and returns its ID."""
+            query = """
+            INSERT INTO referral_rewards (referrer_tg_id, invitee_tg_id, amount_paid, reward_credit, reward_days)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
+            """
+            try:
+                with self.conn.cursor() as cur:
+                    cur.execute(query, (referrer_id, invitee_id, amount_paid, reward_credit, reward_days))
+                    result = cur.fetchone()
+                    self.conn.commit()
+                    return result["id"] if result else None
+            except Exception as e:
+                logger.error(f"❌ Error creating referral reward: {e}")
+                self.conn.rollback()
+                return None
+
     def deactivate_expired_subscriptions(self):
             """Deactivates providers whose subscription has expired."""
             query = """
@@ -147,6 +165,17 @@ class PaymentsRepository(BaseRepository):
                     return cur.fetchone()
             except Exception as e:
                 logger.error(f"❌ Error getting payment by reference: {e}")
+                return None
+
+    def get_referral_reward(self, reward_id: int) -> Optional[dict]:
+            """Gets a specific referral reward by ID."""
+            query = "SELECT * FROM referral_rewards WHERE id = %s"
+            try:
+                with self.conn.cursor() as cur:
+                    cur.execute(query, (reward_id,))
+                    return cur.fetchone()
+            except Exception as e:
+                logger.error(f"❌ Error getting referral reward {reward_id}: {e}")
                 return None
 
     def get_referral_stats(self, tg_id: int) -> dict:
@@ -244,6 +273,23 @@ class PaymentsRepository(BaseRepository):
                     return True
             except Exception as e:
                 logger.error(f"❌ Error logging payment: {e}")
+                self.conn.rollback()
+                return False
+
+    def mark_referral_reward_claimed(self, reward_id: int, choice: str) -> bool:
+            """Marks a reward as claimed with the selected choice ('credit' or 'days')."""
+            query = """
+            UPDATE referral_rewards 
+            SET is_claimed = TRUE, claimed_reward = %s, claimed_at = NOW() 
+            WHERE id = %s AND is_claimed = FALSE
+            """
+            try:
+                with self.conn.cursor() as cur:
+                    cur.execute(query, (choice, reward_id))
+                    self.conn.commit()
+                    return cur.rowcount > 0
+            except Exception as e:
+                logger.error(f"❌ Error marking reward claimed: {e}")
                 self.conn.rollback()
                 return False
 
