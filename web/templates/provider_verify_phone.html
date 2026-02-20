@@ -1,18 +1,26 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify Phone | Innbucks Provider Portal</title>
+    <title>Verify Phone | Blackbook Provider Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>body { font-family: "Manrope", sans-serif; }</style>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: "Manrope", sans-serif;
+        }
+    </style>
 </head>
+
 <body class="min-h-screen bg-zinc-950 text-zinc-100">
     <main class="max-w-xl mx-auto px-4 py-6 space-y-4">
         <form method="post" action="/provider/logout" class="inline">
-            <button type="submit" class="text-xs uppercase tracking-widest text-zinc-300 hover:text-white"><- Back to Login</button>
+            <button type="submit" class="text-xs uppercase tracking-widest text-zinc-300 hover:text-white"><- Back to
+                    Login</button>
         </form>
 
         {% if registered %}
@@ -35,9 +43,12 @@
             <p class="text-[11px] uppercase tracking-[0.2em] text-zinc-400">Phone Verification</p>
             <h1 class="text-2xl font-extrabold">WhatsApp Approval Step</h1>
 
-            <div class="rounded-xl border px-3 py-2 text-xs {% if account_state == 'rejected' %}border-red-300/30 bg-red-400/10 text-red-100{% else %}border-amber-300/30 bg-amber-400/10 text-amber-100{% endif %}">
+            <div
+                class="rounded-xl border px-3 py-2 text-xs {% if account_state == 'rejected' %}border-red-300/30 bg-red-400/10 text-red-100{% else %}border-amber-300/30 bg-amber-400/10 text-amber-100{% endif %}">
                 Status:
-                {% if account_state == 'pending_review' %}Pending admin review{% elif account_state == 'rejected' %}Rejected - request review again{% elif account_state == 'suspended' %}Suspended{% else %}Awaiting review{% endif %}
+                {% if account_state == 'pending_review' %}Pending admin review{% elif account_state == 'rejected'
+                %}Rejected - request review again{% elif account_state == 'suspended' %}Suspended{% else %}Awaiting
+                review{% endif %}
             </div>
             {% if provider.rejection_reason %}
             <p class="text-xs text-red-200">Last rejection reason: {{ provider.rejection_reason }}</p>
@@ -48,7 +59,8 @@
                 <span class="font-semibold text-white">{{ provider.phone }}</span>.
             </p>
 
-            <div class="rounded-xl border border-amber-300/40 bg-amber-400/10 px-4 py-3 text-lg font-black tracking-[0.14em] text-amber-200">
+            <div
+                class="rounded-xl border border-amber-300/40 bg-amber-400/10 px-4 py-3 text-lg font-black tracking-[0.14em] text-amber-200">
                 {{ phone_verify_code }}
             </div>
 
@@ -59,21 +71,29 @@
             </ol>
 
             {% if admin_whatsapp %}
-            <p class="text-sm text-zinc-300">Admin WhatsApp: <span class="font-semibold text-white">{{ admin_whatsapp }}</span></p>
+            <p class="text-sm text-zinc-300">Admin WhatsApp: <span class="font-semibold text-white">{{ admin_whatsapp
+                    }}</span></p>
             {% endif %}
 
             <div class="flex flex-wrap gap-2">
                 {% if admin_whatsapp_link %}
-                <a href="{{ admin_whatsapp_link }}" target="_blank" class="rounded-xl border border-white/20 px-4 py-2 text-xs uppercase tracking-widest hover:bg-white/10">Open WhatsApp</a>
+                <a href="{{ admin_whatsapp_link }}" target="_blank"
+                    class="rounded-xl border border-white/20 px-4 py-2 text-xs uppercase tracking-widest hover:bg-white/10">Open
+                    WhatsApp</a>
                 {% endif %}
                 <form method="post" action="/provider/verify-phone/regenerate">
-                    <button class="rounded-xl border border-white/20 px-4 py-2 text-xs uppercase tracking-widest hover:bg-white/10">Regenerate Code</button>
+                    <button
+                        class="rounded-xl border border-white/20 px-4 py-2 text-xs uppercase tracking-widest hover:bg-white/10">Regenerate
+                        Code</button>
                 </form>
                 <form method="post" action="/provider/logout">
-                    <button type="submit" class="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold uppercase tracking-widest text-black">Back to Login</button>
+                    <button type="submit"
+                        class="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold uppercase tracking-widest text-black">Back
+                        to Login</button>
                 </form>
             </div>
         </section>
     </main>
 </body>
+
 </html>

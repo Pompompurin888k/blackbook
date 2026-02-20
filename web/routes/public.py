@@ -143,6 +143,15 @@ async def home(
     return templates.TemplateResponse("index.html", context)
 
 
+@router.get("/{city}/{neighborhood}/escorts/{provider_id}", response_class=HTMLResponse)
+async def public_profile_page(request: Request, city: str, neighborhood: str, provider_id: int):
+    """
+    SEO-friendly public profile route.
+    Maps to the provider dashboard 'View Public Profile' link.
+    """
+    return await contact_page(request, provider_id)
+
+
 @router.get("/contact/{provider_id}", response_class=HTMLResponse)
 async def contact_page(request: Request, provider_id: int):
     """
