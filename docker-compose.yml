@@ -104,6 +104,9 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       ENABLE_REDIS_RATE_LIMITING: ${ENABLE_REDIS_RATE_LIMITING:-true}
       ENABLE_REDIS_PAGE_CACHE: ${ENABLE_REDIS_PAGE_CACHE:-true}
+      ENABLE_ARQ_PAYMENT_QUEUE: ${ENABLE_ARQ_PAYMENT_QUEUE:-true}
+      INTERNAL_TASK_TOKEN: ${INTERNAL_TASK_TOKEN}
+      WEB_INTERNAL_BASE_URL: ${WEB_INTERNAL_BASE_URL:-http://web:8080}
       HOME_PAGE_CACHE_TTL_SECONDS: ${HOME_PAGE_CACHE_TTL_SECONDS:-60}
       GRID_CACHE_TTL_SECONDS: ${GRID_CACHE_TTL_SECONDS:-45}
       RECOMMENDATIONS_CACHE_TTL_SECONDS: ${RECOMMENDATIONS_CACHE_TTL_SECONDS:-45}
@@ -115,6 +118,31 @@ services:
       interval: 30s
       timeout: 5s
       retries: 5
+    networks:
+      - blackbook_network
+
+  worker:
+    build: ./web
+    container_name: blackbook_worker
+    restart: always
+    depends_on:
+      - db
+      - redis
+      - web
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ:-Africa/Nairobi}
+      DB_TIMEZONE: ${DB_TIMEZONE:-Africa/Nairobi}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      INTERNAL_TASK_TOKEN: ${INTERNAL_TASK_TOKEN}
+      WEB_INTERNAL_BASE_URL: ${WEB_INTERNAL_BASE_URL:-http://web:8080}
+      ARQ_MAX_JOBS: ${ARQ_MAX_JOBS:-10}
+      ARQ_JOB_TIMEOUT_SECONDS: ${ARQ_JOB_TIMEOUT_SECONDS:-120}
+      ARQ_KEEP_RESULT_SECONDS: ${ARQ_KEEP_RESULT_SECONDS:-3600}
+    command: arq payment_tasks.WorkerSettings
+    volumes:
+      - ./web:/app
     networks:
       - blackbook_network
 

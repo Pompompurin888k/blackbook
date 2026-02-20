@@ -14,13 +14,20 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Resp
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from typing import Optional
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from starlette.middleware.sessions import SessionMiddleware
 from database import Database
+from payment_queue_utils import extract_callback_reference, build_payment_callback_job_id
 try:
     import redis
 except ImportError:  # pragma: no cover - handled gracefully in runtime
     redis = None
+try:
+    from arq import create_pool
+    from arq.connections import RedisSettings
+except ImportError:  # pragma: no cover - handled gracefully in runtime
+    create_pool = None
+    RedisSettings = None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -85,6 +92,8 @@ ENABLE_REDIS_PAGE_CACHE = os.getenv("ENABLE_REDIS_PAGE_CACHE", "true").strip().l
 HOME_PAGE_CACHE_TTL_SECONDS = int(os.getenv("HOME_PAGE_CACHE_TTL_SECONDS", "60"))
 GRID_CACHE_TTL_SECONDS = int(os.getenv("GRID_CACHE_TTL_SECONDS", "45"))
 RECOMMENDATIONS_CACHE_TTL_SECONDS = int(os.getenv("RECOMMENDATIONS_CACHE_TTL_SECONDS", "45"))
+ENABLE_ARQ_PAYMENT_QUEUE = os.getenv("ENABLE_ARQ_PAYMENT_QUEUE", "true").strip().lower() == "true"
+INTERNAL_TASK_TOKEN = os.getenv("INTERNAL_TASK_TOKEN", "")
 PORTAL_VERIFY_CODE_PEPPER = os.getenv(
     "PORTAL_VERIFY_CODE_PEPPER",
     os.getenv("PROVIDER_PORTAL_SESSION_SECRET", "replace-this-portal-secret"),
@@ -109,6 +118,8 @@ FALLBACK_PROFILE_IMAGES = [
 
 _redis_client = None
 _redis_unavailable = False
+_arq_pool = None
+_arq_unavailable = False
 
 
 def _rate_limit_key_suffix(value: str) -> str:
@@ -197,6 +208,63 @@ def _redis_set_text(key: str, value: str, ttl_seconds: int) -> None:
         client.setex(key, max(1, int(ttl_seconds)), value)
     except Exception as e:
         logger.warning(f"Redis set failed for key {key}: {e}")
+
+
+def _arq_redis_settings():
+    if RedisSettings is None:
+        return None
+    parsed = urlparse(REDIS_URL)
+    if parsed.scheme not in {"redis", "rediss"}:
+        return RedisSettings()
+    db_path = (parsed.path or "/0").lstrip("/") or "0"
+    try:
+        database = int(db_path)
+    except ValueError:
+        database = 0
+    return RedisSettings(
+        host=parsed.hostname or "redis",
+        port=parsed.port or 6379,
+        database=database,
+        password=parsed.password,
+        ssl=(parsed.scheme == "rediss"),
+    )
+
+
+async def _get_arq_pool():
+    global _arq_pool, _arq_unavailable
+    if not ENABLE_ARQ_PAYMENT_QUEUE or create_pool is None or _arq_unavailable:
+        return None
+    if _arq_pool is not None:
+        return _arq_pool
+    settings = _arq_redis_settings()
+    if settings is None:
+        return None
+    try:
+        _arq_pool = await create_pool(settings)
+        logger.info("ARQ payment queue enabled.")
+        return _arq_pool
+    except Exception as e:
+        logger.warning(f"ARQ unavailable, using inline callback processing: {e}")
+        _arq_unavailable = True
+        _arq_pool = None
+        return None
+
+
+async def _enqueue_payment_callback(payload: dict) -> bool:
+    pool = await _get_arq_pool()
+    if pool is None:
+        return False
+    reference = extract_callback_reference(payload)
+    job_id = build_payment_callback_job_id(reference)
+    try:
+        job = await pool.enqueue_job("process_payment_callback_job", payload, _job_id=job_id)
+        if job is None and job_id:
+            logger.info(f"Payment callback already queued: {job_id}")
+            return True
+        return job is not None
+    except Exception as e:
+        logger.warning(f"Failed to enqueue payment callback job: {e}")
+        return False
 
 
 def _to_string_list(value) -> list[str]:
@@ -1764,13 +1832,15 @@ async def megapay_callback(request: Request):
     When payment succeeds, activates the provider's subscription.
     """
     try:
-        if not MEGAPAY_CALLBACK_SECRET:
+        internal_token = request.headers.get("X-Internal-Task-Token", "")
+        internal_mode = bool(INTERNAL_TASK_TOKEN and internal_token == INTERNAL_TASK_TOKEN)
+        if not internal_mode and not MEGAPAY_CALLBACK_SECRET:
             logger.error("❌ MEGAPAY_CALLBACK_SECRET not configured. Rejecting callback.")
             return JSONResponse({"status": "error", "message": "Callback secret not configured"}, status_code=503)
 
         raw_body = await request.body()
-        signature = request.headers.get("X-MegaPay-Signature") or request.headers.get("X-Signature")
-        if not _is_valid_callback_signature(raw_body, signature):
+        signature = None if internal_mode else (request.headers.get("X-MegaPay-Signature") or request.headers.get("X-Signature"))
+        if not internal_mode and not _is_valid_callback_signature(raw_body, signature):
             logger.warning("⚠️ Invalid or missing callback signature.")
             return JSONResponse({"status": "error", "message": "Invalid signature"}, status_code=403)
 
@@ -1779,7 +1849,15 @@ async def megapay_callback(request: Request):
         except json.JSONDecodeError:
             return JSONResponse({"status": "error", "message": "Invalid JSON payload"}, status_code=400)
 
-        logger.info(f"💳 Payment callback received (verified): {payload}")
+        if not internal_mode and not extract_callback_reference(payload):
+            logger.error("❌ Missing payment reference in callback payload.")
+            return JSONResponse({"status": "error", "message": "Missing payment reference"}, status_code=400)
+
+        if not internal_mode and await _enqueue_payment_callback(payload):
+            logger.info("Queued payment callback for background processing.")
+            return JSONResponse({"status": "success", "message": "Callback queued"}, status_code=200)
+
+        logger.info(f"💳 Payment callback processing payload: {payload}")
 
         # Extract data from MegaPay response
         status = payload.get("status") or payload.get("ResultCode")
