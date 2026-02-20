@@ -7,48 +7,57 @@
 
     <!-- Top Status Banner -->
     {% if saved %}
-    <div class="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-200 flex items-center justify-between shadow-lg shadow-emerald-500/5">
+    <div
+        class="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-200 flex items-center justify-between shadow-lg shadow-emerald-500/5">
         <div class="flex items-center gap-3">
             <i data-feather="check-circle" class="w-5 h-5"></i>
             <span>Profile saved successfully. Changes are now live.</span>
         </div>
-        <button onclick="this.parentElement.style.display='none'" class="text-emerald-400 hover:text-white"><i data-feather="x" class="w-4 h-4"></i></button>
+        <button onclick="this.parentElement.style.display='none'" class="text-emerald-400 hover:text-white"><i
+                data-feather="x" class="w-4 h-4"></i></button>
     </div>
     {% endif %}
 
     <!-- Welcome Section -->
     <section class="glass-panel rounded-3xl p-6 sm:p-8 relative overflow-hidden group">
         <!-- Shine effect -->
-        <div class="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/5 to-transparent group-hover:animate-[shimmer_2s_infinite]"></div>
-        
+        <div
+            class="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/5 to-transparent group-hover:animate-[shimmer_2s_infinite]">
+        </div>
+
         <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-6 relative z-10">
             <div>
                 <div class="flex items-center gap-2 mb-2">
                     <span class="relative flex h-3 w-3">
                         {% if provider.is_active %}
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span
+                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                         {% else %}
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
                         {% endif %}
                     </span>
-                    <span class="text-xs font-bold uppercase tracking-widest {% if provider.is_active %}text-emerald-400{% else %}text-amber-400{% endif %}">
+                    <span
+                        class="text-xs font-bold uppercase tracking-widest {% if provider.is_active %}text-emerald-400{% else %}text-amber-400{% endif %}">
                         {% if provider.is_active %}Live Online{% else %}Inactive / Hidden{% endif %}
                     </span>
                 </div>
-                
+
                 <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
                     Welcome back, {{ provider.display_name or 'Provider' }}
                 </h1>
-                
+
                 <p class="mt-2 text-zinc-400 flex items-center gap-2">
                     <i data-feather="map-pin" class="w-4 h-4"></i>
-                    {{ provider.city or 'City not set' }}{% if provider.neighborhood %}, {{ provider.neighborhood }}{% endif %}
+                    {{ provider.city or 'City not set' }}{% if provider.neighborhood %}, {{ provider.neighborhood }}{%
+                    endif %}
                 </p>
             </div>
-            
+
             <div class="flex gap-3">
-                <a href="/{{ provider.city|lower }}/{{ provider.neighborhood|lower|replace(' ', '-') }}/escorts/{{ provider.telegram_id }}" target="_blank" class="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors flex items-center gap-2">
+                <a href="/{{ provider.city|lower }}/{{ provider.neighborhood|lower|replace(' ', '-') }}/escorts/{{ provider.telegram_id }}"
+                    target="_blank"
+                    class="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors flex items-center gap-2">
                     <i data-feather="external-link" class="w-4 h-4"></i>
                     View Public Profile
                 </a>
@@ -68,11 +77,15 @@
             <p class="text-3xl font-extrabold text-white">{{ profile_strength.score }}%</p>
             <p class="text-xs text-zinc-400 mt-1 font-medium">{{ profile_strength.label }}</p>
         </div>
-        
+
         <!-- Status Indicator -->
-        <div class="glass-panel rounded-2xl p-5 border-t {% if provider.is_active %}border-t-emerald-500/30{% else %}border-t-amber-500/30{% endif %} relative overflow-hidden">
-            <div class="absolute -right-4 -top-4 w-16 h-16 {% if provider.is_active %}bg-emerald-500/10{% else %}bg-amber-500/10{% endif %} rounded-full blur-xl"></div>
-            <div class="flex items-center gap-3 mb-3 {% if provider.is_active %}text-emerald-400{% else %}text-amber-400{% endif %}">
+        <div
+            class="glass-panel rounded-2xl p-5 border-t {% if provider.is_active %}border-t-emerald-500/30{% else %}border-t-amber-500/30{% endif %} relative overflow-hidden">
+            <div
+                class="absolute -right-4 -top-4 w-16 h-16 {% if provider.is_active %}bg-emerald-500/10{% else %}bg-amber-500/10{% endif %} rounded-full blur-xl">
+            </div>
+            <div
+                class="flex items-center gap-3 mb-3 {% if provider.is_active %}text-emerald-400{% else %}text-amber-400{% endif %}">
                 <i data-feather="radio" class="w-5 h-5"></i>
                 <h3 class="text-xs font-bold uppercase tracking-wider">Visibility</h3>
             </div>
@@ -106,10 +119,10 @@
 
     <!-- Split Content Area -->
     <div class="grid md:grid-cols-5 gap-6">
-        
+
         <!-- Left Column (Wider): Actionable Items -->
         <div class="md:col-span-3 space-y-6">
-            
+
             <!-- Next Actions / Profile Improvements -->
             <section class="glass-panel rounded-3xl p-6">
                 <div class="flex items-center justify-between mb-6">
@@ -117,12 +130,14 @@
                         <i data-feather="zap" class="w-4 h-4 text-amber-400"></i>
                         Action Items
                     </h2>
-                    <a href="/provider/onboarding" class="text-xs font-bold text-teal-400 hover:text-teal-300">Edit Profile -></a>
+                    <a href="/provider/onboarding" class="text-xs font-bold text-teal-400 hover:text-teal-300">Edit
+                        Profile -></a>
                 </div>
-                
+
                 <ul class="space-y-3">
                     {% for hint in profile_strength.missing %}
-                    <li class="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3.5 flex gap-3 group hover:bg-white/[0.04] transition-colors">
+                    <li
+                        class="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3.5 flex gap-3 group hover:bg-white/[0.04] transition-colors">
                         <i data-feather="alert-circle" class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5"></i>
                         <div>
                             <p class="text-sm font-medium text-zinc-200">{{ hint }}</p>
@@ -130,35 +145,41 @@
                         </div>
                     </li>
                     {% endfor %}
-                    
+
                     {% if not profile_strength.missing %}
-                    <li class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-4 flex items-center gap-4">
-                        <div class="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(52,211,153,0.2)]">
+                    <li
+                        class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-4 flex items-center gap-4">
+                        <div
+                            class="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(52,211,153,0.2)]">
                             <i data-feather="check" class="w-5 h-5"></i>
                         </div>
                         <div>
                             <p class="font-bold text-emerald-200">Profile is fully optimized!</p>
-                            <p class="text-sm text-emerald-400/80 mt-0.5">Keep your photos fresh to maintain high rankings.</p>
+                            <p class="text-sm text-emerald-400/80 mt-0.5">Keep your photos fresh to maintain high
+                                rankings.</p>
                         </div>
                     </li>
                     {% endif %}
                 </ul>
             </section>
-            
+
             <!-- Quick Info Banner -->
-            <section class="rounded-3xl border border-teal-500/30 bg-gradient-to-br from-teal-500/10 to-transparent p-6 relative overflow-hidden">
-                <div class="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-1/4 translate-y-1/4">
+            <section
+                class="rounded-3xl border border-teal-500/30 bg-gradient-to-br from-teal-500/10 to-transparent p-6 relative overflow-hidden">
+                <div
+                    class="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-1/4 translate-y-1/4">
                     <i data-feather="shield" class="w-48 h-48"></i>
                 </div>
                 <h3 class="text-lg font-bold text-teal-300 mb-2">Safety First</h3>
-                <p class="text-sm text-teal-100/70 max-w-sm">Never share verification codes or passwords with anyone. We will never ask for your portal password.</p>
+                <p class="text-sm text-teal-100/70 max-w-sm">Never share verification codes or passwords with anyone. We
+                    will never ask for your portal password.</p>
             </section>
-            
+
         </div>
-        
+
         <!-- Right Column (Narrower): Snapshot -->
         <div class="md:col-span-2 space-y-6">
-            
+
             <!-- Snapshot Card -->
             <section class="glass-panel rounded-3xl overflow-hidden flex flex-col h-full">
                 <!-- Header -->
@@ -166,21 +187,30 @@
                     <i data-feather="camera" class="w-4 h-4 text-zinc-400"></i>
                     <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300">Gallery Preview</h2>
                 </div>
-                
+
                 <!-- Photos Grid -->
                 <div class="p-5 flex-1">
                     {% if photo_urls %}
                     <div class="grid grid-cols-2 gap-3 h-full">
                         {% for photo in photo_urls[:4] %}
-                        <div class="aspect-square rounded-2xl overflow-hidden border border-white/10 group relative">
-                            <img src="{{ photo }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="Photo {{ loop.index }}">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div
+                            class="aspect-square rounded-2xl overflow-hidden border border-white/10 group relative bg-black/40">
+                            <!-- We use /photo/{{ photo }} to proxy the Telegram file ID -->
+                            <img src="/photo/{{ photo }}"
+                                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                alt="Photo {{ loop.index }}"
+                                onerror="this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400';">
+                            <div
+                                class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                            </div>
                         </div>
                         {% endfor %}
                     </div>
                     {% else %}
-                    <div class="h-full min-h-[200px] rounded-2xl border border-dashed border-white/20 bg-white/5 flex flex-col items-center justify-center text-center p-6">
-                        <div class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-zinc-400">
+                    <div
+                        class="h-full min-h-[200px] rounded-2xl border border-dashed border-white/20 bg-white/5 flex flex-col items-center justify-center text-center p-6">
+                        <div
+                            class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-zinc-400">
                             <i data-feather="image" class="w-6 h-6"></i>
                         </div>
                         <p class="text-sm font-bold text-zinc-300">No photos yet</p>
@@ -188,38 +218,50 @@
                     </div>
                     {% endif %}
                 </div>
-                
+
                 <!-- Details Summary -->
                 <div class="p-5 bg-white/[0.02] border-t border-white/5">
                     <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">About Me</h3>
                     <p class="text-sm text-zinc-300 line-clamp-3 mb-4 leading-relaxed">
                         {{ provider.bio or 'No bio provided.' }}
                     </p>
-                    
+
                     <div class="flex flex-wrap gap-2 mt-4">
                         {% for srv in services_list[:3] %}
-                        <span class="px-2.5 py-1 rounded-md bg-white/10 text-xs font-bold text-zinc-300 border border-white/5">{{ srv }}</span>
+                        <span
+                            class="px-2.5 py-1 rounded-md bg-white/10 text-xs font-bold text-zinc-300 border border-white/5">{{
+                            srv }}</span>
                         {% endfor %}
                         {% if services_list|length > 3 %}
-                        <span class="px-2.5 py-1 rounded-md bg-white/5 text-xs text-zinc-500">+{{ services_list|length - 3 }} more</span>
+                        <span class="px-2.5 py-1 rounded-md bg-white/5 text-xs text-zinc-500">+{{ services_list|length -
+                            3 }} more</span>
                         {% endif %}
                     </div>
                 </div>
             </section>
-            
+
         </div>
     </div>
 </div>
 
 <style>
-/* Custom animations */
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(15px); }
-    to { opacity: 1; transform: translateY(0); }
-}
+    /* Custom animations */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(15px);
+        }
 
-@keyframes shimmer {
-    100% { transform: translateX(100%); }
-}
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes shimmer {
+        100% {
+            transform: translateX(100%);
+        }
+    }
 </style>
 {% endblock %}

@@ -192,9 +192,16 @@
 
                     {% if photo_urls %}
                     <div class="grid grid-cols-3 gap-2">
-                        {% for photo in photo_urls %}
-                        <img src="{{ photo }}" class="h-24 w-full rounded-xl border border-white/10 object-cover"
-                            alt="Profile photo {{ loop.index }}">
+                        {% for photo in provider.profile_photos %}
+                        <div class="relative group aspect-square rounded-xl overflow-hidden bg-black/40">
+                            <img src="/photo/{{ photo }}"
+                                class="h-24 w-full rounded-xl border border-white/10 object-cover"
+                                onerror="this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400';">
+                            <div
+                                class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span class="text-xs font-bold text-white uppercase tracking-wider">Added</span>
+                            </div>
+                        </div>
                         {% endfor %}
                     </div>
                     {% endif %}
