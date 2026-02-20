@@ -165,12 +165,23 @@
                 {% endif %}
             </div>
 
+            <!-- Mobile Tabs -->
+            <div
+                class="md:hidden flex rounded-2xl bg-black/40 border border-white/10 p-1 mb-6 animate-fade-in delay-200">
+                <button type="button" id="tabLogin" onclick="switchTab('login')"
+                    class="flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-xl border transition-all bg-cyan-500/20 text-cyan-400 border-cyan-500/30">Login
+                    Access</button>
+                <button type="button" id="tabRegister" onclick="switchTab('register')"
+                    class="flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-xl border transition-all text-zinc-400 hover:text-white border-transparent">New
+                    Account</button>
+            </div>
+
             <!-- Two Column Split -->
             <div class="grid md:grid-cols-2 gap-6 lg:gap-10 items-start">
 
                 <!-- Login Column -->
-                <div
-                    class="glass-panel rounded-3xl p-6 sm:p-8 animate-fade-in delay-200 relative overflow-hidden group">
+                <div id="loginCol"
+                    class="md:block glass-panel rounded-3xl p-6 sm:p-8 animate-fade-in delay-200 relative overflow-hidden group">
                     <div
                         class="absolute -top-10 -right-10 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/20 transition-all duration-700">
                     </div>
@@ -230,8 +241,8 @@
                 </div>
 
                 <!-- Registration Column -->
-                <div
-                    class="glass-panel rounded-3xl p-6 sm:p-8 animate-fade-in delay-200 relative overflow-hidden group">
+                <div id="registerCol"
+                    class="hidden md:block glass-panel rounded-3xl p-6 sm:p-8 animate-fade-in delay-200 relative overflow-hidden group">
                     <div
                         class="absolute -bottom-10 -left-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-all duration-700">
                     </div>
@@ -327,6 +338,27 @@
 
     <script>
         feather.replace(); // Initialize feather icons
+
+        function switchTab(tab) {
+            const loginCol = document.getElementById('loginCol');
+            const registerCol = document.getElementById('registerCol');
+            const tabLogin = document.getElementById('tabLogin');
+            const tabRegister = document.getElementById('tabRegister');
+
+            if (tab === 'login') {
+                loginCol.classList.remove('hidden');
+                registerCol.classList.add('hidden');
+
+                tabLogin.className = "flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-xl border transition-all bg-cyan-500/20 text-cyan-400 border-cyan-500/30";
+                tabRegister.className = "flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-xl border transition-all text-zinc-400 hover:text-white border-transparent";
+            } else {
+                loginCol.classList.add('hidden');
+                registerCol.classList.remove('hidden');
+
+                tabLogin.className = "flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-xl border transition-all text-zinc-400 hover:text-white border-transparent";
+                tabRegister.className = "flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-xl border transition-all bg-amber-500/20 text-amber-400 border-amber-500/30";
+            }
+        }
     </script>
 </body>
 
