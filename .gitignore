@@ -3,7 +3,12 @@ __pycache__/
 *.pyo
 .env
 *.log
-.git/
 .vscode/
 *.db
 db_data/
+redis_data/
+_local_test_repo/
+web/static/uploads/
+web/pytest_output.txt
+web/rewrite.py
+web/rewrite_main_routes.py

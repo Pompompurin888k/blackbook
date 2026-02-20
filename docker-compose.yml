@@ -54,6 +54,7 @@ services:
       BOT_HEARTBEAT_FILE: /tmp/blackbook_bot_heartbeat
     volumes:
       - ./bot:/app
+      - ./shared:/app/shared
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import os,time,sys; p='/tmp/blackbook_bot_heartbeat'; sys.exit(0 if os.path.exists(p) and (time.time()-os.path.getmtime(p)) < 180 else 1)\""]
       interval: 30s
@@ -78,6 +79,7 @@ services:
       BOT_HEARTBEAT_FILE: /tmp/blackbook_admin_bot_heartbeat
     volumes:
       - ./bot:/app
+      - ./shared:/app/shared
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import os,time,sys; p='/tmp/blackbook_admin_bot_heartbeat'; sys.exit(0 if os.path.exists(p) and (time.time()-os.path.getmtime(p)) < 180 else 1)\""]
       interval: 30s
@@ -113,6 +115,7 @@ services:
     command: uvicorn main:app --host 0.0.0.0 --port 8080
     volumes:
       - ./web:/app
+      - ./shared:/app/shared
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import json,sys,urllib.request; r=urllib.request.urlopen('http://localhost:8080/health', timeout=5); d=json.loads(r.read().decode()); sys.exit(0 if d.get('status')=='healthy' else 1)\""]
       interval: 30s
@@ -143,6 +146,7 @@ services:
     command: arq payment_tasks.WorkerSettings
     volumes:
       - ./web:/app
+      - ./shared:/app/shared
     networks:
       - blackbook_network
 
