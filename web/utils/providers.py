@@ -53,12 +53,26 @@ def _normalize_photo_source(photo_ref: str) -> Optional[str]:
     if not value:
         return None
     if value.startswith("/"):
+        if value.startswith("/uploads/"):
+            return f"/static{value}"
         return value
     if value.startswith(("http://", "https://")):
         parsed = urlparse(value)
         if parsed.path.startswith("/static/uploads/"):
             return parsed.path
+        if "/static/uploads/" in parsed.path:
+            return parsed.path[parsed.path.index("/static/uploads/") :]
+        if parsed.path.startswith("/uploads/"):
+            return f"/static{parsed.path}"
+        if "/uploads/providers/" in parsed.path:
+            trimmed = parsed.path[parsed.path.index("/uploads/providers/") :]
+            return f"/static{trimmed}"
         return value
+    normalized_slashes = value.replace("\\", "/")
+    if normalized_slashes.startswith("static/uploads/"):
+        return f"/{normalized_slashes}"
+    if normalized_slashes.startswith("uploads/"):
+        return f"/static/{normalized_slashes}"
     return f"/photo/{value}"
 
 

@@ -50,6 +50,22 @@ RECOMMENDATIONS_CACHE_TTL_SECONDS = int(os.getenv("RECOMMENDATIONS_CACHE_TTL_SEC
 ENABLE_ARQ_PAYMENT_QUEUE = os.getenv("ENABLE_ARQ_PAYMENT_QUEUE", "true").strip().lower() == "true"
 INTERNAL_TASK_TOKEN = os.getenv("INTERNAL_TASK_TOKEN", "")
 
+# ==================== OBJECT STORAGE (CLOUDFLARE R2) ====================
+ENABLE_CLOUDFLARE_R2_UPLOADS = (
+    os.getenv("ENABLE_CLOUDFLARE_R2_UPLOADS", "false").strip().lower() == "true"
+)
+CF_R2_ACCOUNT_ID = os.getenv("CF_R2_ACCOUNT_ID", "").strip()
+CF_R2_ACCESS_KEY_ID = os.getenv("CF_R2_ACCESS_KEY_ID", "").strip()
+CF_R2_SECRET_ACCESS_KEY = os.getenv("CF_R2_SECRET_ACCESS_KEY", "").strip()
+CF_R2_BUCKET = os.getenv("CF_R2_BUCKET", "").strip()
+CF_R2_REGION = os.getenv("CF_R2_REGION", "auto").strip() or "auto"
+CF_R2_ENDPOINT = (
+    os.getenv("CF_R2_ENDPOINT", "").strip()
+    or (f"https://{CF_R2_ACCOUNT_ID}.r2.cloudflarestorage.com" if CF_R2_ACCOUNT_ID else "")
+)
+CF_R2_PUBLIC_BASE_URL = os.getenv("CF_R2_PUBLIC_BASE_URL", "").strip().rstrip("/")
+CF_R2_UPLOAD_PREFIX = os.getenv("CF_R2_UPLOAD_PREFIX", "providers").strip().strip("/")
+
 # Web specific payment seed endpoint (from old config)
 ENABLE_SEED_ENDPOINT = os.getenv("ENABLE_SEED_ENDPOINT", "false").strip().lower() == "true"
 LOCALHOSTS = {"127.0.0.1", "::1", "localhost"}

@@ -13,4 +13,5 @@ dependencies = [
   "httpx>=0.24.0",
   "python-multipart==0.0.9",
   "itsdangerous==2.2.0",
+  "boto3==1.34.131",
 ]

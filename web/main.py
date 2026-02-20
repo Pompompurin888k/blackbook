@@ -19,7 +19,7 @@ from config import (
     MEGAPAY_CALLBACK_SECRET, ENABLE_SEED_ENDPOINT,
     LOCALHOSTS, VALID_PACKAGE_DAYS,
     BOOST_DURATION_HOURS, BOOST_PRICE, PACKAGE_PRICES,
-    PUBLIC_BASE_URL, PORTAL_ADMIN_WHATSAPP,
+    PORTAL_ADMIN_WHATSAPP,
     PORTAL_MAX_PROFILE_PHOTOS, PORTAL_MIN_PROFILE_PHOTOS,
     PORTAL_RECOMMENDED_PROFILE_PHOTOS,
     PORTAL_MAX_UPLOAD_BYTES, ALLOWED_UPLOAD_EXTENSIONS,
@@ -51,6 +51,7 @@ from services.telegram_service import (
     send_telegram_notification,
     send_admin_alert,
 )
+from services.storage_service import upload_provider_photo
 
 # ── Utils ───────────────────────────────────────────────────
 from utils.auth import (
@@ -125,6 +126,17 @@ async def _save_provider_upload(provider_id: int, upload, prefix: str) -> Option
         return None
     if len(data) > PORTAL_MAX_UPLOAD_BYTES:
         return None
+
+    uploaded_url = upload_provider_photo(
+        provider_id=provider_id,
+        data=data,
+        extension=ext,
+        prefix=prefix,
+        content_type=getattr(upload, "content_type", None),
+    )
+    if uploaded_url:
+        return uploaded_url
+
     target_dir = Path("static/uploads/providers") / str(provider_id)
     target_dir.mkdir(parents=True, exist_ok=True)
     filename = f"{prefix}_{uuid.uuid4().hex}{ext}"

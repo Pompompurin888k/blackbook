@@ -30,10 +30,7 @@ from utils.onboarding import (
     _portal_compute_profile_strength, _portal_build_ranking_tips,
 )
 
-# Shared upload handler logic resides in main.py, but can be imported if extracted.
-# For now, we import `_save_provider_upload`, meaning we should put it in `utils/providers.py`
-# or a new `utils/uploads.py`. Let's import it from main since it's there, but actually
-# we wrote it in the new main.py string. I'll import from `main`.
+# Shared upload handler currently lives in main.py.
 from main import _save_provider_upload
 
 db = Database()

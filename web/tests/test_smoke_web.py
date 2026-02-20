@@ -435,6 +435,27 @@ class TestBuildGalleryUrls(unittest.TestCase):
         result = self.fn(7, ids)
         self.assertEqual(result, ["/static/uploads/providers/7/profile_abc.jpg"])
 
+    def test_generic_absolute_url_is_preserved(self):
+        ids = ["https://cdn.example.com/providers/7/profile_abc.jpg"]
+        result = self.fn(7, ids)
+        self.assertEqual(result, ids)
+
+    def test_uploads_path_is_mapped_to_static_prefix(self):
+        ids = [
+            "https://any.example/uploads/providers/7/profile_abc.jpg",
+            "uploads/providers/7/profile_xyz.jpg",
+            "/uploads/providers/7/profile_qwe.jpg",
+        ]
+        result = self.fn(7, ids)
+        self.assertEqual(
+            result,
+            [
+                "/static/uploads/providers/7/profile_abc.jpg",
+                "/static/uploads/providers/7/profile_xyz.jpg",
+                "/static/uploads/providers/7/profile_qwe.jpg",
+            ],
+        )
+
 
 class TestProfileStrength(unittest.TestCase):
     """Tests for _portal_compute_profile_strength helper."""
