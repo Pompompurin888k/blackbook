@@ -1,89 +1,225 @@
-﻿<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Provider Dashboard | Innbucks</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>body { font-family: "Manrope", sans-serif; }</style>
-</head>
-<body class="min-h-screen bg-zinc-950 text-zinc-100">
-    <main class="max-w-3xl mx-auto px-4 py-6 space-y-4">
-        <div class="flex items-center justify-between">
-            <a href="/" class="text-xs uppercase tracking-widest text-zinc-300 hover:text-white"><- Home</a>
-            <form method="post" action="/provider/logout"><button class="text-xs uppercase tracking-widest text-zinc-400 hover:text-red-200">Logout</button></form>
+﻿{% extends "provider_base.html" %}
+
+{% block title %}Dashboard | Provider Portal{% endblock %}
+
+{% block content %}
+<div class="space-y-6 animate-fade-in-up" style="animation: fadeInUp 0.4s ease-out forwards;">
+
+    <!-- Top Status Banner -->
+    {% if saved %}
+    <div class="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-200 flex items-center justify-between shadow-lg shadow-emerald-500/5">
+        <div class="flex items-center gap-3">
+            <i data-feather="check-circle" class="w-5 h-5"></i>
+            <span>Profile saved successfully. Changes are now live.</span>
         </div>
+        <button onclick="this.parentElement.style.display='none'" class="text-emerald-400 hover:text-white"><i data-feather="x" class="w-4 h-4"></i></button>
+    </div>
+    {% endif %}
 
-        {% if saved %}
-        <div class="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">Profile saved successfully.</div>
-        {% endif %}
-
-        <section class="rounded-3xl border border-white/10 bg-white/5 p-5">
-            <p class="text-[11px] uppercase tracking-[0.2em] text-zinc-400">Provider Portal</p>
-            <h1 class="mt-1 text-2xl font-extrabold">{{ provider.display_name or 'My Portal Home' }}</h1>
-            <p class="mt-2 text-sm text-zinc-300">{{ provider.city or 'City not set' }}{% if provider.neighborhood %} • {{ provider.neighborhood }}{% endif %}</p>
-            <div class="mt-4 grid gap-2 sm:grid-cols-2">
-                <a href="/provider/onboarding" class="rounded-xl bg-cyan-400 px-4 py-2 text-center text-xs font-bold uppercase tracking-widest text-black">Manage Profile</a>
-                <a href="/provider/verify-phone" class="rounded-xl border border-white/20 px-4 py-2 text-center text-xs font-bold uppercase tracking-widest text-zinc-100 hover:bg-white/10">Verification Center</a>
-            </div>
-        </section>
-
-        <section class="grid gap-3 md:grid-cols-4">
-            <div class="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                <p class="text-xs uppercase tracking-wider text-zinc-400">Listing Status</p>
-                <p class="mt-2 text-sm font-semibold {% if provider.is_active %}text-emerald-300{% else %}text-amber-200{% endif %}">
-                    {% if provider.is_active %}Live{% else %}Inactive{% endif %}
+    <!-- Welcome Section -->
+    <section class="glass-panel rounded-3xl p-6 sm:p-8 relative overflow-hidden group">
+        <!-- Shine effect -->
+        <div class="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/5 to-transparent group-hover:animate-[shimmer_2s_infinite]"></div>
+        
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-6 relative z-10">
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="relative flex h-3 w-3">
+                        {% if provider.is_active %}
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        {% else %}
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                        {% endif %}
+                    </span>
+                    <span class="text-xs font-bold uppercase tracking-widest {% if provider.is_active %}text-emerald-400{% else %}text-amber-400{% endif %}">
+                        {% if provider.is_active %}Live Online{% else %}Inactive / Hidden{% endif %}
+                    </span>
+                </div>
+                
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                    Welcome back, {{ provider.display_name or 'Provider' }}
+                </h1>
+                
+                <p class="mt-2 text-zinc-400 flex items-center gap-2">
+                    <i data-feather="map-pin" class="w-4 h-4"></i>
+                    {{ provider.city or 'City not set' }}{% if provider.neighborhood %}, {{ provider.neighborhood }}{% endif %}
                 </p>
             </div>
-            <div class="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                <p class="text-xs uppercase tracking-wider text-zinc-400">Profile Score</p>
-                <p class="mt-2 text-sm font-semibold text-cyan-200">{{ profile_strength.score }}% • {{ profile_strength.label }}</p>
+            
+            <div class="flex gap-3">
+                <a href="/{{ provider.city|lower }}/{{ provider.neighborhood|lower|replace(' ', '-') }}/escorts/{{ provider.telegram_id }}" target="_blank" class="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors flex items-center gap-2">
+                    <i data-feather="external-link" class="w-4 h-4"></i>
+                    View Public Profile
+                </a>
             </div>
-            <div class="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                <p class="text-xs uppercase tracking-wider text-zinc-400">Photos</p>
-                <p class="mt-2 text-sm font-semibold text-zinc-100">{{ photo_count }}</p>
-            </div>
-            <div class="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                <p class="text-xs uppercase tracking-wider text-zinc-400">Services</p>
-                <p class="mt-2 text-sm font-semibold text-zinc-100">{{ services_count }}</p>
-            </div>
-        </section>
+        </div>
+    </section>
 
-        <section class="rounded-3xl border border-emerald-300/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-            This is your main portal. Keep your profile updated here so clients see your best version.
-        </section>
+    <!-- KPI Metrics Grid -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+        <!-- Profile Score -->
+        <div class="glass-panel rounded-2xl p-5 border-t border-t-cyan-500/30 relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-16 h-16 bg-cyan-500/10 rounded-full blur-xl"></div>
+            <div class="flex items-center gap-3 mb-3 text-cyan-400">
+                <i data-feather="award" class="w-5 h-5"></i>
+                <h3 class="text-xs font-bold uppercase tracking-wider">Profile Score</h3>
+            </div>
+            <p class="text-3xl font-extrabold text-white">{{ profile_strength.score }}%</p>
+            <p class="text-xs text-zinc-400 mt-1 font-medium">{{ profile_strength.label }}</p>
+        </div>
+        
+        <!-- Status Indicator -->
+        <div class="glass-panel rounded-2xl p-5 border-t {% if provider.is_active %}border-t-emerald-500/30{% else %}border-t-amber-500/30{% endif %} relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-16 h-16 {% if provider.is_active %}bg-emerald-500/10{% else %}bg-amber-500/10{% endif %} rounded-full blur-xl"></div>
+            <div class="flex items-center gap-3 mb-3 {% if provider.is_active %}text-emerald-400{% else %}text-amber-400{% endif %}">
+                <i data-feather="radio" class="w-5 h-5"></i>
+                <h3 class="text-xs font-bold uppercase tracking-wider">Visibility</h3>
+            </div>
+            <p class="text-lg font-bold text-white mt-1 leading-tight">
+                {% if provider.is_active %}Searchable{% else %}Hidden from Search{% endif %}
+            </p>
+        </div>
 
-        <section class="grid gap-3 md:grid-cols-2">
-            <section class="rounded-3xl border border-white/10 bg-zinc-900/70 p-4 space-y-3">
-                <h2 class="text-sm font-semibold uppercase tracking-widest text-zinc-300">Next Actions</h2>
-                <ul class="space-y-2 text-sm">
+        <!-- Photos Count -->
+        <div class="glass-panel rounded-2xl p-5 border-t border-t-fuchsia-500/30 relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-16 h-16 bg-fuchsia-500/10 rounded-full blur-xl"></div>
+            <div class="flex items-center gap-3 mb-3 text-fuchsia-400">
+                <i data-feather="image" class="w-5 h-5"></i>
+                <h3 class="text-xs font-bold uppercase tracking-wider">Gallery</h3>
+            </div>
+            <p class="text-3xl font-extrabold text-white">{{ photo_count }}</p>
+            <p class="text-xs text-zinc-400 mt-1 font-medium">Photos uploaded</p>
+        </div>
+
+        <!-- Services Count -->
+        <div class="glass-panel rounded-2xl p-5 border-t border-t-blue-500/30 relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-16 h-16 bg-blue-500/10 rounded-full blur-xl"></div>
+            <div class="flex items-center gap-3 mb-3 text-blue-400">
+                <i data-feather="briefcase" class="w-5 h-5"></i>
+                <h3 class="text-xs font-bold uppercase tracking-wider">Services</h3>
+            </div>
+            <p class="text-3xl font-extrabold text-white">{{ services_count }}</p>
+            <p class="text-xs text-zinc-400 mt-1 font-medium">Offered to clients</p>
+        </div>
+    </section>
+
+    <!-- Split Content Area -->
+    <div class="grid md:grid-cols-5 gap-6">
+        
+        <!-- Left Column (Wider): Actionable Items -->
+        <div class="md:col-span-3 space-y-6">
+            
+            <!-- Next Actions / Profile Improvements -->
+            <section class="glass-panel rounded-3xl p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300 flex items-center gap-2">
+                        <i data-feather="zap" class="w-4 h-4 text-amber-400"></i>
+                        Action Items
+                    </h2>
+                    <a href="/provider/onboarding" class="text-xs font-bold text-teal-400 hover:text-teal-300">Edit Profile -></a>
+                </div>
+                
+                <ul class="space-y-3">
                     {% for hint in profile_strength.missing %}
-                    <li class="rounded-xl border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-amber-100">{{ hint }}</li>
+                    <li class="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3.5 flex gap-3 group hover:bg-white/[0.04] transition-colors">
+                        <i data-feather="alert-circle" class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5"></i>
+                        <div>
+                            <p class="text-sm font-medium text-zinc-200">{{ hint }}</p>
+                            <p class="text-xs text-zinc-500 mt-1">Improves profile ranking by 10%</p>
+                        </div>
+                    </li>
                     {% endfor %}
+                    
                     {% if not profile_strength.missing %}
-                    <li class="rounded-xl border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-emerald-100">Profile quality is strong. Keep photos and rates fresh.</li>
+                    <li class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-4 flex items-center gap-4">
+                        <div class="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(52,211,153,0.2)]">
+                            <i data-feather="check" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-emerald-200">Profile is fully optimized!</p>
+                            <p class="text-sm text-emerald-400/80 mt-0.5">Keep your photos fresh to maintain high rankings.</p>
+                        </div>
+                    </li>
                     {% endif %}
                 </ul>
             </section>
-
-            <section class="rounded-3xl border border-white/10 bg-zinc-900/70 p-4 space-y-3">
-                <h2 class="text-sm font-semibold uppercase tracking-widest text-zinc-300">Profile Snapshot</h2>
-                <p class="text-sm text-zinc-300">{{ provider.bio or 'No bio yet.' }}</p>
-                <p class="text-xs text-zinc-400">Services: {% if services_list %}{{ services_list|join(', ') }}{% else %}Not set{% endif %}</p>
-                <p class="text-xs text-zinc-400">Languages: {% if languages_list %}{{ languages_list|join(', ') }}{% else %}Not set{% endif %}</p>
-                {% if photo_urls %}
-                <div class="grid grid-cols-3 gap-2">
-                    {% for photo in photo_urls[:6] %}
-                    <img src="{{ photo }}" class="h-20 w-full rounded-xl object-cover border border-white/10" alt="Photo {{ loop.index }}">
-                    {% endfor %}
+            
+            <!-- Quick Info Banner -->
+            <section class="rounded-3xl border border-teal-500/30 bg-gradient-to-br from-teal-500/10 to-transparent p-6 relative overflow-hidden">
+                <div class="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-1/4 translate-y-1/4">
+                    <i data-feather="shield" class="w-48 h-48"></i>
                 </div>
-                {% else %}
-                <p class="text-xs text-zinc-400">No photos uploaded yet.</p>
-                {% endif %}
+                <h3 class="text-lg font-bold text-teal-300 mb-2">Safety First</h3>
+                <p class="text-sm text-teal-100/70 max-w-sm">Never share verification codes or passwords with anyone. We will never ask for your portal password.</p>
             </section>
-        </section>
-    </main>
-</body>
-</html>
+            
+        </div>
+        
+        <!-- Right Column (Narrower): Snapshot -->
+        <div class="md:col-span-2 space-y-6">
+            
+            <!-- Snapshot Card -->
+            <section class="glass-panel rounded-3xl overflow-hidden flex flex-col h-full">
+                <!-- Header -->
+                <div class="p-5 border-b border-white/5 flex items-center gap-2">
+                    <i data-feather="camera" class="w-4 h-4 text-zinc-400"></i>
+                    <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300">Gallery Preview</h2>
+                </div>
+                
+                <!-- Photos Grid -->
+                <div class="p-5 flex-1">
+                    {% if photo_urls %}
+                    <div class="grid grid-cols-2 gap-3 h-full">
+                        {% for photo in photo_urls[:4] %}
+                        <div class="aspect-square rounded-2xl overflow-hidden border border-white/10 group relative">
+                            <img src="{{ photo }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="Photo {{ loop.index }}">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="h-full min-h-[200px] rounded-2xl border border-dashed border-white/20 bg-white/5 flex flex-col items-center justify-center text-center p-6">
+                        <div class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-zinc-400">
+                            <i data-feather="image" class="w-6 h-6"></i>
+                        </div>
+                        <p class="text-sm font-bold text-zinc-300">No photos yet</p>
+                        <p class="text-xs text-zinc-500 mt-1">Upload at least 3 photos to stand out.</p>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Details Summary -->
+                <div class="p-5 bg-white/[0.02] border-t border-white/5">
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">About Me</h3>
+                    <p class="text-sm text-zinc-300 line-clamp-3 mb-4 leading-relaxed">
+                        {{ provider.bio or 'No bio provided.' }}
+                    </p>
+                    
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        {% for srv in services_list[:3] %}
+                        <span class="px-2.5 py-1 rounded-md bg-white/10 text-xs font-bold text-zinc-300 border border-white/5">{{ srv }}</span>
+                        {% endfor %}
+                        {% if services_list|length > 3 %}
+                        <span class="px-2.5 py-1 rounded-md bg-white/5 text-xs text-zinc-500">+{{ services_list|length - 3 }} more</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+            
+        </div>
+    </div>
+</div>
+
+<style>
+/* Custom animations */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+    100% { transform: translateX(100%); }
+}
+</style>
+{% endblock %}

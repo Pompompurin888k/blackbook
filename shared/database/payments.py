@@ -197,6 +197,23 @@ class PaymentsRepository(BaseRepository):
                 logger.error(f"❌ Error getting referral stats: {e}")
                 return stats
 
+    def get_referral_history(self, tg_id: int) -> List[dict]:
+            """Gets the history of referral rewards for a provider."""
+            query = """
+            SELECT r.id, r.amount_paid, r.reward_credit, r.reward_days, r.is_claimed, r.claimed_reward, r.created_at, p.display_name as invitee_name
+            FROM referral_rewards r
+            LEFT JOIN providers p ON r.invitee_tg_id = p.telegram_id
+            WHERE r.referrer_tg_id = %s
+            ORDER BY r.created_at DESC
+            """
+            try:
+                with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(query, (tg_id,))
+                    return [dict(row) for row in cur.fetchall()]
+            except Exception as e:
+                logger.error(f"❌ Error getting referral history for {tg_id}: {e}")
+                return []
+
     def get_referrer_by_code(self, code: str):
             """Finds the provider who owns a referral code."""
             query = "SELECT telegram_id, display_name FROM providers WHERE referral_code = %s"

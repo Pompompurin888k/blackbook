@@ -1,0 +1,197 @@
+{% extends "provider_base.html" %}
+
+{% block title %}Analytics | Provider Portal{% endblock %}
+
+{% block content %}
+<div class="space-y-6 animate-fade-in-up" style="animation: fadeInUp 0.4s ease-out forwards;">
+
+    <!-- Header Section -->
+    <section class="glass-panel rounded-3xl p-6 sm:p-8 relative overflow-hidden group">
+        <div
+            class="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/5 to-transparent group-hover:animate-[shimmer_2s_infinite]">
+        </div>
+
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-400 flex items-center gap-2 mb-2">
+                    <i data-feather="bar-chart-2" class="w-3.5 h-3.5"></i> Performance Overview
+                </p>
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">Your Analytics Dash</h1>
+                <p class="mt-2 text-sm text-zinc-400">See how clients are interacting with your profile.</p>
+            </div>
+
+            <div
+                class="flex items-center gap-2 text-xs font-bold text-zinc-500 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                LIVE DATA
+            </div>
+        </div>
+    </section>
+
+    <!-- Top Stats Row -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        <!-- Profile Views -->
+        <div class="glass-panel rounded-2xl p-6 border-t border-t-blue-500/30 relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-20 h-20 bg-blue-500/10 rounded-full blur-xl pointer-events-none">
+            </div>
+
+            <div class="flex items-start justify-between">
+                <div>
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-blue-400 mb-1">Profile Views</h3>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-4xl font-extrabold text-white">{{ stats.total_views }}</span>
+                        <!-- Placeholder for views trend until we implement view tracking -->
+                        <span class="text-sm font-bold text-zinc-500">All Time</span>
+                    </div>
+                </div>
+                <div
+                    class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20">
+                    <i data-feather="eye" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <div class="mt-5 text-sm text-zinc-400">
+                <span class="font-bold text-white">{{ stats.views_7d }}</span> views in the last 7 days.
+            </div>
+        </div>
+
+        <!-- Contact Clicks -->
+        <div class="glass-panel rounded-2xl p-6 border-t border-t-emerald-500/30 relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl pointer-events-none">
+            </div>
+
+            <div class="flex items-start justify-between">
+                <div>
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-emerald-400 mb-1">Contact Clicks</h3>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-4xl font-extrabold text-white">{{ stats.total_clicks }}</span>
+                        <span class="text-sm font-bold text-zinc-500">All Time</span>
+                    </div>
+                </div>
+                <div
+                    class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 border border-emerald-500/20">
+                    <i data-feather="mouse-pointer" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <div class="mt-5 text-sm text-zinc-400">
+                <span class="font-bold text-emerald-400">{{ stats.clicks_7d }}</span> clients clicked to contact you
+                this week.
+            </div>
+        </div>
+    </section>
+
+    <!-- Deep Dive Stats -->
+    <div class="grid md:grid-cols-3 gap-6">
+
+        <!-- Contact Methods Pie (Simulated setup) -->
+        <div class="md:col-span-1 border border-white/5 bg-black/20 rounded-3xl p-6 relative">
+            <h3 class="text-sm font-bold uppercase tracking-widest text-zinc-300 mb-6 flex items-center gap-2">
+                <i data-feather="pie-chart" class="w-4 h-4 text-zinc-500"></i> Contact Breakdown
+            </h3>
+
+            {% if stats.total_clicks > 0 %}
+            <div class="space-y-4">
+                {% for method, count in stats.clicks_by_method.items() %}
+                <div>
+                    <div class="flex justify-between text-xs font-bold mb-1">
+                        <span class="capitalize text-zinc-300">{{ method }}</span>
+                        <span class="text-white">{{ count }} <span class="text-zinc-500 font-medium">({{(count /
+                                stats.total_clicks * 100)|round|int}}%)</span></span>
+                    </div>
+                    <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                        {% set color = 'bg-teal-400' if method == 'whatsapp' else ('bg-indigo-400' if method ==
+                        'telegram' else 'bg-amber-400') %}
+                        <div class="h-full {{ color }} rounded-full"
+                            style="width: {{(count / stats.total_clicks * 100)}}%;"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div
+                class="h-40 border border-dashed border-white/10 rounded-2xl flex flex-col justify-center items-center text-center p-4">
+                <i data-feather="inbox" class="w-6 h-6 text-zinc-600 mb-2"></i>
+                <p class="text-sm font-bold text-zinc-400">No clicks yet</p>
+                <p class="text-xs text-zinc-600 mt-1">Clients haven't clicked your contact links recently.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 7-Day Activity Chart -->
+        <div class="md:col-span-2 glass-panel rounded-3xl p-6">
+            <h3 class="text-sm font-bold uppercase tracking-widest text-zinc-300 mb-6 flex items-center gap-2">
+                <i data-feather="activity" class="w-4 h-4 text-emerald-400"></i> 7-Day Activity Trend
+            </h3>
+
+            <div class="h-48 flex items-end justify-between gap-2 pb-6 border-b border-white/5 relative">
+                {% if not stats.recent_activity %}
+                <div class="absolute inset-0 flex flex-col items-center justify-center text-zinc-500">
+                    <i data-feather="trending-up" class="w-6 h-6 mb-2 opacity-50"></i>
+                    <p class="text-sm font-medium">Not enough recent data to plot</p>
+                </div>
+                {% else %}
+                <!-- Calculate max for scaling -->
+                {% set max_count = 1 %}
+                {% for day in stats.recent_activity %}
+                {% if day.count > max_count %}{% set max_count = day.count %}{% endif %}
+                {% endfor %}
+
+                {% for day in stats.recent_activity %}
+                <div class="w-full relative group h-full flex flex-col justify-end">
+                    {% set height_pct = (day.count / max_count * 100) %}
+                    {% if height_pct < 5 %}{% set height_pct=5 %}{% endif %} <div
+                        class="w-full bg-emerald-500/20 hover:bg-emerald-400/40 border-t-2 border-emerald-400 rounded-t-sm transition-all duration-300 relative"
+                        style="height: {{ height_pct }}%;">
+                        <!-- Tooltip -->
+                        <div
+                            class="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-white/10 pointer-events-none z-10">
+                            {{ day.count }} Clicks
+                        </div>
+                </div>
+                <div
+                    class="absolute -bottom-6 w-full text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                    {{ day.date_val.strftime('%a') }}
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="mt-4 flex items-start gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+            <div class="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400 shrink-0">
+                <i data-feather="zap" class="w-4 h-4"></i>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-white">How to get more clicks?</h4>
+                <p class="text-xs text-zinc-400 mt-1">Keep your photos fresh and upload high-quality images. Profiles
+                    with 5+ good photos receive 3x more views and clicks.</p>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+</div>
+
+<style>
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(15px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes shimmer {
+        100% {
+            transform: translateX(100%);
+        }
+    }
+</style>
+{% endblock %}

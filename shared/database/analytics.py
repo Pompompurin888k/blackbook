@@ -181,3 +181,59 @@ class AnalyticsRepository(BaseRepository):
                 logger.error(f"❌ Error getting recruitment stats: {e}")
                 return stats
 
+    def get_provider_analytics_stats(self, provider_id: int) -> Dict:
+        """Retrieves profile views and contact clicks for a specific provider."""
+        stats = {
+            "total_views": 0,
+            "views_7d": 0,
+            "total_clicks": 0,
+            "clicks_7d": 0,
+            "clicks_by_method": {},
+            "recent_activity": []
+        }
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # Assuming 'profile_view' event is logged in `analytics_events` or similar
+                # Let's count contact clicks from `lead_analytics` first
+                cur.execute("""
+                    SELECT COUNT(*) as count 
+                    FROM lead_analytics 
+                    WHERE provider_id = %s
+                """, (provider_id,))
+                res = cur.fetchone()
+                stats["total_clicks"] = res["count"] if res else 0
+
+                cur.execute("""
+                    SELECT COUNT(*) as count 
+                    FROM lead_analytics 
+                    WHERE provider_id = %s AND created_at >= NOW() - INTERVAL '7 days'
+                """, (provider_id,))
+                res = cur.fetchone()
+                stats["clicks_7d"] = res["count"] if res else 0
+
+                cur.execute("""
+                    SELECT contact_method, COUNT(*) as count
+                    FROM lead_analytics
+                    WHERE provider_id = %s
+                    GROUP BY contact_method
+                """, (provider_id,))
+                for row in cur.fetchall():
+                    method = row.get("contact_method")
+                    if method:
+                        stats["clicks_by_method"][method] = row["count"]
+
+                # We can construct a basic 7-day trend array
+                cur.execute("""
+                    SELECT DATE(created_at) as date_val, COUNT(*) as count
+                    FROM lead_analytics
+                    WHERE provider_id = %s AND created_at >= NOW() - INTERVAL '7 days'
+                    GROUP BY DATE(created_at)
+                    ORDER BY date_val ASC
+                """, (provider_id,))
+                stats["recent_activity"] = [dict(row) for row in cur.fetchall()]
+
+            return stats
+        except Exception as e:
+            logger.error(f"Error getting provider analytics stats: {e}")
+            return stats
+

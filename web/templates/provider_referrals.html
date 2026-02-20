@@ -1,0 +1,204 @@
+{% extends "provider_base.html" %}
+
+{% block title %}Referral Hub | Provider Portal{% endblock %}
+
+{% block content %}
+<div class="space-y-6 animate-fade-in-up" style="animation: fadeInUp 0.4s ease-out forwards;">
+
+    <!-- Header Section -->
+    <section class="glass-panel rounded-3xl p-6 sm:p-8 relative overflow-hidden group">
+        <div
+            class="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/5 to-transparent group-hover:animate-[shimmer_2s_infinite]">
+        </div>
+
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-400 flex items-center gap-2 mb-2">
+                    <i data-feather="users" class="w-3.5 h-3.5"></i> Affiliate Program
+                </p>
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">Referral Hub</h1>
+                <p class="mt-2 text-sm text-zinc-400">Invite new providers to Innbucks and earn rewards when they
+                    subscribe.</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="grid md:grid-cols-3 gap-6">
+
+        <!-- Left Column: Link & Stats -->
+        <div class="md:col-span-1 space-y-6">
+
+            <!-- Affiliate Link Card -->
+            <section class="glass-panel rounded-3xl p-6 relative overflow-hidden border-t border-t-fuchsia-500/30">
+                <div
+                    class="absolute -right-10 -top-10 w-32 h-32 bg-fuchsia-500/10 rounded-full blur-2xl pointer-events-none">
+                </div>
+
+                <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300 mb-4 flex items-center gap-2">
+                    <i data-feather="link" class="w-4 h-4 text-fuchsia-400"></i> Your Invite Link
+                </h2>
+
+                {% if stats.referral_code %}
+                <p class="text-xs text-zinc-400 mb-3">Share this link directly with other providers. When they click it,
+                    they will be registered as your invitee.</p>
+
+                <div class="relative">
+                    {% set invite_link = "https://t.me/" ~ bot_username ~ "?start=ref_" ~ stats.referral_code %}
+                    <input type="text" id="ref-link" readonly value="{{ invite_link }}"
+                        class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-fuchsia-500/50">
+                    <button onclick="copyLink()"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 transition-colors tooltip-trigger"
+                        aria-label="Copy to clipboard">
+                        <i data-feather="copy" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <div id="copy-toast"
+                        class="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-fuchsia-500/20 text-fuchsia-200 text-[10px] font-bold px-2 py-1 rounded opacity-0 transition-opacity whitespace-nowrap border border-fuchsia-500/30">
+                        Copied!
+                    </div>
+                </div>
+                {% else %}
+                <div class="p-4 rounded-xl border border-dashed border-white/20 text-center">
+                    <p class="text-xs text-zinc-400">Your referral code is being generated. Please refresh the page.</p>
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- Stats -->
+            <section class="glass-panel rounded-3xl p-6">
+                <div class="space-y-5">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">Total Referred</p>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-3xl font-extrabold text-white">{{ stats.total_referred or 0 }}</span>
+                            <span class="text-sm font-bold text-zinc-600">Providers</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-5 border-t border-white/5">
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">Total Earned</p>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-3xl font-extrabold text-emerald-400">{{ stats.credits or 0 }}</span>
+                            <span class="text-sm font-bold text-emerald-500/50">KES</span>
+                        </div>
+                        <p class="text-xs text-zinc-500 mt-2">These credits can be used directly from the Telegram Bot
+                            to renew your subscription.</p>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- Right Column: History -->
+        <div class="md:col-span-2">
+            <section class="glass-panel rounded-3xl p-6 h-full flex flex-col">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300 flex items-center gap-2">
+                        <i data-feather="list" class="w-4 h-4 text-cyan-400"></i> Reward History
+                    </h2>
+                    <span class="text-xs font-bold bg-white/5 px-2 py-1 rounded text-zinc-400">{{ history|length }}
+                        Records</span>
+                </div>
+
+                <div class="flex-1 overflow-y-auto pr-2 -mr-2 space-y-3">
+                    {% if history %}
+                    {% for record in history %}
+                    <div
+                        class="p-4 rounded-2xl border border-white/5 bg-black/20 hover:bg-white/[0.02] transition-colors">
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+                            <div>
+                                <h3 class="font-bold text-white text-sm mb-1">Invitee First Payment (<span
+                                        class="text-emerald-400">20% cut</span>)</h3>
+                                <p class="text-xs text-zinc-400">
+                                    Provider: <span class="font-medium text-zinc-300">{{ record.invitee_name or 'Hidden'
+                                        }}</span>
+                                    <span class="mx-1">•</span>
+                                    {{ record.created_at.strftime('%d %b %H:%M') }}
+                                </p>
+                            </div>
+
+                            <div class="flex items-center gap-3">
+                                {% if record.is_claimed %}
+                                <div class="text-right">
+                                    {% if record.claimed_reward == 'credit' %}
+                                    <span class="block font-bold text-emerald-400 text-sm">+{{ record.reward_credit }}
+                                        KES</span>
+                                    {% else %}
+                                    <span class="block font-bold text-cyan-400 text-sm">+{{ record.reward_days }} Days
+                                        Add</span>
+                                    {% endif %}
+                                    <span
+                                        class="text-[10px] font-bold uppercase tracking-wider text-emerald-500/70 border border-emerald-500/20 bg-emerald-500/10 px-1.5 rounded">Claimed</span>
+                                </div>
+                                {% else %}
+                                <div class="text-right">
+                                    <span class="block font-bold text-amber-400 text-sm">Reward Ready</span>
+                                    <span class="text-[10px] font-bold text-amber-500/70">Check Telegram</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <!-- Empty State -->
+                    <div
+                        class="h-full min-h-[250px] flex flex-col items-center justify-center text-center p-6 border border-dashed border-white/10 rounded-2xl">
+                        <div
+                            class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-zinc-500 mb-4">
+                            <i data-feather="gift" class="w-8 h-8"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2">No Rewards Yet</h3>
+                        <p class="text-sm text-zinc-400 max-w-sm">
+                            Share your link with other providers. When they register and make their first successful
+                            payment, you'll earn a 20% commission in credits or free days!
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+
+            </section>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    function copyLink() {
+        const input = document.getElementById('ref-link');
+        const toast = document.getElementById('copy-toast');
+
+        input.select();
+        input.setSelectionRange(0, 99999); /* For mobile devices */
+
+        navigator.clipboard.writeText(input.value).then(() => {
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy text: ', err);
+        });
+    }
+</script>
+
+<style>
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(15px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes shimmer {
+        100% {
+            transform: translateX(100%);
+        }
+    }
+</style>
+{% endblock %}

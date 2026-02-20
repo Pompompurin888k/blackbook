@@ -195,3 +195,97 @@ async def provider_portal_regenerate_verify_code(request: Request):
             reply_markup=_portal_admin_review_keyboard(int(provider.get("telegram_id"))),
         )
     return RedirectResponse(url="/provider/verify-phone?regenerated=1", status_code=303)
+
+
+@router.get("/provider/analytics", response_class=HTMLResponse)
+async def provider_portal_analytics(request: Request):
+    """Provider Analytics page showing profile views and clicks."""
+    provider_id = _portal_session_provider_id(request)
+    if not provider_id:
+        return RedirectResponse(url="/provider", status_code=302)
+        
+    provider = db.get_portal_provider_by_id(provider_id)
+    if not provider:
+        request.session.clear()
+        return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
+        
+    if _portal_account_state(provider) != PORTAL_ACCOUNT_APPROVED:
+        return RedirectResponse(url=f"/provider/verify-phone?status={_portal_account_state(provider)}", status_code=302)
+
+    # Fetch stats
+    stats = db.get_provider_analytics_stats(provider_id)
+
+    return templates.TemplateResponse(
+        "provider_analytics.html",
+        {
+            "request": request,
+            "provider": provider,
+            "stats": stats
+        }
+    )
+
+
+@router.get("/provider/wallet", response_class=HTMLResponse)
+async def provider_portal_wallet(request: Request):
+    """Provider Wallet page showing subscription status, renewal options, and boost info."""
+    provider_id = _portal_session_provider_id(request)
+    if not provider_id:
+        return RedirectResponse(url="/provider", status_code=302)
+        
+    provider = db.get_portal_provider_by_id(provider_id)
+    if not provider:
+        request.session.clear()
+        return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
+        
+    if _portal_account_state(provider) != PORTAL_ACCOUNT_APPROVED:
+        return RedirectResponse(url=f"/provider/verify-phone?status={_portal_account_state(provider)}", status_code=302)
+
+    return templates.TemplateResponse(
+        "provider_wallet.html",
+        {
+            "request": request,
+            "provider": provider,
+        }
+    )
+
+@router.get("/provider/referrals", response_class=HTMLResponse)
+async def provider_portal_referrals(request: Request):
+    """Provider Referrals Hub page."""
+    provider_id = _portal_session_provider_id(request)
+    if not provider_id:
+        return RedirectResponse(url="/provider", status_code=302)
+        
+    provider = db.get_portal_provider_by_id(provider_id)
+    if not provider:
+        request.session.clear()
+        return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
+        
+    if _portal_account_state(provider) != PORTAL_ACCOUNT_APPROVED:
+        return RedirectResponse(url=f"/provider/verify-phone?status={_portal_account_state(provider)}", status_code=302)
+
+    tg_id = provider.get("telegram_id")
+    # In case tg_id is somehow missing or not an integer (though it should be)
+    stats = {"referral_code": None, "total_referred": 0, "credits": 0}
+    history = []
+    
+    if tg_id and int(tg_id) > 0:
+        actual_tg_id = int(tg_id)
+        stats = db.get_referral_stats(actual_tg_id)
+        history = db.get_referral_history(actual_tg_id)
+        
+        # If they don't have a referral code yet, generate one.
+        if not stats.get("referral_code"):
+            db.generate_referral_code(actual_tg_id)
+            stats = db.get_referral_stats(actual_tg_id)
+
+    return templates.TemplateResponse(
+        "provider_referrals.html",
+        {
+            "request": request,
+            "provider": provider,
+            "stats": stats,
+            "history": history
+        }
+    )
+
+

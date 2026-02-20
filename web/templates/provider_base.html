@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Provider Portal | Innbucks{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Feather Icons for outline icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <style>
+        body { font-family: "Manrope", sans-serif; }
+        
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+        
+        .glass-panel {
+            background: rgba(24, 24, 27, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .glass-nav-item {
+            transition: all 0.2s ease;
+        }
+        
+        .glass-nav-item.active {
+            background: rgba(45, 212, 191, 0.1); /* Teal tinted background */
+            border-left: 3px solid #2dd4bf;     /* Teal primary accent */
+            color: #ccfbf1;                     /* Light teal text */
+            padding-left: 0.875rem;             /* Adjust padding to offset border */
+        }
+        
+        .mobile-nav-item.active {
+            color: #2dd4bf;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 selection:bg-teal-500/30">
+
+    <!-- Ambient background glows -->
+    <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div class="absolute -top-40 -right-40 w-96 h-96 bg-teal-500/10 rounded-full blur-[100px]"></div>
+        <div class="absolute inset-y-1/2 -left-40 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px]"></div>
+    </div>
+
+    <!-- Desktop Sidebar (Hidden on mobile) -->
+    <aside class="fixed inset-y-0 left-0 w-64 z-40 hidden md:flex flex-col glass-panel border-r border-t-0 border-b-0 border-l-0">
+        <!-- Logo Area -->
+        <div class="h-20 flex items-center px-6 border-b border-white/5">
+            <a href="/" class="flex flex-col">
+                <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Innbucks</span>
+                <span class="text-[9px] uppercase tracking-[0.2em] text-teal-400 font-bold mt-0.5">Provider Portal</span>
+            </a>
+        </div>
+        
+        <!-- Navigation Links -->
+        <nav class="flex-1 overflow-y-auto py-6 px-3 space-y-1.5">
+            <!-- Dashboard -->
+            <a href="/provider/dashboard" class="glass-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-100 {% if request.url.path == '/provider/dashboard' %}active{% endif %}">
+                <i data-feather="grid" class="w-4 h-4"></i>
+                Dashboard
+            </a>
+            
+            <!-- Edit Profile -->
+            <a href="/provider/onboarding" class="glass-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-100 {% if request.url.path == '/provider/onboarding' %}active{% endif %}">
+                <i data-feather="user" class="w-4 h-4"></i>
+                Edit Profile
+            </a>
+            
+            <!-- Analytics (Coming Soon) -->
+            <a href="/provider/analytics" class="glass-nav-item flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-100 {% if request.url.path == '/provider/analytics' %}active{% endif %}">
+                <div class="flex items-center gap-3">
+                    <i data-feather="bar-chart-2" class="w-4 h-4"></i>
+                    Analytics
+                </div>
+            </a>
+            
+            <!-- Wallet (Coming Soon) -->
+            <a href="/provider/wallet" class="glass-nav-item flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-100 {% if request.url.path == '/provider/wallet' %}active{% endif %}">
+                <div class="flex items-center gap-3">
+                    <i data-feather="credit-card" class="w-4 h-4"></i>
+                    Wallet
+                </div>
+            </a>
+            
+            <!-- Referrals (Coming Soon) -->
+            <a href="/provider/referrals" class="glass-nav-item flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-100 {% if request.url.path == '/provider/referrals' %}active{% endif %}">
+                <div class="flex items-center gap-3">
+                    <i data-feather="users" class="w-4 h-4"></i>
+                    Referrals
+                </div>
+            </a>
+            
+            <!-- Verification -->
+            <a href="/provider/verify-phone" class="glass-nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-amber-500/70 hover:bg-amber-500/10 hover:text-amber-400 {% if request.url.path == '/provider/verify-phone' %}active border-l-[3px] !border-amber-400 !bg-amber-400/10 !text-amber-200{% endif %}">
+                <i data-feather="shield" class="w-4 h-4"></i>
+                Verification
+            </a>
+        </nav>
+        
+        <!-- Bottom User Section -->
+        <div class="p-4 border-t border-white/5">
+            <div class="flex items-center gap-3 px-2 py-2">
+                <div class="h-10 w-10 rounded-full bg-gradient-to-tr from-teal-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm shadow-inner shadow-white/20">
+                    {{ provider.display_name[:1].upper() if provider.display_name else '?' }}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-white truncate">{{ provider.display_name or 'Provider' }}</p>
+                    <p class="text-xs text-zinc-500 truncate">{{ provider.phone or '' }}</p>
+                </div>
+            </div>
+            <form method="post" action="/provider/logout" class="mt-2">
+                <button type="submit" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition-colors">
+                    <i data-feather="log-out" class="w-3.5 h-3.5"></i>
+                    Sign Out
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- Mobile Header -->
+    <header class="md:hidden fixed top-0 w-full z-40 glass-panel border-x-0 border-t-0 h-16 flex items-center justify-between px-4">
+        <a href="/" class="flex flex-col">
+            <span class="text-lg font-extrabold tracking-tight bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Innbucks</span>
+            <span class="text-[8px] uppercase tracking-[0.2em] text-teal-400 font-bold mt-0.5">Portal</span>
+        </a>
+        
+        <form method="post" action="/provider/logout">
+            <button type="submit" class="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 hover:text-white">
+                <i data-feather="log-out" class="w-4 h-4"></i>
+            </button>
+        </form>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="relative z-10 pt-20 pb-24 md:pt-8 md:pb-8 md:pl-64 min-h-screen">
+        <div class="max-w-4xl mx-auto px-4 sm:px-8">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="md:hidden fixed bottom-5 left-4 right-4 z-40 glass-panel rounded-2xl flex items-center justify-around px-2 py-3 shadow-2xl shadow-black">
+        <a href="/provider/dashboard" class="mobile-nav-item flex flex-col items-center gap-1.5 p-2 text-zinc-500 hover:text-zinc-300 {% if request.url.path == '/provider/dashboard' %}active{% endif %}">
+            <i data-feather="grid" class="w-5 h-5"></i>
+            <span class="text-[9px] font-bold uppercase tracking-wider">Home</span>
+        </a>
+        <a href="/provider/analytics" class="mobile-nav-item flex flex-col items-center gap-1.5 p-2 text-zinc-500 hover:text-zinc-300 {% if request.url.path == '/provider/analytics' %}active{% endif %}">
+            <i data-feather="bar-chart-2" class="w-5 h-5"></i>
+            <span class="text-[9px] font-bold uppercase tracking-wider">Stats</span>
+        </a>
+        <a href="/provider/wallet" class="mobile-nav-item flex flex-col items-center gap-1.5 p-2 text-zinc-500 hover:text-zinc-300 {% if request.url.path == '/provider/wallet' %}active{% endif %}">
+            <i data-feather="credit-card" class="w-5 h-5"></i>
+            <span class="text-[9px] font-bold uppercase tracking-wider">Wallet</span>
+        </a>
+        <a href="/provider/onboarding" class="mobile-nav-item flex flex-col items-center gap-1.5 p-2 text-zinc-500 hover:text-zinc-300 {% if request.url.path == '/provider/onboarding' %}active{% endif %}">
+            <i data-feather="user" class="w-5 h-5"></i>
+            <span class="text-[9px] font-bold uppercase tracking-wider">Profile</span>
+        </a>
+    </nav>
+
+    <!-- Initialize Feather Icons -->
+    <script>
+        feather.replace();
+    </script>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
