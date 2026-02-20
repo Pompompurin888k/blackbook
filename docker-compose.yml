@@ -22,6 +22,22 @@ services:
     networks:
       - blackbook_network
 
+  # 1b. Ephemeral State Store (Redis)
+  redis:
+    image: redis:7-alpine
+    container_name: blackbook_redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ./redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    networks:
+      - blackbook_network
+
   # 2. The Brain (Telegram Bot)
   bot:
     build: ./bot
@@ -77,6 +93,7 @@ services:
     restart: always
     depends_on:
       - db
+      - redis
     ports:
       - "127.0.0.1:8080:8080"  # Only accessible from localhost (nginx will proxy)
     env_file:
@@ -84,6 +101,12 @@ services:
     environment:
       TZ: ${TZ:-Africa/Nairobi}
       DB_TIMEZONE: ${DB_TIMEZONE:-Africa/Nairobi}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      ENABLE_REDIS_RATE_LIMITING: ${ENABLE_REDIS_RATE_LIMITING:-true}
+      ENABLE_REDIS_PAGE_CACHE: ${ENABLE_REDIS_PAGE_CACHE:-true}
+      HOME_PAGE_CACHE_TTL_SECONDS: ${HOME_PAGE_CACHE_TTL_SECONDS:-60}
+      GRID_CACHE_TTL_SECONDS: ${GRID_CACHE_TTL_SECONDS:-45}
+      RECOMMENDATIONS_CACHE_TTL_SECONDS: ${RECOMMENDATIONS_CACHE_TTL_SECONDS:-45}
     command: uvicorn main:app --host 0.0.0.0 --port 8080
     volumes:
       - ./web:/app

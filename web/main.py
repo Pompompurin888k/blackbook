@@ -17,6 +17,10 @@ from typing import Optional
 from urllib.parse import quote
 from starlette.middleware.sessions import SessionMiddleware
 from database import Database
+try:
+    import redis
+except ImportError:  # pragma: no cover - handled gracefully in runtime
+    redis = None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -72,6 +76,15 @@ PORTAL_VERIFY_CODE_TTL_MINUTES = int(os.getenv("PORTAL_VERIFY_CODE_TTL_MINUTES",
 PORTAL_VERIFY_CODE_REGEN_LIMIT_PER_DAY = int(os.getenv("PORTAL_VERIFY_CODE_REGEN_LIMIT_PER_DAY", "5"))
 PORTAL_LOGIN_MAX_ATTEMPTS = int(os.getenv("PORTAL_LOGIN_MAX_ATTEMPTS", "5"))
 PORTAL_LOGIN_LOCK_MINUTES = int(os.getenv("PORTAL_LOGIN_LOCK_MINUTES", "15"))
+ENABLE_REDIS_RATE_LIMITING = os.getenv("ENABLE_REDIS_RATE_LIMITING", "true").strip().lower() == "true"
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
+PORTAL_LOGIN_RATE_LIMIT_ATTEMPTS = int(os.getenv("PORTAL_LOGIN_RATE_LIMIT_ATTEMPTS", "20"))
+PORTAL_LOGIN_RATE_WINDOW_SECONDS = int(os.getenv("PORTAL_LOGIN_RATE_WINDOW_SECONDS", "900"))
+PORTAL_VERIFY_REGEN_WINDOW_SECONDS = int(os.getenv("PORTAL_VERIFY_REGEN_WINDOW_SECONDS", "86400"))
+ENABLE_REDIS_PAGE_CACHE = os.getenv("ENABLE_REDIS_PAGE_CACHE", "true").strip().lower() == "true"
+HOME_PAGE_CACHE_TTL_SECONDS = int(os.getenv("HOME_PAGE_CACHE_TTL_SECONDS", "60"))
+GRID_CACHE_TTL_SECONDS = int(os.getenv("GRID_CACHE_TTL_SECONDS", "45"))
+RECOMMENDATIONS_CACHE_TTL_SECONDS = int(os.getenv("RECOMMENDATIONS_CACHE_TTL_SECONDS", "45"))
 PORTAL_VERIFY_CODE_PEPPER = os.getenv(
     "PORTAL_VERIFY_CODE_PEPPER",
     os.getenv("PROVIDER_PORTAL_SESSION_SECRET", "replace-this-portal-secret"),
@@ -93,6 +106,97 @@ FALLBACK_PROFILE_IMAGES = [
     "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=900",
     "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&q=80&w=900",
 ]
+
+_redis_client = None
+_redis_unavailable = False
+
+
+def _rate_limit_key_suffix(value: str) -> str:
+    raw = (value or "unknown").strip().lower().encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()[:16]
+
+
+def _get_redis_client():
+    """Returns a connected Redis client or None when disabled/unavailable."""
+    global _redis_client, _redis_unavailable
+    if not ENABLE_REDIS_RATE_LIMITING or redis is None or _redis_unavailable:
+        return None
+    if _redis_client is not None:
+        return _redis_client
+
+    try:
+        _redis_client = redis.Redis.from_url(
+            REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=1,
+            socket_timeout=1,
+            health_check_interval=30,
+        )
+        _redis_client.ping()
+        logger.info("Redis rate limiting enabled.")
+        return _redis_client
+    except Exception as e:
+        logger.warning(f"Redis unavailable, falling back to DB rate controls: {e}")
+        _redis_unavailable = True
+        _redis_client = None
+        return None
+
+
+def _redis_consume_limit(key: str, limit: int, window_seconds: int) -> tuple[bool, int]:
+    """Consumes one token from a fixed window counter."""
+    client = _get_redis_client()
+    if client is None:
+        return True, limit
+
+    safe_limit = max(1, int(limit))
+    safe_window = max(1, int(window_seconds))
+    try:
+        count = int(client.incr(key))
+        if count == 1:
+            client.expire(key, safe_window)
+        remaining = max(0, safe_limit - count)
+        return count <= safe_limit, remaining
+    except Exception as e:
+        logger.warning(f"Redis consume failed for key {key}: {e}")
+        return True, safe_limit
+
+
+def _redis_reset_limit(key: str) -> None:
+    """Clears a rate-limit key after successful auth."""
+    client = _get_redis_client()
+    if client is None:
+        return
+    try:
+        client.delete(key)
+    except Exception as e:
+        logger.warning(f"Redis reset failed for key {key}: {e}")
+
+
+def _cache_key(*parts: object) -> str:
+    normalized = [str(part).strip().lower() if part is not None else "none" for part in parts]
+    return "cache:" + ":".join(normalized)
+
+
+def _redis_get_text(key: str) -> Optional[str]:
+    client = _get_redis_client()
+    if client is None:
+        return None
+    try:
+        value = client.get(key)
+        return str(value) if value else None
+    except Exception as e:
+        logger.warning(f"Redis get failed for key {key}: {e}")
+        return None
+
+
+def _redis_set_text(key: str, value: str, ttl_seconds: int) -> None:
+    client = _get_redis_client()
+    if client is None:
+        return
+    try:
+        client.setex(key, max(1, int(ttl_seconds)), value)
+    except Exception as e:
+        logger.warning(f"Redis set failed for key {key}: {e}")
 
 
 def _to_string_list(value) -> list[str]:
@@ -846,6 +950,27 @@ async def provider_portal_login(request: Request):
     form = await request.form()
     phone = _normalize_portal_phone(str(form.get("phone", "")).strip())
     password = str(form.get("password", ""))
+    client_ip = _extract_client_ip(request)
+    login_rate_key = (
+        f"rl:provider_login:{_rate_limit_key_suffix(client_ip)}:"
+        f"{_rate_limit_key_suffix(phone or 'unknown')}"
+    )
+    allowed_attempt, _ = _redis_consume_limit(
+        key=login_rate_key,
+        limit=PORTAL_LOGIN_RATE_LIMIT_ATTEMPTS,
+        window_seconds=PORTAL_LOGIN_RATE_WINDOW_SECONDS,
+    )
+    if not allowed_attempt:
+        wait_minutes = max(1, PORTAL_LOGIN_RATE_WINDOW_SECONDS // 60)
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {
+                "request": request,
+                "error": f"Too many login attempts from this network. Try again in about {wait_minutes} minutes.",
+                "success": None,
+            },
+            status_code=429,
+        )
 
     provider = db.get_portal_provider_by_phone(phone) if phone else None
     if not provider:
@@ -899,6 +1024,7 @@ async def provider_portal_login(request: Request):
         )
 
     db.reset_portal_login_failures(int(provider["id"]))
+    _redis_reset_limit(login_rate_key)
     db.log_provider_verification_event(
         int(provider["id"]),
         "login_success",
@@ -1297,9 +1423,17 @@ async def provider_portal_regenerate_verify_code(request: Request):
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
     if _portal_account_state(provider) == PORTAL_ACCOUNT_APPROVED:
         return RedirectResponse(url="/provider/dashboard", status_code=302)
-    regen_count = db.count_provider_verification_events(provider_id, "code_regenerated", hours=24)
-    if regen_count >= PORTAL_VERIFY_CODE_REGEN_LIMIT_PER_DAY:
+    allowed_regen, _ = _redis_consume_limit(
+        key=f"rl:provider_verify_regen:{provider_id}",
+        limit=PORTAL_VERIFY_CODE_REGEN_LIMIT_PER_DAY,
+        window_seconds=PORTAL_VERIFY_REGEN_WINDOW_SECONDS,
+    )
+    if not allowed_regen:
         return RedirectResponse(url="/provider/verify-phone?rate_limited=1", status_code=303)
+    if _get_redis_client() is None:
+        regen_count = db.count_provider_verification_events(provider_id, "code_regenerated", hours=24)
+        if regen_count >= PORTAL_VERIFY_CODE_REGEN_LIMIT_PER_DAY:
+            return RedirectResponse(url="/provider/verify-phone?rate_limited=1", status_code=303)
 
     new_code = _portal_generate_whatsapp_code()
     db.set_portal_phone_verification_code(
@@ -1339,24 +1473,32 @@ async def home(
 ):
     """Main directory page with optional city and neighborhood filter."""
     from datetime import datetime
-    
+
     # Default to Nairobi if no city selected
     if not city:
         city = "Nairobi"
+    normalized_city = city
+    normalized_neighborhood = (neighborhood or "").strip() or "all"
+
+    cache_key = _cache_key("home", normalized_city, normalized_neighborhood)
+    if ENABLE_REDIS_PAGE_CACHE:
+        cached_html = _redis_get_text(cache_key)
+        if cached_html:
+            return HTMLResponse(content=cached_html)
 
     providers = db.get_active_providers(city, neighborhood)
     city_counts = db.get_city_counts()
     total_count = sum(city_counts.values())
-    
+
     # Get stats for hero section
     total_verified = db.get_total_verified_count()
     total_online = db.get_online_count()
     total_premium = db.get_premium_count()
-    
+
     # Get neighborhoods for selected city
     neighborhoods = NEIGHBORHOODS.get(city, []) if city else []
-    
-    return templates.TemplateResponse("index.html", {
+
+    context = {
         "request": request,
         "providers": providers,
         "cities": CITIES,
@@ -1370,7 +1512,12 @@ async def home(
         "total_online": total_online,
         "total_premium": total_premium,
         "now": datetime.now  # Pass datetime for template calculations
-    })
+    }
+    if ENABLE_REDIS_PAGE_CACHE:
+        html = templates.get_template("index.html").render(context)
+        _redis_set_text(cache_key, html, HOME_PAGE_CACHE_TTL_SECONDS)
+        return HTMLResponse(content=html)
+    return templates.TemplateResponse("index.html", context)
 
 
 @app.get("/api/grid", response_class=HTMLResponse)
@@ -1384,15 +1531,28 @@ async def api_grid(
     Used for seamless filtering without full page reload.
     """
     from datetime import datetime
-    
+
+    normalized_city = (city or "all").strip() or "all"
+    normalized_neighborhood = (neighborhood or "").strip() or "all"
+    cache_key = _cache_key("grid", normalized_city, normalized_neighborhood)
+    if ENABLE_REDIS_PAGE_CACHE:
+        cached_html = _redis_get_text(cache_key)
+        if cached_html:
+            return HTMLResponse(content=cached_html)
+
     providers = db.get_active_providers(city, neighborhood)
-    
-    return templates.TemplateResponse("_grid.html", {
+
+    context = {
         "request": request,
         "providers": providers,
         "selected_city": city,
         "now": datetime.now  # Pass datetime for template calculations
-    })
+    }
+    if ENABLE_REDIS_PAGE_CACHE:
+        html = templates.get_template("_grid.html").render(context)
+        _redis_set_text(cache_key, html, GRID_CACHE_TTL_SECONDS)
+        return HTMLResponse(content=html)
+    return templates.TemplateResponse("_grid.html", context)
 
 
 @app.get("/api/recommendations", response_class=HTMLResponse)
@@ -1404,6 +1564,13 @@ async def api_recommendations(
     """
     HTMX endpoint - returns smart recommended providers HTML with relevance indicators.
     """
+    normalized_city = (city or "nairobi").strip() or "nairobi"
+    cache_key = _cache_key("recommendations", normalized_city, exclude_id)
+    if ENABLE_REDIS_PAGE_CACHE:
+        cached_html = _redis_get_text(cache_key)
+        if cached_html:
+            return HTMLResponse(content=cached_html)
+
     recommendations = db.get_recommendations(city, exclude_id, limit=4)
     
     # Get source provider for comparison
@@ -1435,11 +1602,16 @@ async def api_recommendations(
         rec_dict['relevance_hint'] = hints[0] if hints else None
         enriched_recommendations.append(rec_dict)
     
-    return templates.TemplateResponse("_recommendations.html", {
+    context = {
         "request": request,
         "providers": enriched_recommendations,
         "selected_city": city
-    })
+    }
+    if ENABLE_REDIS_PAGE_CACHE:
+        html = templates.get_template("_recommendations.html").render(context)
+        _redis_set_text(cache_key, html, RECOMMENDATIONS_CACHE_TTL_SECONDS)
+        return HTMLResponse(content=html)
+    return templates.TemplateResponse("_recommendations.html", context)
 
 
 @app.get("/seed")
