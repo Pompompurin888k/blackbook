@@ -1201,17 +1201,29 @@ async def provider_portal_dashboard(request: Request, saved: Optional[int] = 0):
         )
         provider = db.get_portal_provider_by_id(provider_id) or provider
 
+    photo_urls = _to_string_list(provider.get("profile_photos"))
+    services_list = _to_string_list(provider.get("services"))
+    languages_list = _to_string_list(provider.get("languages"))
+    profile_strength = _portal_compute_profile_strength(
+        draft=_portal_onboarding_base_draft(provider),
+        photo_count=len(photo_urls),
+    )
+
     return templates.TemplateResponse(
         "provider_dashboard.html",
         {
             "request": request,
             "provider": provider,
-            "photo_urls": _to_string_list(provider.get("profile_photos")),
-            "services_list": _to_string_list(provider.get("services")),
-            "languages_list": _to_string_list(provider.get("languages")),
+            "photo_urls": photo_urls,
+            "services_list": services_list,
+            "languages_list": languages_list,
             "saved": bool(saved),
             "admin_whatsapp": PORTAL_ADMIN_WHATSAPP,
             "phone_verify_code": phone_code,
+            "profile_strength": profile_strength,
+            "photo_count": len(photo_urls),
+            "services_count": len(services_list),
+            "languages_count": len(languages_list),
         },
     )
 
