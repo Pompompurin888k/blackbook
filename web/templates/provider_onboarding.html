@@ -209,7 +209,7 @@
                     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
                         {% for idx in range(photo_slot_count) %}
                         <input type="file" id="photo-input-{{ idx }}" name="photos" accept="image/*"
-                            capture="environment" class="hidden photo-input">
+                            class="hidden photo-input">
                         <button type="button"
                             class="photo-slot group relative flex aspect-square items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-white/20 bg-black/30 transition hover:border-amber-300 hover:bg-black/50"
                             data-target="photo-input-{{ idx }}">
