@@ -1,240 +1,278 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{{ provider.display_name }} | Blackbook</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;700;800&display=swap"
+        rel="stylesheet">
     <style>
         :root {
             --gold: #d4af37;
-            --ink: #f2efe9;
-            --bg: #080808;
-            --panel: rgba(255, 255, 255, 0.045);
-            --border: rgba(255, 255, 255, 0.13);
+            --bg: #030303;
         }
 
         body {
             font-family: "Manrope", sans-serif;
-            color: var(--ink);
-            background:
-                radial-gradient(760px 400px at 5% -10%, rgba(212, 175, 55, 0.15), transparent 60%),
-                radial-gradient(680px 380px at 100% -8%, rgba(0, 163, 255, 0.13), transparent 58%),
-                var(--bg);
+            background: var(--bg);
+            overscroll-behavior-y: none;
         }
 
         .serif {
             font-family: "Cormorant Garamond", serif;
         }
 
-        .glass {
-            background: var(--panel);
-            backdrop-filter: blur(14px);
-            border: 1px solid var(--border);
-        }
-
-        .gallery-track {
-            scroll-snap-type: x mandatory;
-            scrollbar-width: none;
-        }
-
-        .gallery-track::-webkit-scrollbar {
+        .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
 
-        .gallery-slide {
-            scroll-snap-align: start;
-            flex: 0 0 100%;
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
+        /* Smooth sheet animations */
+        .glass-sheet {
+            background: rgba(10, 10, 10, 0.65);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 -15px 40px rgba(0, 0, 0, 0.9);
         }
 
         .about-collapsed {
-            max-height: 4.8rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
             overflow: hidden;
-            mask-image: linear-gradient(180deg, #000 62%, transparent 100%);
-        }
-
-        .app-action {
-            display: flex;
-            align-items: center;
-            gap: 0.65rem;
-            border-radius: 0.75rem;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            background: rgba(255, 255, 255, 0.08);
-            padding: 0.55rem 0.65rem;
-        }
-
-        .app-icon-shell {
-            width: 2.25rem;
-            height: 2.25rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .app-icon-img {
-            width: 2.25rem;
-            height: 2.25rem;
-            object-fit: contain;
-            display: block;
         }
     </style>
 </head>
-<body class="min-h-screen pb-40">
-    <a href="https://www.linkedin.com" class="fixed top-3 right-3 z-50 glass rounded-full px-3 py-2 text-[11px] uppercase tracking-[0.14em] text-red-300 hover:bg-red-500/20 transition-colors">
-        Quick Exit
+
+<body class="bg-black text-white antialiased selection:bg-[#d4af37]/30">
+
+    <!-- Overlay Actions (Back & Exit) -->
+    <a href="/"
+        class="fixed top-4 left-4 z-50 w-10 h-10 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors shadow-lg active:scale-95">
+        <svg class="w-5 h-5 ml-[-2px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path>
+        </svg>
+    </a>
+    <a href="https://www.linkedin.com"
+        class="fixed top-4 right-4 z-50 h-10 px-4 bg-red-500/15 backdrop-blur-xl border border-red-500/30 rounded-full flex items-center justify-center text-[10px] uppercase font-black tracking-widest text-red-400 hover:bg-red-500/30 active:scale-95 transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+        ✕ Exit
     </a>
 
-    <main class="max-w-3xl mx-auto px-4 pt-5 md:pt-8 space-y-4 md:space-y-5">
-        <div class="flex items-center justify-between">
-            <a href="/" class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold uppercase tracking-[0.14em] bg-white/12 border border-white/25 hover:bg-white/20 transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
-                Back to Home
-            </a>
-            <span class="text-xs uppercase tracking-[0.18em] text-gray-300">Profile View</span>
+    <!-- 1. FULL SCREEN HERO GALLERY -->
+    <div class="relative w-full h-[95dvh] sm:max-w-md sm:mx-auto bg-[#050505]">
+        <div id="galleryTrack" class="flex overflow-x-auto snap-x snap-mandatory h-full w-full no-scrollbar">
+            {% for photo_url in provider.photo_urls %}
+            <div class="relative flex-none w-full h-full snap-center" onclick="openLightbox({{ loop.index0 }})">
+                <img src="{{ photo_url }}" alt="Photo {{ loop.index }}"
+                    class="absolute inset-0 w-full h-full object-cover">
+                <!-- Gradients to make text pop -->
+                <div
+                    class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/95 pointer-events-none">
+                </div>
+            </div>
+            {% endfor %}
         </div>
 
-        <section class="glass rounded-3xl overflow-hidden">
-            <div class="relative">
-                <div id="galleryTrack" class="gallery-track flex overflow-x-auto">
-                    {% for photo_url in provider.photo_urls %}
-                    <button type="button" class="gallery-slide relative block h-[63vw] max-h-[520px] min-h-[300px]" onclick="openLightbox({{ loop.index0 }})">
-                        <img src="{{ photo_url }}" alt="{{ provider.display_name }} photo {{ loop.index }}" class="h-full w-full object-cover" loading="{{ 'eager' if loop.first else 'lazy' }}">
-                    </button>
-                    {% endfor %}
-                </div>
-                <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent"></div>
+        <!-- Pagination Indicators -->
+        <div class="absolute top-6 left-16 right-16 flex justify-center gap-1 z-20 pointer-events-none">
+            <div id="galleryDots"
+                class="flex gap-1.5 bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10"></div>
+        </div>
 
-                <div class="absolute top-4 left-4 flex flex-wrap gap-2">
-                    <span class="text-[10px] px-2.5 py-1 rounded-full bg-[#00A3FF]/85 text-black font-bold uppercase tracking-[0.16em]">Verified</span>
-                    {% if provider.is_online %}
-                    <span class="text-[10px] px-2.5 py-1 rounded-full bg-green-500/85 text-black font-bold uppercase tracking-[0.16em]">Online</span>
-                    {% endif %}
-                    {% if provider.subscription_tier and provider.subscription_tier not in ['none', 'bronze', 'trial'] %}
-                    <span class="text-[10px] px-2.5 py-1 rounded-full bg-[#d4af37]/90 text-black font-bold uppercase tracking-[0.16em]">{{ provider.subscription_tier }}</span>
-                    {% endif %}
-                </div>
-
-                <div class="absolute bottom-4 left-4 right-4">
-                    <h1 class="serif text-4xl leading-[0.9] md:text-5xl">{{ provider.display_name }}</h1>
-                    <div class="mt-2 flex items-center gap-2 text-sm text-gray-200">
-                        <span class="h-2 w-2 rounded-full {% if provider.is_online %}bg-green-400{% else %}bg-gray-500{% endif %}"></span>
-                        <span>{{ provider.primary_location }}</span>
-                    </div>
-                </div>
+        <!-- Floating Name Info overlaid on bottom of hero -->
+        <div class="absolute bottom-[2rem] left-0 right-0 p-5 z-20 pointer-events-none">
+            <h1
+                class="serif text-5xl md:text-6xl tracking-tight text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)] leading-none">
+                <span class="font-bold">{{ provider.display_name.split(' ')[0] }}</span>{% if provider.age %}<span
+                    class="text-3xl font-sans tracking-normal opacity-90 font-medium">, {{ provider.age }}</span>{%
+                endif %}</h1>
+            <div class="flex items-center gap-3 mt-3 text-[14px] font-bold text-gray-100 drop-shadow-md">
+                <span class="flex items-center gap-1.5">
+                    <span
+                        class="h-2.5 w-2.5 rounded-full {% if provider.is_online %}bg-green-400 shadow-[0_0_12px_rgba(74,222,128,0.8)] animate-pulse{% else %}bg-gray-500{% endif %} border border-black/30"></span>
+                    <span>{{ provider.primary_location }}</span>
+                </span>
+                <span class="text-white/30 truncate">•</span>
+                <span
+                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white/10 backdrop-blur-md border border-white/20 text-[9px] uppercase tracking-[0.15em] font-black text-white shadow-sm">
+                    ✓ Verified
+                </span>
             </div>
-            <div id="galleryDots" class="px-4 py-3 flex justify-center gap-1.5"></div>
-        </section>
+            {% if provider.bio %}
+            <p class="mt-3 text-[14px] text-gray-200 drop-shadow-lg line-clamp-2 leading-snug w-[85%] font-medium">{{
+                provider.bio }}</p>
+            {% endif %}
 
-        <section class="glass rounded-2xl p-4">
-            <h2 class="text-[11px] uppercase tracking-[0.2em] text-gray-300 mb-3">Quick Facts</h2>
-            <div class="flex flex-wrap gap-2 text-xs">
-                {% if provider.age %}<span class="px-3 py-1.5 rounded-full bg-white/10 border border-white/15">Age {{ provider.age }}</span>{% endif %}
-                {% if provider.build %}<span class="px-3 py-1.5 rounded-full bg-white/10 border border-white/15">{{ provider.build }}</span>{% endif %}
-                {% if provider.height_cm %}<span class="px-3 py-1.5 rounded-full bg-white/10 border border-white/15">{{ provider.height_cm }} cm</span>{% endif %}
-                {% if provider.weight_kg %}<span class="px-3 py-1.5 rounded-full bg-white/10 border border-white/15">{{ provider.weight_kg }} kg</span>{% endif %}
-                {% for language in provider.languages_list[:3] %}
-                <span class="px-3 py-1.5 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/25 text-[#f2d98b]">{{ language }}</span>
-                {% endfor %}
-                {% for service in provider.services_list[:4] %}
-                <span class="px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-400/25 text-cyan-200">{{ service }}</span>
-                {% endfor %}
-            </div>
-        </section>
-
-        <section class="grid md:grid-cols-2 gap-4">
-            <div class="glass rounded-2xl p-4">
-                <h2 class="text-[11px] uppercase tracking-[0.2em] text-gray-300 mb-3">Availability</h2>
-                <p class="text-sm mb-3">{{ provider.availability_label }}</p>
-                {% if provider.rate_cards %}
-                <div class="grid grid-cols-2 gap-2">
-                    {% for rate in provider.rate_cards %}
-                    <div class="rounded-xl bg-white/5 border border-white/10 p-2.5">
-                        <p class="text-[10px] uppercase tracking-[0.12em] text-gray-400">{{ rate.label }}</p>
-                        <p class="text-sm font-semibold">KES {{ rate.amount }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-xs text-gray-400">Rates are shared after first message.</p>
-                {% endif %}
-            </div>
-
-            <div class="glass rounded-2xl p-4">
-                <h2 class="text-[11px] uppercase tracking-[0.2em] text-gray-300 mb-3">Trust & Safety</h2>
-                <div class="space-y-2.5 text-sm">
-                    <p class="flex justify-between gap-3"><span class="text-gray-400">Verified since</span><span>{{ provider.created_at.strftime('%b %Y') if provider.created_at else 'Recently' }}</span></p>
-                    <p class="flex justify-between gap-3"><span class="text-gray-400">Response time</span><span>{{ provider.response_hint }}</span></p>
-                    <p class="flex justify-between gap-3"><span class="text-gray-400">Last active</span><span>{{ provider.last_active_hint }}</span></p>
-                </div>
-                <div class="pt-4 flex items-center gap-4 text-xs uppercase tracking-[0.14em]">
-                    <a href="/safety" class="text-cyan-300 hover:text-cyan-200">Safety Tips</a>
-                    <a href="/safety?report={{ provider.id }}" class="text-red-300 hover:text-red-200">Report Profile</a>
-                </div>
-            </div>
-        </section>
-
-        <section class="glass rounded-2xl p-4">
-            <h2 class="text-[11px] uppercase tracking-[0.2em] text-gray-300 mb-3">About</h2>
-            <p id="aboutText" class="text-sm text-gray-100 about-collapsed">{{ provider.bio or 'Professional, discreet, and respectful communication preferred.' }}</p>
-            <button id="aboutToggle" type="button" class="mt-3 text-xs uppercase tracking-[0.14em] text-[#f2d98b] hover:text-[#ffe8a6]" onclick="toggleAbout()">Read More</button>
-        </section>
-
-        {% if recommendations %}
-        <section class="glass rounded-2xl p-4">
-            <h2 class="text-[11px] uppercase tracking-[0.2em] text-gray-300 mb-3">Similar Nearby</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {% for rec in recommendations %}
-                <a href="/contact/{{ rec.id }}" class="group rounded-2xl overflow-hidden border border-white/10 bg-black/30 hover:border-[#d4af37]/45 transition-colors">
-                    <div class="relative aspect-[3/4]">
-                        <img src="{{ rec.photo_url }}" alt="{{ rec.display_name }}" class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
-                        {% if rec.is_online %}
-                        <span class="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400"></span>
-                        {% endif %}
-                        <div class="absolute bottom-2 left-2 right-2">
-                            <p class="serif text-lg leading-none">{{ rec.display_name }}</p>
-                            <p class="text-[10px] text-gray-300 uppercase tracking-[0.12em]">{{ rec.location }}</p>
-                        </div>
-                    </div>
-                </a>
-                {% endfor %}
-            </div>
-        </section>
-        {% endif %}
-    </main>
-
-    <div class="fixed bottom-0 inset-x-0 z-40 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-        <div class="max-w-3xl mx-auto glass rounded-2xl p-2.5 border border-white/15">
-            <div class="grid grid-cols-1 gap-2 mb-2">
-                <a href="{{ provider.call_url }}" class="app-action hover:bg-white/15 transition-colors">
-                    <span class="app-icon-shell"><img src="/static/icons/call.png" alt="" class="app-icon-img"></span>
-                    <span class="text-left leading-tight">
-                        <span class="block text-[10px] uppercase tracking-[0.14em] text-gray-300">Call</span>
-                        <span class="block text-xs font-semibold text-white">{{ "Tap to call" if provider.has_phone else "Open direct" }}</span>
-                    </span>
-                </a>
-            </div>
-
-            <div class="grid grid-cols-1 gap-2">
-                <a href="{{ provider.connect_stealth_url }}" class="rounded-xl bg-white/10 border border-white/20 text-white text-sm font-bold py-3 text-center uppercase tracking-[0.14em]">Professional Inquiry</a>
-            </div>
-            <div class="mt-2 flex gap-2">
-                <button type="button" id="saveBtn" class="flex-1 rounded-xl bg-white/7 border border-white/15 py-2.5 text-xs uppercase tracking-[0.14em]" onclick="toggleSave()">Save</button>
-                <button type="button" class="flex-1 rounded-xl bg-white/7 border border-white/15 py-2.5 text-xs uppercase tracking-[0.14em]" onclick="shareProfile()">Share</button>
+            <div class="mt-5 flex justify-center animate-bounce opacity-60">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                        d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                </svg>
             </div>
         </div>
     </div>
 
+    <!-- 2. SCROLL-UP SHEET (The details) -->
+    <div class="relative z-30 glass-sheet -mt-10 rounded-t-[2rem] sm:max-w-md sm:mx-auto pb-48 pt-3">
+        <!-- Drag Handle Indicator -->
+        <div class="flex justify-center pb-6">
+            <div class="w-12 h-1.5 rounded-full bg-white/20"></div>
+        </div>
+
+        <div class="px-5 space-y-7">
+            <!-- Stats Bar -->
+            <div class="flex justify-around items-center bg-white/5 rounded-[1.25rem] py-4 px-2 border border-white/5">
+                <div class="text-center w-1/3">
+                    <span class="block text-2xl font-black text-white">{{ provider.height_cm or '--' }}</span>
+                    <span
+                        class="block text-[9px] uppercase tracking-[0.2em] text-[#D4AF37] mt-1 font-bold">Height</span>
+                </div>
+                <div class="w-px h-10 bg-white/10"></div>
+                <div class="text-center w-1/3">
+                    <span class="block text-2xl font-black text-white">{{ provider.weight_kg or '--' }}</span>
+                    <span
+                        class="block text-[9px] uppercase tracking-[0.2em] text-[#D4AF37] mt-1 font-bold">Weight</span>
+                </div>
+                <div class="w-px h-10 bg-white/10"></div>
+                <div class="text-center w-1/3">
+                    <span class="block text-xl font-bold text-white leading-tight px-1">{{ provider.build or '--'
+                        }}</span>
+                    <span class="block text-[9px] uppercase tracking-[0.2em] text-[#D4AF37] mt-1 font-bold">Build</span>
+                </div>
+            </div>
+
+            <!-- Tags -->
+            <div>
+                <h3 class="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-3 pl-1">Capabilities</h3>
+                <div class="flex flex-wrap gap-2">
+                    {% for tag in provider.services_list[:6] %}
+                    <span
+                        class="px-3.5 py-2 rounded-[0.85rem] bg-white/10 border border-white/10 text-white text-[12.5px] font-semibold tracking-wide shadow-sm">{{
+                        tag }}</span>
+                    {% endfor %}
+                    {% for tag in provider.languages_list[:2] %}
+                    <span
+                        class="px-3.5 py-2 rounded-[0.85rem] bg-[#d4af37]/15 border border-[#d4af37]/30 text-[#f2d98b] text-[12.5px] font-bold tracking-wide shadow-sm">{{
+                        tag }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- About Full -->
+            <div>
+                <h3 class="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-3 pl-1">The Dossier</h3>
+                <p id="aboutText" class="text-[14.5px] text-gray-300 leading-relaxed font-medium about-collapsed"
+                    onclick="this.classList.toggle('about-collapsed')">
+                    {{ provider.bio or 'Professional and discreet.' }}
+                </p>
+                <div class="mt-5 rounded-2xl p-4 border border-green-500/20 bg-green-500/5">
+                    <p class="text-[13px] text-green-400 font-bold flex items-center gap-2 uppercase tracking-wide">
+                        <span class="h-2 w-2 rounded-full bg-green-400 animate-pulse"></span>
+                        {{ provider.availability_label }}
+                    </p>
+                </div>
+                {% if provider.rate_cards %}
+                <div class="mt-4 grid grid-cols-2 gap-2">
+                    {% for rate in provider.rate_cards %}
+                    <div class="rounded-[1rem] bg-white/5 border border-white/5 p-3 flex justify-between items-center">
+                        <span class="text-[10px] uppercase tracking-widest text-gray-400 font-bold">{{ rate.label
+                            }}</span>
+                        <span class="text-sm font-black text-white">₭ {{ rate.amount }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            {% if recommendations %}
+            <!-- The Hook: Keep Browsing -->
+            <div class="pt-8 pb-4">
+                <a href="/contact/{{ recommendations[0].id }}"
+                    class="group relative block w-full rounded-[1.5rem] overflow-hidden aspect-[1.8/1] bg-black border border-white/10 shadow-[0_8px_30px_rgba(212,175,55,0.15)] active:scale-[0.98] transition-all">
+                    <img src="{{ recommendations[0].photo_url }}"
+                        class="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-1000">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-r from-[#D4AF37]/90 via-[#D4AF37]/40 to-transparent mix-blend-multiply">
+                    </div>
+                    <div class="absolute inset-0 flex flex-col justify-center px-6">
+                        <span
+                            class="text-[9px] uppercase tracking-[0.3em] text-[#111] font-black bg-[#D4AF37] self-start px-2 py-0.5 rounded-[0.25rem] drop-shadow-sm mb-2 animate-pulse">Engage
+                            Next</span>
+                        <span class="serif text-4xl text-white font-bold leading-none drop-shadow-md">{{
+                            recommendations[0].display_name.split(' ')[0] }} &rsaquo;</span>
+                        <span
+                            class="text-[11px] font-black text-white/90 mt-1 uppercase tracking-widest drop-shadow-md">{{
+                            recommendations[0].primary_location }}</span>
+                    </div>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 3. FLOATING ACTION DOCK (Addictive / Native feel) -->
+    <div class="fixed bottom-0 inset-x-0 z-50 pb-[env(safe-area-inset-bottom)] pointer-events-none">
+        <!-- Fade gradient at bottom -->
+        <div class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none"></div>
+
+        <div class="relative max-w-md mx-auto px-4 pb-5 pointer-events-auto">
+            <div class="flex gap-2">
+                <!-- Primary Call to Action -->
+                <a href="{{ provider.call_url }}"
+                    class="flex-1 flex flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-[#00A3FF] to-[#0055ff] border border-[#00A3FF]/40 shadow-[0_8px_25px_rgba(0,163,255,0.35)] text-white hover:brightness-110 active:scale-95 transition-all py-3.5 group">
+                    <svg class="w-6 h-6 mb-0.5 drop-shadow-md z-10" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                            d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                    </svg>
+                    <span class="text-[10px] uppercase tracking-[0.2em] font-black drop-shadow-sm z-10">{{ "Launch
+                        Comms" if provider.has_phone else "Secure Message" }}</span>
+                </a>
+
+                <!-- Secondary / Discreet Action -->
+                <a href="{{ provider.connect_stealth_url }}"
+                    class="flex-[0.85] flex flex-col items-center justify-center rounded-2xl bg-[#111]/80 backdrop-blur-xl border border-white/20 shadow-xl text-white hover:bg-[#1a1a1a] hover:border-[#D4AF37]/50 active:scale-95 transition-all py-3.5 group">
+                    <svg class="w-6 h-6 mb-0.5 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span class="text-[9px] uppercase tracking-[0.2em] text-[#D4AF37] font-bold">Discreet</span>
+                </a>
+
+                <!-- Save/Favorite -->
+                <button type="button" onclick="toggleSave()"
+                    class="w-[4.5rem] flex-shrink-0 flex flex-col items-center justify-center rounded-2xl bg-white/10 backdrop-blur-xl border border-white/10 shadow-lg text-white hover:bg-white/20 active:scale-95 transition-all py-3.5">
+                    <svg class="w-6 h-6 mb-0.5 text-white/50" id="saveIcon" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    <span class="text-[8px] uppercase tracking-widest font-bold text-gray-400" id="saveText">Save</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox (Zoom) -->
     <div id="lightbox" class="hidden fixed inset-0 z-50 bg-black/95 items-center justify-center p-4">
-        <button type="button" class="absolute top-4 right-4 text-white/90 text-xs uppercase tracking-[0.16em]" onclick="closeLightbox()">Close</button>
-        <button type="button" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/80 text-3xl" onclick="stepLightbox(-1)">&lsaquo;</button>
-        <img id="lightboxImg" src="" alt="Profile photo zoom" class="max-h-[86vh] max-w-[92vw] object-contain rounded-xl">
-        <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/80 text-3xl" onclick="stepLightbox(1)">&rsaquo;</button>
+        <button type="button" class="absolute top-8 right-6 text-white text-xs uppercase tracking-[0.16em] font-black"
+            onclick="closeLightbox()">✕ Close</button>
+        <button type="button" class="absolute left-2 top-1/2 -translate-y-1/2 text-white/80 text-4xl p-6"
+            onclick="stepLightbox(-1)">&lsaquo;</button>
+        <img id="lightboxImg" src="" alt="Zoomed photo"
+            class="max-h-[86vh] max-w-[92vw] object-contain rounded-xl shadow-[0_0_40px_rgba(255,255,255,0.05)]">
+        <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-white/80 text-4xl p-6"
+            onclick="stepLightbox(1)">&rsaquo;</button>
     </div>
 
     <script>
@@ -243,30 +281,32 @@
         const galleryImages = {{ provider.photo_urls | tojson | safe }};
         let lightboxIndex = 0;
 
+        // Custom Tinder/TikTok smooth pagination indicator
         function renderDots() {
             galleryDots.innerHTML = "";
             galleryImages.forEach((_, idx) => {
-                const dot = document.createElement("button");
-                dot.type = "button";
-                dot.className = "h-1.5 rounded-full transition-all " + (idx === 0 ? "w-6 bg-[#d4af37]" : "w-2.5 bg-white/35");
-                dot.onclick = () => {
-                    galleryTrack.scrollTo({ left: idx * galleryTrack.clientWidth, behavior: "smooth" });
-                };
+                const dot = document.createElement("div");
+                dot.className = "h-1.5 rounded-full transition-all duration-300 " + (idx === 0 ? "w-6 bg-white" : "w-1.5 bg-white/40");
                 galleryDots.appendChild(dot);
             });
         }
 
         function updateActiveDot() {
-            const index = Math.round(galleryTrack.scrollLeft / Math.max(galleryTrack.clientWidth, 1));
+            if (!galleryTrack.clientWidth) return;
+            const index = Math.round(galleryTrack.scrollLeft / galleryTrack.clientWidth);
             [...galleryDots.children].forEach((dot, idx) => {
-                dot.className = "h-1.5 rounded-full transition-all " + (idx === index ? "w-6 bg-[#d4af37]" : "w-2.5 bg-white/35");
+                dot.className = "h-1.5 rounded-full transition-all duration-300 " + (idx === index ? "w-6 bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" : "w-1.5 bg-white/40");
             });
         }
 
-        galleryTrack.addEventListener("scroll", updateActiveDot, { passive: true });
-        window.addEventListener("resize", updateActiveDot);
-        renderDots();
-        updateActiveDot();
+        if (galleryImages.length > 1) {
+            galleryTrack.addEventListener("scroll", updateActiveDot, { passive: true });
+            window.addEventListener("resize", updateActiveDot);
+            renderDots();
+            updateActiveDot();
+        } else {
+            document.getElementById("galleryDots").parentElement.style.display = 'none';
+        }
 
         function openLightbox(index) {
             lightboxIndex = index;
@@ -286,71 +326,55 @@
             document.getElementById("lightboxImg").src = galleryImages[lightboxIndex];
         }
 
-        function toggleAbout() {
-            const aboutText = document.getElementById("aboutText");
-            const toggle = document.getElementById("aboutToggle");
-            const collapsed = aboutText.classList.toggle("about-collapsed");
-            toggle.textContent = collapsed ? "Read More" : "Show Less";
-        }
-
-        (function initAboutClamp() {
-            const aboutText = document.getElementById("aboutText");
-            const toggle = document.getElementById("aboutToggle");
-            if (aboutText.scrollHeight <= aboutText.clientHeight + 4) {
-                aboutText.classList.remove("about-collapsed");
-                toggle.classList.add("hidden");
-            }
-        })();
-
-        const saveBtn = document.getElementById("saveBtn");
+        // Save Profile Logic
+        const saveIcon = document.getElementById("saveIcon");
+        const saveText = document.getElementById("saveText");
         const storageKey = "bb-saved-profiles";
-        const currentProfile = { id: {{ provider.id }}, name: {{ provider.display_name | tojson | safe }}, location: {{ provider.primary_location | tojson | safe }} };
+        const currentProfile = { id: {{ provider.id }}, name: { { provider.display_name | tojson | safe } }, location: { { provider.primary_location | tojson | safe } } };
 
         function readSaved() {
-            try {
-                return JSON.parse(localStorage.getItem(storageKey) || "[]");
-            } catch (_) {
-                return [];
-            }
+            try { return JSON.parse(localStorage.getItem(storageKey) || "[]"); }
+            catch (_) { return []; }
         }
 
         function updateSaveState() {
             const saved = readSaved();
             const exists = saved.some((item) => item.id === currentProfile.id);
-            saveBtn.textContent = exists ? "Saved" : "Save";
-            saveBtn.classList.toggle("text-[#f2d98b]", exists);
+            if (exists) {
+                saveIcon.setAttribute("fill", "#D4AF37");
+                saveIcon.setAttribute("stroke", "#D4AF37");
+                saveIcon.classList.remove("text-white/50");
+                saveText.textContent = "Saved";
+                saveText.classList.remove("text-gray-400");
+                saveText.classList.add("text-[#D4AF37]");
+            } else {
+                saveIcon.setAttribute("fill", "none");
+                saveIcon.setAttribute("stroke", "currentColor");
+                saveIcon.classList.add("text-white/50");
+                saveText.textContent = "Save";
+                saveText.classList.remove("text-[#D4AF37]");
+                saveText.classList.add("text-gray-400");
+            }
         }
 
         function toggleSave() {
             const saved = readSaved();
             const index = saved.findIndex((item) => item.id === currentProfile.id);
-            if (index >= 0) {
-                saved.splice(index, 1);
-            } else {
-                saved.push(currentProfile);
-            }
-            localStorage.setItem(storageKey, JSON.stringify(saved));
-            updateSaveState();
-        }
+            if (index >= 0) saved.splice(index, 1);
+            else saved.push(currentProfile);
 
-        async function shareProfile() {
-            const shareData = {
-                title: currentProfile.name + " | Blackbook",
-                text: "View this profile in " + currentProfile.location,
-                url: window.location.href
-            };
-            if (navigator.share) {
-                try {
-                    await navigator.share(shareData);
-                    return;
-                } catch (_) {}
-            }
-            if (navigator.clipboard?.writeText) {
-                await navigator.clipboard.writeText(window.location.href);
-            }
+            localStorage.setItem(storageKey, JSON.stringify(saved));
+
+            // Pop animation
+            const btn = saveIcon.parentElement;
+            btn.style.transform = "scale(0.85)";
+            setTimeout(() => btn.style.transform = "", 150);
+
+            updateSaveState();
         }
 
         updateSaveState();
     </script>
 </body>
+
 </html>

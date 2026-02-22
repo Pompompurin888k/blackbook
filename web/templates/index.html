@@ -27,7 +27,8 @@
         }
     </script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
     <style>
         :root {
@@ -90,9 +91,34 @@
 
         .hero-gradient {
             background:
-                radial-gradient(circle at 20% 10%, rgba(212, 175, 55, 0.16) 0%, transparent 42%),
-                radial-gradient(circle at 80% 0%, rgba(0, 163, 255, 0.13) 0%, transparent 38%),
+                radial-gradient(circle at 20% 10%, rgba(212, 175, 55, 0.25) 0%, transparent 45%),
+                radial-gradient(circle at 80% 0%, rgba(0, 163, 255, 0.18) 0%, transparent 40%),
                 linear-gradient(180deg, #121212 0%, #050505 70%);
+            background-size: 200% 200%;
+            animation: subtle-breathe 15s ease-in-out infinite;
+        }
+
+        @keyframes subtle-breathe {
+
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        .gold-gradient-text {
+            background: linear-gradient(135deg, #FFDF73 0%, #D4AF37 50%, #B8960C 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .glow-text {
+            text-shadow: 0 0 40px rgba(212, 175, 55, 0.3), 0 0 80px rgba(212, 175, 55, 0.1);
         }
 
         .nav-shell {
@@ -829,6 +855,8 @@
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 20px 20px 0 0;
             padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+            max-height: 80dvh;
+            overflow-y: auto;
             transition: bottom 0.25s ease;
         }
 
@@ -996,22 +1024,36 @@
     <section id="landing-page"
         class="page min-h-screen flex flex-col justify-center items-center text-center p-6 hero-gradient fixed inset-0 z-50">
         <div class="mb-8 transition-all duration-1000 ease-out max-w-3xl" id="landing-content">
-            <h2 class="serif text-xs tracking-[0.55em] gold-text mb-4 uppercase">Nairobi • Eldoret • Mombasa</h2>
-            <h1 class="serif text-4xl sm:text-6xl md:text-8xl mb-6 tracking-[0.14em] whitespace-normal sm:whitespace-nowrap">BLACKBOOK
+            <h2 class="serif text-xs tracking-[0.55em] gold-text mb-6 uppercase opacity-90">Nairobi • Eldoret • Mombasa
+            </h2>
+            <h1
+                class="serif text-4xl sm:text-6xl md:text-8xl lg:text-[7rem] mb-6 tracking-[0.14em] whitespace-normal sm:whitespace-nowrap gold-gradient-text glow-text leading-tight">
+                BLACKBOOK
             </h1>
-            <p class="text-gray-300 max-w-xl mx-auto font-light leading-relaxed mb-10 text-sm md:text-base">
+            <p class="text-gray-300 max-w-xl mx-auto font-light leading-relaxed mb-12 text-sm md:text-base opacity-80">
                 An elite concierge network for the modern gentleman.
-                <span class="block mt-1">Verified identities. Unmatched discretion.</span>
+                <span class="block mt-1 font-medium text-white/90 tracking-widest text-[11px] uppercase mt-4">Verified
+                    identities. Unmatched discretion.</span>
             </p>
-            <button onclick="navigateTo('directory')"
-                class="btn-ripple gold-bg text-black px-12 py-4 rounded-full font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(212,175,55,0.3)]">
+            <button onclick="sessionStorage.setItem('enteredCollection', '1'); navigateTo('directory')"
+                class="btn-ripple bg-gradient-to-r from-[#D4AF37] to-[#B8960C] text-black px-12 py-4 rounded-full font-bold uppercase tracking-[0.2em] hover:scale-[1.03] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:shadow-[0_0_40px_rgba(212,175,55,0.6)] text-[11px] md:text-xs">
                 Enter The Collection
             </button>
         </div>
     </section>
 
     <!-- 2. DIRECTORY PAGE -->
-    <section id="directory-page" class="page hidden-page min-h-screen bg-black page-shell">
+    <section id="directory-page"
+        class="page hidden-page min-h-screen bg-black page-shell relative overflow-hidden pb-20 md:pb-0">
+
+        <!-- Pull to Refresh Indicator -->
+        <div id="ptr-indicator"
+            class="absolute top-0 left-0 w-full flex items-center justify-center -translate-y-full z-30 pointer-events-none"
+            style="height: 64px;">
+            <div
+                class="w-8 h-8 rounded-full border-2 border-transparent border-t-[#D4AF37] border-l-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.4)]">
+            </div>
+        </div>
         <!-- Navigation -->
         <nav class="sticky top-0 z-40 glass nav-shell p-3 md:p-5 flex justify-between items-center px-4 md:px-12">
             <h1 class="serif text-base md:text-xl gold-text tracking-widest cursor-pointer" onclick="location.reload()">
@@ -1063,247 +1105,370 @@
             </div>
         </nav>
 
-        <!-- HERO SECTION WITH QUICK ACTIONS -->
-        <div class="py-12 md:py-16 px-4 text-center border-b border-white/5 section-shell">
-            <h1 class="serif text-3xl sm:text-4xl md:text-6xl text-white mb-3 md:mb-4 tracking-tight">
-                Nairobi Concierge Directory
-            </h1>
-            <div
-                class="flex items-center justify-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-400 uppercase tracking-[0.3em] mb-6 md:mb-8">
-                <span class="flex items-center gap-1.5">
-                    <svg class="w-3 h-3 md:w-4 md:h-4 text-[#D4AF37]" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                            clip-rule="evenodd" />
-                    </svg>
-                    Verified
-                </span>
-                <span class="text-white/30">•</span>
-                <span>Discreet</span>
-                <span class="text-white/30">•</span>
-                <span>Available 24/7</span>
-            </div>
-            <div class="max-w-3xl mx-auto mb-8 md:mb-10">
-                <p class="text-[10px] uppercase tracking-[0.28em] text-gray-500 mb-3">Quick Actions</p>
-                <div class="flex items-center gap-2 overflow-x-auto no-scrollbar px-1 md:justify-center">
-                    <button type="button" data-qf="newArrivals" onclick="toggleQuickFilter('newArrivals')"
-                        class="quick-filter-btn whitespace-nowrap glass border border-white/10 text-gray-300 px-4 py-2 rounded-full text-[11px] uppercase tracking-widest transition-all">
-                        New Arrivals
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- VIP RADAR: STORIES-FIRST HERO SECTION                       -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div class="border-b border-white/5 section-shell">
+
+            <!-- ── STORIES TRAY (Top Priority) ── -->
+            {% set ns = namespace(count=0) %}
+            {% for provider in providers %}
+            {% set is_new_arrival = false %}
+            {% if provider.created_at %}
+            {% set is_new_arrival = ((now() - provider.created_at).days <= 14) %} {% endif %} {% if provider.is_online
+                or is_new_arrival %} {% set ns.count=ns.count + 1 %} {% endif %} {% endfor %} {% if ns.count> 0 %}
+                <div class="w-full pt-5 pb-4 overflow-hidden">
+                    <div class="flex items-start gap-4 overflow-x-auto no-scrollbar scroll-smooth px-5 pb-1">
+
+                        {% for provider in providers %}
+                        {% set is_new_arrival = false %}
+                        {% if provider.created_at %}
+                        {% set is_new_arrival = ((now() - provider.created_at).days <= 14) %} {% endif %} {% if
+                            provider.is_online or is_new_arrival %} {% set
+                            img_url='https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=400'
+                            %} {% if provider.profile_photos and provider.profile_photos|length> 0 %}
+                            {% set first_photo = provider.profile_photos[0] %}
+                            {% if first_photo is string and first_photo.startswith('http') %}
+                            {% set img_url = first_photo %}
+                            {% else %}
+                            {% set img_url = '/photo/' ~ first_photo %}
+                            {% endif %}
+                            {% endif %}
+
+                            <button type="button" onclick="window.location.href='/contact/{{ provider.id }}'"
+                                class="flex-shrink-0 flex flex-col items-center gap-2 w-[5.5rem] group cursor-pointer focus:outline-none active:scale-95 transition-transform">
+
+                                <!-- Massive Avatar Ring -->
+                                <div
+                                    class="relative w-[5.5rem] h-[5.5rem] rounded-full overflow-hidden p-[3px] shadow-[0_6px_20px_rgba(0,0,0,0.6)]">
+                                    {% if provider.is_online %}
+                                    <div
+                                        class="absolute -inset-[50%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_0deg,#22c55e_0deg,transparent_80deg,transparent_280deg,#22c55e_360deg)] opacity-90 pointer-events-none z-0">
+                                    </div>
+                                    <div class="absolute inset-0 bg-green-500/15 z-0 rounded-full animate-pulse"></div>
+                                    {% else %}
+                                    <div
+                                        class="absolute -inset-[50%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#D4AF37_0deg,transparent_80deg,transparent_280deg,#D4AF37_360deg)] opacity-85 pointer-events-none z-0">
+                                    </div>
+                                    <div class="absolute inset-0 bg-[#D4AF37]/10 z-0 rounded-full"></div>
+                                    {% endif %}
+
+                                    <div
+                                        class="relative w-full h-full rounded-full overflow-hidden border-[3px] border-black bg-zinc-900 z-10 group-hover:scale-[0.92] transition-transform duration-300">
+                                        <img src="{{ img_url }}" class="w-full h-full object-cover"
+                                            alt="{{ provider.display_name }}" loading="lazy">
+                                    </div>
+
+                                    <!-- Online dot indicator -->
+                                    {% if provider.is_online %}
+                                    <div
+                                        class="absolute bottom-0.5 right-0.5 w-4 h-4 bg-green-500 rounded-full border-[2.5px] border-black z-20 shadow-[0_0_8px_rgba(34,197,94,0.6)]">
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Name Label -->
+                                <span
+                                    class="text-[11px] text-gray-300 font-medium truncate w-full text-center group-hover:text-white transition-colors leading-tight">
+                                    {{ provider.display_name.split(' ')[0] }}
+                                </span>
+                            </button>
+                            {% endif %}
+                            {% endfor %}
+
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- ── Compact Title Row ── -->
+                <div class="px-5 md:px-12 pt-4 pb-6 md:pb-8">
+                    <div class="flex items-center justify-between flex-wrap gap-3 mb-5">
+                        <div>
+                            <h1 class="serif text-2xl sm:text-3xl md:text-4xl text-white tracking-tight leading-tight">
+                                Nairobi Directory
+                            </h1>
+                            <div class="flex items-center gap-2 mt-1.5">
+                                <span
+                                    class="inline-flex items-center gap-1 bg-[#D4AF37]/10 border border-[#D4AF37]/20 text-[#D4AF37] px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-[0.15em] font-bold">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    Verified
+                                </span>
+                                <span
+                                    class="inline-flex items-center bg-white/5 border border-white/10 text-gray-400 px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-[0.15em] font-medium">
+                                    Discreet
+                                </span>
+                                <span
+                                    class="inline-flex items-center bg-white/5 border border-white/10 text-gray-400 px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-[0.15em] font-medium">
+                                    24/7
+                                </span>
+                            </div>
+                        </div>
+                        <div class="text-right hidden md:block">
+                            <p class="text-[9px] text-gray-500 uppercase tracking-widest">Active Now</p>
+                            <p class="text-lg font-bold text-green-500 flex items-center gap-1.5 justify-end">
+                                <span class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
+                                {{ total_online }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Quick Filters -->
+                    <div class="max-w-3xl mb-0">
+                        <p class="text-[10px] uppercase tracking-[0.28em] text-gray-500 mb-4">Quick Filters</p>
+                        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar px-1 md:justify-center pb-2">
+                            <!-- Online Now Toggle -->
+                            <button type="button" id="onlineNowBtn" onclick="toggleOnlineNow()"
+                                class="whitespace-nowrap bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 px-4 py-2.5 rounded-full text-[11px] uppercase tracking-[0.12em] transition-all font-bold flex items-center gap-1.5 shadow-[0_0_12px_rgba(34,197,94,0.1)]">
+                                <span class="h-2 w-2 bg-green-400 rounded-full animate-pulse"></span>
+                                Online Now
+                            </button>
+                            <button type="button" data-qf="newArrivals" onclick="toggleQuickFilter('newArrivals')"
+                                class="quick-filter-btn whitespace-nowrap bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 px-4 py-2.5 rounded-full text-[11px] uppercase tracking-[0.12em] transition-all hover:border-white/30 backdrop-blur-md">
+                                New Arrivals
+                            </button>
+                            <button type="button" data-qf="premiumVerified"
+                                onclick="toggleQuickFilter('premiumVerified')"
+                                class="quick-filter-btn whitespace-nowrap bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 px-4 py-2.5 rounded-full text-[11px] uppercase tracking-[0.12em] transition-all hover:border-white/30 backdrop-blur-md">
+                                Premium
+                            </button>
+                            <button type="button" data-qf="withPhotos" onclick="toggleQuickFilter('withPhotos')"
+                                class="quick-filter-btn whitespace-nowrap bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 px-4 py-2.5 rounded-full text-[11px] uppercase tracking-[0.12em] transition-all hover:border-white/30 backdrop-blur-md">
+                                With Photos
+                            </button>
+                            <a href="/safety"
+                                class="whitespace-nowrap bg-white/5 hover:bg-[#D4AF37]/10 border border-white/10 hover:border-[#D4AF37]/40 text-gray-300 px-4 py-2.5 rounded-full text-[11px] uppercase tracking-[0.12em] transition-all hover:text-[#D4AF37] backdrop-blur-md">
+                                Safety
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Neighborhood Filter Tag Cloud -->
+                    {% set ns_hoods = namespace(hoods=[]) %}
+                    {% for provider in providers %}
+                    {% if provider.neighborhood and provider.neighborhood not in ns_hoods.hoods %}
+                    {% set ns_hoods.hoods = ns_hoods.hoods + [provider.neighborhood] %}
+                    {% endif %}
+                    {% endfor %}
+                    {% if ns_hoods.hoods|length > 1 %}
+                    <div class="max-w-3xl mt-3 mb-0">
+                        <p class="text-[10px] uppercase tracking-[0.28em] text-gray-500 mb-3">📍 Neighborhoods</p>
+                        <div class="flex flex-wrap gap-1.5 md:justify-center" id="neighborhood-tags">
+                            <button type="button" onclick="setNeighborhood('')"
+                                class="hood-tag whitespace-nowrap bg-[#D4AF37]/15 border border-[#D4AF37]/30 text-[#D4AF37] px-3 py-1.5 rounded-full text-[10px] uppercase tracking-[0.1em] transition-all font-bold active:scale-95 hood-active">
+                                All Areas
+                            </button>
+                            {% for hood in ns_hoods.hoods|sort %}
+                            <button type="button" onclick="setNeighborhood('{{ hood }}')"
+                                class="hood-tag whitespace-nowrap bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-[0.1em] transition-all hover:border-white/30 hover:text-white active:scale-95 font-medium">
+                                {{ hood }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+
+                <!-- Location Control (City + Neighborhood Sheet) -->
+                <div class="px-4 md:px-6 py-3 md:py-4 bg-black/50 border-y border-white/5">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <div class="flex-1 glass border border-white/10 rounded-xl px-4 py-2.5">
+                            <p class="text-[9px] uppercase tracking-[0.24em] text-gray-500 mb-1">Location</p>
+                            <p id="current-location-pill" class="text-sm md:text-base text-white font-semibold">
+                                {{ selected_city or 'Nairobi' }} · {{ selected_neighborhood or 'All Areas' }}
+                            </p>
+                        </div>
+                        <button type="button" onclick="openLocationSheet()"
+                            class="btn-ripple px-4 md:px-5 py-2.5 rounded-xl gold-bg text-black text-[11px] uppercase tracking-widest font-bold">
+                            Change
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Grid Wrapper for HTMX & Skeletons -->
+                <div id="provider-grid-wrapper"
+                    class="relative min-h-[500px] p-3 md:px-12 pb-24 max-w-[1440px] mx-auto">
+
+                    <!-- Loading Spinner Overlay (For search/filter) -->
+                    <div id="search-loading"
+                        class="hidden absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                        <div class="text-center">
+                            <div class="spinner mx-auto mb-4"></div>
+                            <p class="text-gray-400 text-sm">Searching...</p>
+                        </div>
+                    </div>
+
+                    <!-- Skeleton Loader (Shown during HTMX requests) -->
+                    <div
+                        class="skeleton-loader hidden grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 absolute inset-0 z-20 bg-black p-3 md:px-12">
+                        {% include '_skeleton.html' %}
+                    </div>
+
+                    <!-- Real Provider Grid (Hidden during HTMX requests) -->
+                    <div id="provider-grid"
+                        class="provider-grid-content grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+                        <!-- Using the same provider card logic as initial render -->
+                        {% include '_grid.html' %}
+                    </div>
+                </div>
+
+                <!-- FOR PROVIDERS CTA BANNER -->
+                <div class="border-t border-white/5 py-16 md:py-20 px-4 text-center section-shell">
+                    <div class="max-w-xl mx-auto">
+                        <p class="text-[10px] gold-text font-bold uppercase tracking-[0.3em] mb-3">For Providers</p>
+                        <h2 class="serif text-2xl md:text-3xl text-white mb-4">Join Nairobi's Most Exclusive Directory
+                        </h2>
+                        <p class="text-gray-400 text-sm md:text-base mb-8 leading-relaxed">
+                            Get verified, attract premium clients, and manage your presence using Telegram or the new
+                            web
+                            portal.
+                            Tiered plans starting from 300 KES.
+                        </p>
+                        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                            <a href="https://t.me/BlackbookBot" target="_blank"
+                                class="btn-ripple gold-bg text-black px-8 py-3 rounded-full font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all text-sm">
+                                Start on Telegram
+                            </a>
+                            <a href="/provider"
+                                class="btn-ripple glass text-cyan-200 px-8 py-3 rounded-full font-semibold uppercase tracking-widest hover:scale-105 transition-all text-sm border border-cyan-300/30">
+                                Start on Web Portal
+                            </a>
+                            <a href="/safety"
+                                class="btn-ripple glass text-gray-300 px-8 py-3 rounded-full font-semibold uppercase tracking-widest hover:scale-105 transition-all text-sm border border-white/10">
+                                Safety First
+                            </a>
+                        </div>
+                        <div
+                            class="flex items-center justify-center gap-4 md:gap-6 mt-8 text-[10px] text-gray-500 uppercase tracking-widest">
+                            <span>🥉 Bronze</span>
+                            <span>🥈 Silver</span>
+                            <span>🥇 Gold</span>
+                            <span>💎 Platinum</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mobile Sticky Action Bar -->
+                <div id="mobile-action-bar" class="md:hidden">
+                    <div
+                        class="glass rounded-2xl border border-white/10 px-3 py-2 flex items-center justify-between gap-2">
+                        <button type="button" onclick="openFilterSheet()"
+                            class="flex-1 px-3 py-2 rounded-xl bg-white/5 text-gray-200 text-[11px] uppercase tracking-widest font-semibold">
+                            Filters <span id="mobile-filter-count" class="text-[#D4AF37]">0</span>
+                        </button>
+                        <button type="button" onclick="openFavoritesSheet()"
+                            class="flex-1 px-3 py-2 rounded-xl bg-white/5 text-gray-200 text-[11px] uppercase tracking-widest font-semibold">
+                            Favorites
+                        </button>
+                        <a href="/safety"
+                            class="flex-1 px-3 py-2 rounded-xl bg-white/5 text-gray-200 text-[11px] uppercase tracking-widest font-semibold text-center">
+                            Safety
+                        </a>
+                        <button type="button" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })"
+                            class="px-3 py-2 rounded-xl bg-[#D4AF37] text-black text-[11px] uppercase tracking-widest font-bold">
+                            Top
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Sheet -->
+                <div id="filter-sheet-backdrop" class="sheet-backdrop" onclick="closeFilterSheet()"></div>
+                <div id="filter-sheet" class="mobile-sheet">
+                    <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm uppercase tracking-[0.22em] text-gray-300">Smart Filters</h3>
+                        <button type="button" onclick="clearAllFilters()"
+                            class="text-[11px] uppercase tracking-widest text-[#D4AF37]">Clear All</button>
+                    </div>
+
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Quick Filters</p>
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <button id="sheet-filter-new" type="button" data-qf="newArrivals"
+                            onclick="toggleQuickFilter('newArrivals')"
+                            class="px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">New
+                            Arrivals</button>
+                        <button id="sheet-filter-premium" type="button" data-qf="premiumVerified"
+                            onclick="toggleQuickFilter('premiumVerified')"
+                            class="px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Premium
+                            Verified</button>
+                        <button id="sheet-filter-photos" type="button" data-qf="withPhotos"
+                            onclick="toggleQuickFilter('withPhotos')"
+                            class="px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">With
+                            Photos</button>
+                    </div>
+
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Sort By</p>
+                    <div class="grid grid-cols-2 gap-2 mb-5">
+                        <button id="sort-recommended" type="button" onclick="setSortBy('recommended')"
+                            class="px-3 py-2 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Recommended</button>
+                        <button id="sort-newest" type="button" onclick="setSortBy('newest')"
+                            class="px-3 py-2 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Newest</button>
+                        <button id="sort-online" type="button" onclick="setSortBy('online')"
+                            class="px-3 py-2 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Online</button>
+                        <button id="sort-premium" type="button" onclick="setSortBy('premium')"
+                            class="px-3 py-2 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Premium</button>
+                    </div>
+
+                    <button type="button" onclick="applyFilterSheet()"
+                        class="w-full px-4 py-3 rounded-xl bg-[#D4AF37] text-black text-xs uppercase tracking-[0.2em] font-bold">
+                        Apply Filters
                     </button>
-                    <button type="button" data-qf="premiumVerified" onclick="toggleQuickFilter('premiumVerified')"
-                        class="quick-filter-btn whitespace-nowrap glass border border-white/10 text-gray-300 px-4 py-2 rounded-full text-[11px] uppercase tracking-widest transition-all">
-                        Premium Verified
-                    </button>
-                    <button type="button" data-qf="withPhotos" onclick="toggleQuickFilter('withPhotos')"
-                        class="quick-filter-btn whitespace-nowrap glass border border-white/10 text-gray-300 px-4 py-2 rounded-full text-[11px] uppercase tracking-widest transition-all">
-                        With Photos
-                    </button>
-                    <a href="/safety"
-                        class="whitespace-nowrap glass border border-white/10 text-gray-300 px-4 py-2 rounded-full text-[11px] uppercase tracking-widest transition-all hover:border-[#D4AF37]/40 hover:text-[#D4AF37]">
-                        Safety
-                    </a>
                 </div>
-            </div>
 
-            <!-- Search Bar -->
-            <div class="max-w-2xl mx-auto">
-                <div class="relative search-shell">
-                    <input type="text" id="search-input" placeholder="Search by name, location, or neighborhood..."
-                        class="search-input w-full px-6 py-3 md:py-4 pl-12 md:pl-14 pr-4 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37]/50 transition-all text-sm md:text-base"
-                        oninput="filterProviders()" />
-                    <svg class="absolute left-4 md:left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
+                <!-- Favorites Sheet -->
+                <div id="favorites-sheet-backdrop" class="sheet-backdrop" onclick="closeFavoritesSheet()"></div>
+                <div id="favorites-sheet" class="mobile-sheet">
+                    <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm uppercase tracking-[0.22em] text-gray-300">Favorites</h3>
+                        <button type="button" onclick="closeFavoritesSheet()"
+                            class="text-[11px] uppercase tracking-widest text-gray-400">Close</button>
+                    </div>
+                    <div id="favorites-list" class="space-y-2 max-h-[45vh] overflow-y-auto pr-1"></div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Location Control (City + Neighborhood Sheet) -->
-        <div class="px-4 md:px-6 py-3 md:py-4 bg-black/50 border-y border-white/5">
-            <div class="max-w-4xl mx-auto flex items-center gap-3">
-                <div class="flex-1 glass border border-white/10 rounded-xl px-4 py-2.5">
-                    <p class="text-[9px] uppercase tracking-[0.24em] text-gray-500 mb-1">Location</p>
-                    <p id="current-location-pill" class="text-sm md:text-base text-white font-semibold">
-                        {{ selected_city or 'Nairobi' }} · {{ selected_neighborhood or 'All Areas' }}
-                    </p>
+                <!-- Location Sheet -->
+                <div id="location-sheet-backdrop" class="sheet-backdrop" onclick="closeLocationSheet()"></div>
+                <div id="location-sheet" class="mobile-sheet">
+                    <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm uppercase tracking-[0.22em] text-gray-300">Choose Location</h3>
+                        <button type="button" onclick="closeLocationSheet()"
+                            class="text-[11px] uppercase tracking-widest text-gray-400">Close</button>
+                    </div>
+
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">City</p>
+                    <div id="location-city-options" class="flex flex-wrap gap-2 mb-4">
+                        <button type="button" data-city="all" onclick="selectLocationCity('all')"
+                            class="location-city-btn px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">
+                            All Cities
+                        </button>
+                        {% for city in cities %}
+                        <button type="button" data-city="{{ city }}" onclick="selectLocationCity('{{ city }}')"
+                            class="location-city-btn px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">
+                            {{ city }}
+                        </button>
+                        {% endfor %}
+                    </div>
+
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Neighborhood</p>
+                    <div id="location-neighborhood-options" class="flex flex-wrap gap-2 mb-5"></div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="resetLocationSelection()"
+                            class="px-3 py-3 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">
+                            Reset
+                        </button>
+                        <button type="button" onclick="applyLocationSelection()"
+                            class="px-3 py-3 rounded-xl bg-[#D4AF37] text-black text-[11px] uppercase tracking-widest font-bold">
+                            Apply
+                        </button>
+                    </div>
                 </div>
-                <button type="button" onclick="openLocationSheet()"
-                    class="btn-ripple px-4 md:px-5 py-2.5 rounded-xl gold-bg text-black text-[11px] uppercase tracking-widest font-bold">
-                    Change
-                </button>
-            </div>
-        </div>
-
-        <!-- Grid Wrapper for HTMX & Skeletons -->
-        <div id="provider-grid-wrapper" class="relative min-h-[500px] p-3 md:px-12 pb-24 max-w-[1440px] mx-auto">
-
-            <!-- Loading Spinner Overlay (For search/filter) -->
-            <div id="search-loading"
-                class="hidden absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-                <div class="text-center">
-                    <div class="spinner mx-auto mb-4"></div>
-                    <p class="text-gray-400 text-sm">Searching...</p>
-                </div>
-            </div>
-
-            <!-- Skeleton Loader (Shown during HTMX requests) -->
-            <div
-                class="skeleton-loader hidden grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 absolute inset-0 z-20 bg-black p-3 md:px-12">
-                {% include '_skeleton.html' %}
-            </div>
-
-            <!-- Real Provider Grid (Hidden during HTMX requests) -->
-            <div id="provider-grid"
-                class="provider-grid-content grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
-                <!-- Using the same provider card logic as initial render -->
-                {% include '_grid.html' %}
-            </div>
-        </div>
-
-        <!-- FOR PROVIDERS CTA BANNER -->
-        <div class="border-t border-white/5 py-16 md:py-20 px-4 text-center section-shell">
-            <div class="max-w-xl mx-auto">
-                <p class="text-[10px] gold-text font-bold uppercase tracking-[0.3em] mb-3">For Providers</p>
-                <h2 class="serif text-2xl md:text-3xl text-white mb-4">Join Nairobi's Most Exclusive Directory</h2>
-                <p class="text-gray-400 text-sm md:text-base mb-8 leading-relaxed">
-                    Get verified, attract premium clients, and manage your presence using Telegram or the new web portal.
-                    Tiered plans starting from 300 KES.
-                </p>
-                <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                    <a href="https://t.me/BlackbookBot" target="_blank"
-                        class="btn-ripple gold-bg text-black px-8 py-3 rounded-full font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all text-sm">
-                        Start on Telegram
-                    </a>
-                    <a href="/provider"
-                        class="btn-ripple glass text-cyan-200 px-8 py-3 rounded-full font-semibold uppercase tracking-widest hover:scale-105 transition-all text-sm border border-cyan-300/30">
-                        Start on Web Portal
-                    </a>
-                    <a href="/safety"
-                        class="btn-ripple glass text-gray-300 px-8 py-3 rounded-full font-semibold uppercase tracking-widest hover:scale-105 transition-all text-sm border border-white/10">
-                        Safety First
-                    </a>
-                </div>
-                <div class="flex items-center justify-center gap-4 md:gap-6 mt-8 text-[10px] text-gray-500 uppercase tracking-widest">
-                    <span>🥉 Bronze</span>
-                    <span>🥈 Silver</span>
-                    <span>🥇 Gold</span>
-                    <span>💎 Platinum</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Mobile Sticky Action Bar -->
-        <div id="mobile-action-bar" class="md:hidden">
-            <div class="glass rounded-2xl border border-white/10 px-3 py-2 flex items-center justify-between gap-2">
-                <button type="button" onclick="openFilterSheet()"
-                    class="flex-1 px-3 py-2 rounded-xl bg-white/5 text-gray-200 text-[11px] uppercase tracking-widest font-semibold">
-                    Filters <span id="mobile-filter-count" class="text-[#D4AF37]">0</span>
-                </button>
-                <button type="button" onclick="openFavoritesSheet()"
-                    class="flex-1 px-3 py-2 rounded-xl bg-white/5 text-gray-200 text-[11px] uppercase tracking-widest font-semibold">
-                    Favorites
-                </button>
-                <a href="/safety"
-                    class="flex-1 px-3 py-2 rounded-xl bg-white/5 text-gray-200 text-[11px] uppercase tracking-widest font-semibold text-center">
-                    Safety
-                </a>
-                <button type="button" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })"
-                    class="px-3 py-2 rounded-xl bg-[#D4AF37] text-black text-[11px] uppercase tracking-widest font-bold">
-                    Top
-                </button>
-            </div>
-        </div>
-
-        <!-- Filter Sheet -->
-        <div id="filter-sheet-backdrop" class="sheet-backdrop" onclick="closeFilterSheet()"></div>
-        <div id="filter-sheet" class="mobile-sheet">
-            <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-sm uppercase tracking-[0.22em] text-gray-300">Smart Filters</h3>
-                <button type="button" onclick="clearAllFilters()"
-                    class="text-[11px] uppercase tracking-widest text-[#D4AF37]">Clear All</button>
-            </div>
-
-            <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Quick Filters</p>
-            <div class="flex flex-wrap gap-2 mb-4">
-                <button id="sheet-filter-new" type="button" data-qf="newArrivals" onclick="toggleQuickFilter('newArrivals')"
-                    class="px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">New Arrivals</button>
-                <button id="sheet-filter-premium" type="button" data-qf="premiumVerified" onclick="toggleQuickFilter('premiumVerified')"
-                    class="px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Premium Verified</button>
-                <button id="sheet-filter-photos" type="button" data-qf="withPhotos" onclick="toggleQuickFilter('withPhotos')"
-                    class="px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">With Photos</button>
-            </div>
-
-            <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Sort By</p>
-            <div class="grid grid-cols-2 gap-2 mb-5">
-                <button id="sort-recommended" type="button" onclick="setSortBy('recommended')"
-                    class="px-3 py-2 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Recommended</button>
-                <button id="sort-newest" type="button" onclick="setSortBy('newest')"
-                    class="px-3 py-2 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Newest</button>
-                <button id="sort-online" type="button" onclick="setSortBy('online')"
-                    class="px-3 py-2 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Online</button>
-                <button id="sort-premium" type="button" onclick="setSortBy('premium')"
-                    class="px-3 py-2 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">Premium</button>
-            </div>
-
-            <button type="button" onclick="applyFilterSheet()"
-                class="w-full px-4 py-3 rounded-xl bg-[#D4AF37] text-black text-xs uppercase tracking-[0.2em] font-bold">
-                Apply Filters
-            </button>
-        </div>
-
-        <!-- Favorites Sheet -->
-        <div id="favorites-sheet-backdrop" class="sheet-backdrop" onclick="closeFavoritesSheet()"></div>
-        <div id="favorites-sheet" class="mobile-sheet">
-            <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="text-sm uppercase tracking-[0.22em] text-gray-300">Favorites</h3>
-                <button type="button" onclick="closeFavoritesSheet()"
-                    class="text-[11px] uppercase tracking-widest text-gray-400">Close</button>
-            </div>
-            <div id="favorites-list" class="space-y-2 max-h-[45vh] overflow-y-auto pr-1"></div>
-        </div>
-
-        <!-- Location Sheet -->
-        <div id="location-sheet-backdrop" class="sheet-backdrop" onclick="closeLocationSheet()"></div>
-        <div id="location-sheet" class="mobile-sheet">
-            <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-sm uppercase tracking-[0.22em] text-gray-300">Choose Location</h3>
-                <button type="button" onclick="closeLocationSheet()"
-                    class="text-[11px] uppercase tracking-widest text-gray-400">Close</button>
-            </div>
-
-            <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">City</p>
-            <div id="location-city-options" class="flex flex-wrap gap-2 mb-4">
-                <button type="button" data-city="all" onclick="selectLocationCity('all')"
-                    class="location-city-btn px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">
-                    All Cities
-                </button>
-                {% for city in cities %}
-                <button type="button" data-city="{{ city }}" onclick="selectLocationCity('{{ city }}')"
-                    class="location-city-btn px-3 py-2 rounded-full glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">
-                    {{ city }}
-                </button>
-                {% endfor %}
-            </div>
-
-            <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Neighborhood</p>
-            <div id="location-neighborhood-options" class="flex flex-wrap gap-2 mb-5"></div>
-
-            <div class="grid grid-cols-2 gap-2">
-                <button type="button" onclick="resetLocationSelection()"
-                    class="px-3 py-3 rounded-xl glass border border-white/10 text-gray-200 text-[11px] uppercase tracking-widest">
-                    Reset
-                </button>
-                <button type="button" onclick="applyLocationSelection()"
-                    class="px-3 py-3 rounded-xl bg-[#D4AF37] text-black text-[11px] uppercase tracking-widest font-bold">
-                    Apply
-                </button>
-            </div>
-        </div>
     </section>
 
     <!-- 3. PRIVATE PROFILE SUITE (OVERLAY) -->
@@ -1399,7 +1564,8 @@
                 <div class="flex flex-col items-center text-center gap-2 mb-8 md:mb-10">
                     <div class="flex items-center justify-center gap-3 mb-2 flex-wrap">
                         <!-- Tier Badge (dynamic) -->
-                        <span id="view-tier-badge" class="hidden text-[10px] text-black px-3 py-1 rounded-full font-bold uppercase tracking-[0.2em]"></span>
+                        <span id="view-tier-badge"
+                            class="hidden text-[10px] text-black px-3 py-1 rounded-full font-bold uppercase tracking-[0.2em]"></span>
                         <span id="view-verified-badge"
                             class="gold-bg text-[10px] text-black px-3 py-1 rounded-full font-bold uppercase tracking-[0.2em]">Verified</span>
                         <span
@@ -1527,7 +1693,8 @@
                                         d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.417-.003 6.557-5.338 11.892-11.893 11.892-1.997-.001-3.951-.5-5.688-1.448l-6.305 1.652z" />
                                 </svg>
                                 <span id="view-whatsapp-text"
-                                    class="text-xs uppercase tracking-widest text-[#25D366] font-bold">Direct Message</span>
+                                    class="text-xs uppercase tracking-widest text-[#25D366] font-bold">Direct
+                                    Message</span>
                             </a>
                             <a id="view-call-btn" href="#"
                                 class="btn-ripple glass px-4 py-4 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-white/10 hover:scale-105 transition-all border border-white/5 group">
@@ -1537,7 +1704,8 @@
                                         d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                 </svg>
                                 <span id="view-call-text"
-                                    class="text-xs uppercase tracking-widest text-white font-bold">Discreet Message</span>
+                                    class="text-xs uppercase tracking-widest text-white font-bold">Discreet
+                                    Message</span>
                             </a>
                         </div>
                     </div>
@@ -1616,16 +1784,53 @@
         <div id="contact-fallback-sheet" class="mobile-sheet">
             <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
             <h3 class="text-sm uppercase tracking-[0.22em] text-gray-300 mb-2 text-center">Telegram Fallback</h3>
-            <p class="text-xs text-gray-400 text-center mb-4">If Telegram did not open, copy this handle and paste it in Telegram search.</p>
+            <p class="text-xs text-gray-400 text-center mb-4">If Telegram did not open, copy this handle and paste it in
+                Telegram search.</p>
             <div class="glass rounded-xl border border-white/10 p-3 mb-4">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Handle</p>
                 <p id="fallback-handle" class="text-sm text-white break-all">Not available</p>
             </div>
             <div class="grid grid-cols-2 gap-2">
                 <button type="button" onclick="copyFallbackHandle()"
-                    class="px-3 py-3 rounded-xl bg-[#D4AF37] text-black text-[11px] uppercase tracking-widest font-bold">Copy Handle</button>
+                    class="px-3 py-3 rounded-xl bg-[#D4AF37] text-black text-[11px] uppercase tracking-widest font-bold">Copy
+                    Handle</button>
                 <button type="button" onclick="closeContactFallbackModal()"
                     class="px-3 py-3 rounded-xl bg-white/10 text-white text-[11px] uppercase tracking-widest font-bold">Close</button>
+            </div>
+        </div>
+
+        <!-- Native Bottom Navigation -->
+        <div class="fixed bottom-0 inset-x-0 z-40 pb-[env(safe-area-inset-bottom)] md:hidden">
+            <div class="absolute inset-0 bg-black/70 backdrop-blur-xl border-t border-white/10"></div>
+            <div class="relative flex items-center justify-around px-2 py-3">
+                <button onclick="window.scrollTo({top:0, behavior:'smooth'})"
+                    class="flex flex-col items-center gap-1 group">
+                    <svg class="w-6 h-6 text-[#D4AF37] group-active:scale-95 transition-transform drop-shadow-[0_0_8px_rgba(212,175,55,0.4)]"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                        </path>
+                    </svg>
+                    <span class="text-[9px] uppercase tracking-widest text-[#D4AF37] font-bold mt-0.5">Explore</span>
+                </button>
+                <button onclick="openFavoritesSheet()" class="flex flex-col items-center gap-1 group">
+                    <svg class="w-6 h-6 text-gray-400 group-hover:text-gray-200 group-active:scale-95 transition-all"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z">
+                        </path>
+                    </svg>
+                    <span class="text-[9px] uppercase tracking-widest text-gray-400 font-medium mt-0.5">Favorites</span>
+                </button>
+                <button onclick="openFilterSheet()" class="flex flex-col items-center gap-1 group">
+                    <svg class="w-6 h-6 text-gray-400 group-hover:text-gray-200 group-active:scale-95 transition-all"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
+                        </path>
+                    </svg>
+                    <span class="text-[9px] uppercase tracking-widest text-gray-400 font-medium mt-0.5">Filters</span>
+                </button>
             </div>
         </div>
     </section>
@@ -1664,11 +1869,12 @@
         // Initialize theme on load
         initTheme();
 
-        // Check if we should skip the landing page (filters are active)
+        // Check if we should skip the landing page (filters are active or already entered)
         const urlParams = new URLSearchParams(window.location.search);
         const hasCity = urlParams.has('city');
         const hasNeighborhood = urlParams.has('neighborhood');
-        const skipLanding = hasCity || hasNeighborhood;
+        const hasEnteredSession = sessionStorage.getItem('enteredCollection') === '1';
+        const skipLanding = hasCity || hasNeighborhood || hasEnteredSession;
         const neighborhoodMap = {{ neighborhood_map | tojson | safe }};
         const selectedCityServer = "{{ selected_city or 'Nairobi' }}";
         const selectedNeighborhoodServer = "{{ selected_neighborhood or '' }}";
@@ -1856,9 +2062,11 @@
         const quickFilters = {
             newArrivals: false,
             premiumVerified: false,
-            withPhotos: false
+            withPhotos: false,
+            onlineNow: false
         };
         let sortBy = 'recommended';
+        let activeNeighborhood = '';
         let searchTimeout;
 
         function trackEvent(eventName, payload = {}) {
@@ -1880,9 +2088,9 @@
                         headers: { 'Content-Type': 'application/json' },
                         body,
                         keepalive: true
-                    }).catch(() => {});
+                    }).catch(() => { });
                 }
-            } catch (_) {}
+            } catch (_) { }
         }
 
         function hasActiveQuickFilters() {
@@ -1959,7 +2167,7 @@
                     quickFilters.withPhotos = !!state.quickFilters.withPhotos;
                 }
                 if (state.sortBy) sortBy = state.sortBy;
-            } catch (_) {}
+            } catch (_) { }
             updateQuickFilterButtons();
             updateSortButtons();
         }
@@ -2001,8 +2209,51 @@
             quickFilters.newArrivals = false;
             quickFilters.premiumVerified = false;
             quickFilters.withPhotos = false;
+            quickFilters.onlineNow = false;
+            activeNeighborhood = '';
             updateQuickFilterButtons();
+            updateNeighborhoodTags();
+            updateOnlineNowBtn();
             filterProviders();
+        }
+
+        function setNeighborhood(hood) {
+            activeNeighborhood = hood;
+            updateNeighborhoodTags();
+            filterProviders();
+        }
+
+        function updateNeighborhoodTags() {
+            document.querySelectorAll('.hood-tag').forEach(btn => {
+                const isAll = btn.textContent.trim() === 'All Areas';
+                const isActive = (activeNeighborhood === '' && isAll) || btn.textContent.trim().toLowerCase() === activeNeighborhood.toLowerCase();
+                if (isActive) {
+                    btn.classList.remove('bg-white/5', 'border-white/10', 'text-gray-300');
+                    btn.classList.add('bg-[#D4AF37]/15', 'border-[#D4AF37]/30', 'text-[#D4AF37]', 'hood-active');
+                } else {
+                    btn.classList.remove('bg-[#D4AF37]/15', 'border-[#D4AF37]/30', 'text-[#D4AF37]', 'hood-active');
+                    btn.classList.add('bg-white/5', 'border-white/10', 'text-gray-300');
+                }
+            });
+        }
+
+        function toggleOnlineNow() {
+            quickFilters.onlineNow = !quickFilters.onlineNow;
+            updateOnlineNowBtn();
+            persistUiState();
+            filterProviders();
+        }
+
+        function updateOnlineNowBtn() {
+            const btn = document.getElementById('onlineNowBtn');
+            if (!btn) return;
+            if (quickFilters.onlineNow) {
+                btn.classList.remove('bg-green-500/10', 'border-green-500/30');
+                btn.classList.add('bg-green-500/30', 'border-green-400', 'shadow-[0_0_20px_rgba(34,197,94,0.3)]');
+            } else {
+                btn.classList.remove('bg-green-500/30', 'border-green-400', 'shadow-[0_0_20px_rgba(34,197,94,0.3)]');
+                btn.classList.add('bg-green-500/10', 'border-green-500/30');
+            }
         }
 
         function clearAllFilters() {
@@ -2016,7 +2267,7 @@
         }
 
         function sortProviderCards(cards) {
-                const tierRank = { platinum: 4, gold: 3, silver: 2, bronze: 1, trial: 1, none: 0 };
+            const tierRank = { platinum: 4, gold: 3, silver: 2, bronze: 1, trial: 1, none: 0 };
             return cards.sort((a, b) => {
                 const da = JSON.parse(a.dataset.provider);
                 const db = JSON.parse(b.dataset.provider);
@@ -2071,9 +2322,9 @@
         function filterProviders() {
             clearTimeout(searchTimeout);
             const loadingOverlay = document.getElementById('search-loading');
-            const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+            const searchTerm = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
             const quickFilterActive = hasActiveQuickFilters();
-            const hasCriteria = searchTerm.length > 0 || quickFilterActive || sortBy !== 'recommended';
+            const hasCriteria = searchTerm.length > 0 || quickFilterActive || sortBy !== 'recommended' || activeNeighborhood;
 
             if (loadingOverlay && hasCriteria) loadingOverlay.classList.remove('hidden');
 
@@ -2094,7 +2345,9 @@
                     const matchesNewArrivals = !quickFilters.newArrivals || providerData.is_new_arrival === true;
                     const matchesPremiumVerified = !quickFilters.premiumVerified || providerData.is_premium_verified === true;
                     const matchesWithPhotos = !quickFilters.withPhotos || providerData.has_photos === true;
-                    const matches = matchesSearch && matchesNewArrivals && matchesPremiumVerified && matchesWithPhotos;
+                    const matchesOnline = !quickFilters.onlineNow || providerData.is_online === true;
+                    const matchesNeighborhood = !activeNeighborhood || (providerData.location || '').toLowerCase() === activeNeighborhood.toLowerCase();
+                    const matches = matchesSearch && matchesNewArrivals && matchesPremiumVerified && matchesWithPhotos && matchesOnline && matchesNeighborhood;
 
                     if (matches) {
                         card.style.display = '';
@@ -2665,6 +2918,95 @@
                 filterProviders();
             }
         });
+
+        // ========== PULL TO REFRESH LOGIC ==========
+        let touchStartY = 0;
+        let pStart = { x: 0, y: 0 };
+        let pCurrent = { x: 0, y: 0 };
+        let isPulling = false;
+        const ptrIndicator = document.getElementById('ptr-indicator');
+        const ptrThreshold = 100;
+
+        document.addEventListener('touchstart', (e) => {
+            if (window.scrollY <= 0 && document.getElementById('directory-page').style.display !== 'none') {
+                touchStartY = e.touches[0].screenY;
+                pStart.y = touchStartY;
+                isPulling = true;
+                if (ptrIndicator) ptrIndicator.style.transition = 'none';
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isPulling || window.scrollY > 0) return;
+            pCurrent.y = e.touches[0].screenY;
+            const deltaY = pCurrent.y - pStart.y;
+
+            if (deltaY > 0 && deltaY < 180) {
+                // Determine resistance
+                const translateY = (deltaY * 0.4) - 64; // -64 to start hidden
+                if (ptrIndicator) {
+                    ptrIndicator.style.transform = `translateY(${translateY}px)`;
+                    // Add rotation based on pull distance
+                    const spinner = ptrIndicator.querySelector('div');
+                    if (spinner) {
+                        spinner.style.transform = `rotate(${deltaY * 3}deg)`;
+                        spinner.classList.remove('animate-spin');
+                    }
+                }
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchend', (e) => {
+            if (!isPulling) return;
+            isPulling = false;
+
+            const deltaY = pCurrent.y - pStart.y;
+            if (ptrIndicator) ptrIndicator.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+
+            if (deltaY > ptrThreshold && window.scrollY <= 0) {
+                // Threshold reached, trigger shuffle
+                if (ptrIndicator) {
+                    ptrIndicator.style.transform = `translateY(30px)`;
+                    const spinner = ptrIndicator.querySelector('div');
+                    if (spinner) {
+                        spinner.classList.add('animate-spin');
+                    }
+                }
+                setTimeout(() => {
+                    shuffleGrid();
+                    if (ptrIndicator) {
+                        ptrIndicator.style.transform = `translateY(-100%)`;
+                    }
+                    showToast('Collection Shuffled! Discover new faces.', 'success', 2500);
+                }, 800);
+            } else {
+                // Reset
+                if (ptrIndicator) ptrIndicator.style.transform = `translateY(-100%)`;
+            }
+            pStart.y = 0;
+            pCurrent.y = 0;
+        });
+
+        function shuffleGrid() {
+            const grid = document.getElementById('provider-grid');
+            if (!grid) return;
+            let cards = Array.from(document.querySelectorAll('#provider-grid > div[data-provider]'));
+
+            // Fisher-Yates shuffle
+            for (let i = cards.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [cards[i], cards[j]] = [cards[j], cards[i]];
+            }
+
+            grid.innerHTML = ''; // Clear
+            cards.forEach(card => grid.appendChild(card)); // Re-append
+
+            // Since we bypassed normal filtering sorting, we should update sortBy logic if we wanted, 
+            // but shuffling overrides sort order. Let's unset active sorts so UI stays consistent
+            sortBy = 'shuffle';
+            updateSortButtons();
+            trackEvent('grid_shuffled_ptr');
+        }
     </script>
 </body>
 

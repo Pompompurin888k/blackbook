@@ -28,10 +28,9 @@
 {% endif %}
 {% set is_new_arrival = false %}
 {% if provider.created_at %}
-{% set is_new_arrival = ((now() - provider.created_at).days <= 14) %}
-{% endif %}
-<!-- Provider Card -->
-<div class="group cursor-pointer animate-fade-in-up delay-{{ (loop.index0 % 5) * 100 }} card-hover-lift active:scale-[0.985]" data-provider='{{ {
+{% set is_new_arrival = ((now() - provider.created_at).days <= 14) %} {% endif %} <!-- Provider Card -->
+    <div class="group cursor-pointer animate-fade-in-up delay-{{ (loop.index0 % 5) * 100 }} card-hover-lift active:scale-[0.985]"
+        data-provider='{{ {
         "id": provider.id,
         "name": provider.display_name,
         "city": provider.city,
@@ -56,118 +55,170 @@
         "is_boosted": (provider.boost_until and provider.boost_until > now()) | default(false, true),
         "is_premium_verified": provider.is_premium_verified or false
     } | tojson | safe }}' onclick="window.location.href='/contact/{{ provider.id }}'">
-    <div
-        class="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/10 bg-zinc-900/90 shadow-[0_8px_28px_rgba(0,0,0,0.35)] transition-all duration-300 group-hover:border-[#D4AF37]/70 group-hover:shadow-[0_20px_40px_rgba(212,175,55,0.22)]">
-        <!-- Profile Image with Lazy Loading + Hover Zoom + Blur-up -->
-        <img src="{{ img_url }}" loading="lazy" decoding="async"
-            class="w-full h-full object-cover opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500 image-loading"
-            alt="{{ provider.display_name }}"
-            onload="this.classList.remove('image-loading'); this.classList.add('image-loaded');"
-            style="background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%)">
-        <!-- Badges Container -->
-        <div class="absolute top-3 right-3 z-10 flex flex-col gap-1.5 items-end">
-            <!-- Boost Badge -->
-            {% if provider.boost_until and provider.boost_until > now() %}
-            <div class="bg-gradient-to-r from-amber-300 to-orange-400 px-2 py-0.5 rounded-full flex items-center gap-1 badge-animate shadow-[0_6px_20px_rgba(245,158,11,0.35)]">
-                <span class="text-[8px] text-black font-extrabold uppercase tracking-[0.16em]">Boosted</span>
-            </div>
-            {% endif %}
+        <div
+            class="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/10 bg-zinc-900/90 shadow-[0_8px_28px_rgba(0,0,0,0.35)] transition-all duration-300 group-hover:border-[#D4AF37]/70 group-hover:shadow-[0_20px_40px_rgba(212,175,55,0.22)] after:absolute after:inset-0 after:z-30 after:pointer-events-none after:bg-gradient-to-r after:from-transparent after:via-white/10 after:to-transparent after:-translate-x-[150%] group-hover:after:translate-x-[150%] after:transition-transform after:duration-[1.5s] after:ease-in-out {% if provider.is_online or is_new_arrival %} p-[2.5px] {% endif %}">
 
-            <!-- Tier Badge -->
-            {% if provider.subscription_tier and provider.subscription_tier not in ['none', 'bronze', 'trial'] %}
-            {% set tier_badges = {'platinum': ('💎', 'from-cyan-400 to-blue-500', 'Platinum'), 'gold': ('🥇', 'from-[#D4AF37] to-[#FFD700]', 'Gold'), 'silver': ('🥈', 'from-gray-300 to-gray-400', 'Silver')} %}
-            {% set tb = tier_badges.get(provider.subscription_tier, ('📦', 'from-gray-500 to-gray-600', provider.subscription_tier)) %}
-            <span class="bg-gradient-to-r {{ tb[1] }} text-black px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider badge-animate">
-                {{ tb[0] }} {{ tb[2] }}
-            </span>
-            {% endif %}
-
-            <!-- Live Badge (Only for online providers) -->
             {% if provider.is_online %}
-            <div id="live-badge-{{ provider.id }}" hx-get="/api/status/{{ provider.id }}" hx-trigger="every 30s"
-                hx-swap="outerHTML" class="glass px-2 py-0.5 rounded-full flex items-center gap-1 shadow-[0_8px_16px_rgba(0,0,0,0.25)]">
-                <span class="h-1.5 w-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                <span class="text-[8px] text-green-400 font-bold uppercase">Live</span>
+            <!-- Live Gradient Ring -->
+            <div
+                class="absolute -inset-[100%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_300deg,#22c55e_360deg)] opacity-90 pointer-events-none z-0">
+            </div>
+            {% elif is_new_arrival %}
+            <!-- Fresh/New Gradient Ring -->
+            <div
+                class="absolute -inset-[100%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_280deg,#D4AF37_360deg)] opacity-80 pointer-events-none z-0">
             </div>
             {% endif %}
 
-            <!-- New/Fresh Badge -->
-            {% if provider.created_at %}
-            {% set days_ago = (now() - provider.created_at).days %}
-            {% if days_ago <= 7 %} <span
-                class="bg-[#D4AF37] text-black px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider badge-animate">
-                New
+            <!-- Profile Image Container -->
+            <div
+                class="relative w-full h-full {% if provider.is_online or is_new_arrival %} rounded-[1.3rem] {% else %} rounded-3xl {% endif %} overflow-hidden bg-zinc-900 z-10">
+                <img src="{{ img_url }}" loading="lazy" decoding="async"
+                    class="w-full h-full object-cover opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500 image-loading"
+                    alt="{{ provider.display_name }}"
+                    onload="this.classList.remove('image-loading'); this.classList.add('image-loaded');"
+                    style="background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%)">
+            </div>
+
+            <!-- Badges Container -->
+            <div class="absolute top-4 right-4 z-40 flex flex-col gap-1.5 items-end pointer-events-none">
+                <!-- Boost Badge -->
+                {% if provider.boost_until and provider.boost_until > now() %}
+                <div
+                    class="bg-gradient-to-r from-amber-300 to-orange-400 px-2 py-0.5 rounded-full flex items-center gap-1 badge-animate shadow-[0_6px_20px_rgba(245,158,11,0.35)]">
+                    <span class="text-[8px] text-black font-extrabold uppercase tracking-[0.16em]">Boosted</span>
+                </div>
+                {% endif %}
+
+                <!-- Tier Badge -->
+                {% if provider.subscription_tier and provider.subscription_tier not in ['none', 'bronze', 'trial'] %}
+                {% set tier_badges = {'platinum': ('💎', 'from-cyan-400 to-blue-500', 'Platinum'), 'gold': ('🥇',
+                'from-[#D4AF37] to-[#FFD700]', 'Gold'), 'silver': ('🥈', 'from-gray-300 to-gray-400', 'Silver')} %}
+                {% set tb = tier_badges.get(provider.subscription_tier, ('📦', 'from-gray-500 to-gray-600',
+                provider.subscription_tier)) %}
+                <span
+                    class="bg-gradient-to-r {{ tb[1] }} text-black px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider badge-animate">
+                    {{ tb[0] }} {{ tb[2] }}
                 </span>
-                {% elif days_ago <= 30 %} <span
-                    class="glass px-2 py-0.5 rounded-full text-[8px] text-[#D4AF37] font-medium uppercase tracking-wider border border-[#D4AF37]/20 badge-animate">
-                    Fresh
+                {% endif %}
+
+                <!-- Live Badge (Only for online providers) -->
+                {% if provider.is_online %}
+                <div id="live-badge-{{ provider.id }}" hx-get="/api/status/{{ provider.id }}" hx-trigger="every 30s"
+                    hx-swap="outerHTML"
+                    class="glass px-2 py-0.5 rounded-full flex items-center gap-1 shadow-[0_8px_16px_rgba(0,0,0,0.25)]">
+                    <span class="h-1.5 w-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                    <span class="text-[8px] text-green-400 font-bold uppercase">Live</span>
+                </div>
+                {% endif %}
+
+                <!-- New/Fresh Badge -->
+                {% if provider.created_at %}
+                {% set days_ago = (now() - provider.created_at).days %}
+                {% if days_ago <= 7 %} <span
+                    class="bg-[#D4AF37] text-black px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider badge-animate shadow-[0_4px_12px_rgba(212,175,55,0.4)]">
+                    New
+                    </span>
+                    {% elif days_ago <= 30 %} <span
+                        class="glass px-2 py-0.5 rounded-full text-[8px] text-[#D4AF37] font-bold uppercase tracking-wider border border-[#D4AF37]/30 badge-animate backdrop-blur-md">
+                        Fresh
+                        </span>
+                        {% endif %}
+                        {% endif %}
+
+                        <!-- Blue Tick Badge -->
+                        <div class="glass p-1 rounded-full shadow-[0_8px_16px_rgba(0,0,0,0.25)]">
+                            <svg class="w-3.5 h-3.5 text-[#00A3FF]" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293l-4 4a1 1 0 01-1.414 0l-2-2a1 1 0 111.414-1.414L9 10.586l3.293-3.293a1 1 0 011.414 1.414z">
+                                </path>
+                            </svg>
+                        </div>
+            </div>
+            <!-- Quick Connect Hover Overlay -->
+            <div
+                class="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                <div
+                    class="bg-[#D4AF37] text-black px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-[0.15em] shadow-[0_8px_25px_rgba(212,175,55,0.5)] pointer-events-auto transform scale-90 group-hover:scale-100 transition-transform duration-300">
+                    View Profile →
+                </div>
+            </div>
+
+            <!-- Content Overlay (Enriched Nameplate) -->
+            <div
+                class="absolute bottom-0 left-0 right-0 p-3.5 bg-gradient-to-t from-black/90 via-black/60 to-transparent rounded-b-3xl z-30 pointer-events-none">
+                <!-- Name + Age (Tinder style) -->
+                <h3 class="serif text-xl sm:text-2xl text-white font-semibold leading-tight drop-shadow-md">
+                    {{ provider.display_name }}{% if provider.age %}<span
+                        class="font-sans text-lg sm:text-xl font-normal opacity-80">, {{ provider.age }}</span>{% endif
+                    %}
+                </h3>
+
+                <!-- Location -->
+                <p class="text-gray-200 text-[11px] flex items-center gap-1.5 mt-1 font-medium tracking-wide">
+                    <svg class="w-3 h-3 text-[#D4AF37] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                            clip-rule="evenodd" />
+                    </svg>
+                    {{ provider.neighborhood or provider.city }}
+                    {% if provider.build %}
+                    <span class="text-white/30">·</span>
+                    <span class="text-gray-300">{{ provider.build }}</span>
+                    {% endif %}
+                </p>
+
+                <!-- Mini Tags Row -->
+                <div class="flex items-center gap-1.5 mt-2 flex-wrap">
+                    {% if provider.is_online %}
+                    <span
+                        class="flex items-center gap-1 text-[8px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30 uppercase tracking-widest font-bold">
+                        <span class="h-1.5 w-1.5 bg-green-400 rounded-full animate-pulse"></span>Live
                     </span>
                     {% endif %}
+                    {% if is_new_arrival %}
+                    <span
+                        class="text-[8px] px-2 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 uppercase tracking-widest font-bold">New</span>
                     {% endif %}
-
-                    <!-- Blue Tick Badge -->
-                    <div class="glass p-1 rounded-full shadow-[0_8px_16px_rgba(0,0,0,0.25)]">
-                        <svg class="w-3.5 h-3.5 text-[#00A3FF]" fill="currentColor" viewBox="0 0 20 20">
-                            <path
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293l-4 4a1 1 0 01-1.414 0l-2-2a1 1 0 111.414-1.414L9 10.586l3.293-3.293a1 1 0 011.414 1.414z">
-                            </path>
-                        </svg>
-                    </div>
-        </div>
-        <!-- Content Overlay -->
-        <div class="absolute bottom-0 left-0 right-0 p-3.5 md:p-4 bg-gradient-to-t from-black/95 via-black/70 to-transparent">
-            <div class="flex flex-wrap items-center gap-1.5 mb-2">
-                {% if is_new_arrival %}
-                <span class="text-[8px] px-2 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 uppercase tracking-wider font-bold">New</span>
-                {% endif %}
-                {% if provider.is_premium_verified or (provider.subscription_tier and provider.subscription_tier in ['silver', 'gold', 'platinum']) %}
-                <span class="text-[8px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 uppercase tracking-wider font-bold">Premium</span>
-                {% endif %}
-                {% if all_photos|length > 0 %}
-                <span class="text-[8px] px-2 py-0.5 rounded-full bg-white/10 text-gray-200 border border-white/20 uppercase tracking-wider font-bold">Photos</span>
-                {% endif %}
+                    {% if provider.is_premium_verified or (provider.subscription_tier and provider.subscription_tier in
+                    ['silver', 'gold', 'platinum']) %}
+                    <span
+                        class="text-[8px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 uppercase tracking-widest font-bold">
+                        <svg class="w-2.5 h-2.5 inline -mt-px" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg> Premium
+                    </span>
+                    {% endif %}
+                    {% if all_photos|length > 1 %}
+                    <span
+                        class="text-[8px] px-2 py-0.5 rounded-full bg-white/10 text-gray-300 border border-white/15 uppercase tracking-widest font-bold">📷
+                        {{ all_photos|length }}</span>
+                    {% endif %}
+                </div>
             </div>
-            <div class="flex items-center gap-2 mb-0.5">
-                {% if provider.is_premium_verified %}
-                <p class="text-[8px] font-bold uppercase tracking-widest opacity-90 text-cyan-400">⭐ Premium Verified</p>
-                {% else %}
-                <p class="text-[8px] gold-text font-bold uppercase tracking-widest opacity-80">Verified</p>
-                {% endif %}
-                {% if provider.services and provider.services|length > 2 %}
-                <span
-                    class="text-[8px] px-1.5 py-0.5 rounded bg-gradient-to-r from-[#D4AF37] to-[#FFD700] text-black font-black uppercase">Premium</span>
-                {% endif %}
-            </div>
-            <h3 class="serif text-lg leading-tight mb-0.5">{{ provider.display_name }}</h3>
-            <p class="text-gray-300 text-[10px] flex items-center gap-1">
-                <svg class="w-2.5 h-2.5 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
-                    </path>
-                </svg>
-                {{ provider.neighborhood or provider.city }}
-            </p>
         </div>
     </div>
-</div>
-{% endfor %}
-{% else %}
-<!-- Empty State -->
-<div class="col-span-full text-center py-24">
-    <div class="w-24 h-24 mx-auto mb-6 rounded-full glass flex items-center justify-center">
-        <svg class="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
+    {% endfor %}
+    {% else %}
+    <!-- Empty State -->
+    <div class="col-span-full text-center py-24">
+        <div class="w-24 h-24 mx-auto mb-6 rounded-full glass flex items-center justify-center">
+            <svg class="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        </div>
+        <h3 class="serif text-2xl text-gray-300 mb-2">No Professionals Available</h3>
+        <p class="text-gray-500 text-sm">
+            {% if selected_city %}Check back soon or view all cities.{% else %}Check back soon.{% endif %}
+        </p>
+        {% if selected_city %}
+        <a href="/"
+            class="inline-block mt-6 px-8 py-3 gold-bg text-black rounded-full text-sm font-bold hover:scale-105 transition-all">
+            View All Cities
+        </a>
+        {% endif %}
     </div>
-    <h3 class="serif text-2xl text-gray-300 mb-2">No Professionals Available</h3>
-    <p class="text-gray-500 text-sm">
-        {% if selected_city %}Check back soon or view all cities.{% else %}Check back soon.{% endif %}
-    </p>
-    {% if selected_city %}
-    <a href="/"
-        class="inline-block mt-6 px-8 py-3 gold-bg text-black rounded-full text-sm font-bold hover:scale-105 transition-all">
-        View All Cities
-    </a>
     {% endif %}
-</div>
-{% endif %}
