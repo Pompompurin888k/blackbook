@@ -277,6 +277,29 @@ class MigrationsRepository(BaseRepository):
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='trial_winback_sent') THEN
                     ALTER TABLE providers ADD COLUMN trial_winback_sent BOOLEAN DEFAULT FALSE;
                 END IF;
+
+                -- PROFILE DETAIL COLUMNS
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='gender') THEN
+                    ALTER TABLE providers ADD COLUMN gender VARCHAR(20);
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='sexual_orientation') THEN
+                    ALTER TABLE providers ADD COLUMN sexual_orientation VARCHAR(32);
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='nationality') THEN
+                    ALTER TABLE providers ADD COLUMN nationality VARCHAR(64);
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='county') THEN
+                    ALTER TABLE providers ADD COLUMN county VARCHAR(64);
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='incalls_from') THEN
+                    ALTER TABLE providers ADD COLUMN incalls_from INT;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='outcalls_from') THEN
+                    ALTER TABLE providers ADD COLUMN outcalls_from INT;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='video_url') THEN
+                    ALTER TABLE providers ADD COLUMN video_url TEXT;
+                END IF;
             END $$;
             """
 
@@ -314,6 +337,10 @@ class MigrationsRepository(BaseRepository):
     def _run_startup_migrations(self):
             """Runs idempotent SQL migrations so deploys stay schema-compatible."""
             migration_dir = Path(__file__).resolve().parent / "migrations"
+            # Backward-compatible fallback to legacy web/migrations location.
+            if not migration_dir.exists():
+                legacy_dir = Path(__file__).resolve().parents[2] / "web" / "migrations"
+                migration_dir = legacy_dir if legacy_dir.exists() else migration_dir
             if not migration_dir.exists():
                 logger.info("No migration directory found; skipping startup migrations.")
                 return

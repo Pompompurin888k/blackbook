@@ -94,6 +94,34 @@
                             placeholder="Athletic / Curvy / Slim">
                     </div>
                     <div>
+                        <label class="text-xs text-zinc-400">Gender</label>
+                        <select name="gender"
+                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
+                            <option value="">Select gender</option>
+                            <option value="Female" {% if draft.gender=="Female" %}selected{% endif %}>Female</option>
+                            <option value="Male" {% if draft.gender=="Male" %}selected{% endif %}>Male</option>
+                            <option value="Trans" {% if draft.gender=="Trans" %}selected{% endif %}>Trans</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-zinc-400">Sexual Orientation</label>
+                        <input name="sexual_orientation" value="{{ draft.sexual_orientation }}"
+                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
+                            placeholder="Straight / Bi / Lesbian / Gay">
+                    </div>
+                    <div>
+                        <label class="text-xs text-zinc-400">Nationality</label>
+                        <input name="nationality" value="{{ draft.nationality }}"
+                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
+                            placeholder="Kenyan">
+                    </div>
+                    <div>
+                        <label class="text-xs text-zinc-400">County</label>
+                        <input name="county" value="{{ draft.county }}"
+                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
+                            placeholder="Mombasa / Nairobi / Kisumu">
+                    </div>
+                    <div>
                         <label class="text-xs text-zinc-400">Height (cm)</label>
                         <input name="height_cm" type="number" min="120" max="220" value="{{ draft.height_cm }}"
                             class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
@@ -176,6 +204,18 @@
                         <input name="rate_overnight" type="number" value="{{ draft.rate_overnight }}"
                             class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
                     </div>
+                    <div>
+                        <label class="text-xs text-zinc-400">Incalls per hour from (KES)</label>
+                        <input name="incalls_from" type="number" min="0" value="{{ draft.incalls_from }}"
+                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
+                            placeholder="ASK">
+                    </div>
+                    <div>
+                        <label class="text-xs text-zinc-400">Outcalls per hour from (KES)</label>
+                        <input name="outcalls_from" type="number" min="0" value="{{ draft.outcalls_from }}"
+                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
+                            placeholder="ASK">
+                    </div>
                 </section>
                 {% else %}
                 <section class="glass-panel rounded-3xl p-5 md:p-6 space-y-4">
@@ -240,6 +280,14 @@
                     <p id="photo-upload-error"
                         class="hidden rounded-xl border border-red-400/50 bg-red-400/10 px-3 py-2 text-xs text-red-100">
                     </p>
+
+                    <div>
+                        <label class="text-xs font-bold uppercase tracking-widest text-zinc-400">Profile Video URL (Optional)</label>
+                        <input name="video_url" type="url" value="{{ draft.video_url }}"
+                            class="mt-1.5 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm text-white focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors"
+                            placeholder="https://...">
+                        <p class="mt-1.5 text-[11px] font-medium text-zinc-500">Add a direct video link to display on your public profile.</p>
+                    </div>
 
                     <div
                         class="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-3 text-xs text-emerald-100">

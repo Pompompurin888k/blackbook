@@ -142,6 +142,10 @@ async def provider_portal_onboarding_submit(request: Request):
         draft["height_cm"] = str(form.get("height_cm", "")).strip()
         draft["weight_kg"] = str(form.get("weight_kg", "")).strip()
         draft["build"] = str(form.get("build", "")).strip()
+        draft["gender"] = str(form.get("gender", "")).strip()
+        draft["sexual_orientation"] = str(form.get("sexual_orientation", "")).strip()
+        draft["nationality"] = str(form.get("nationality", "")).strip()
+        draft["county"] = str(form.get("county", "")).strip()
         _portal_set_onboarding_draft(request, draft)
         if action != "back" and (not draft["display_name"] or not draft["city"] or not draft["neighborhood"]):
             return _render_provider_onboarding_template(
@@ -172,6 +176,8 @@ async def provider_portal_onboarding_submit(request: Request):
         draft["rate_2hr"] = str(form.get("rate_2hr", "")).strip()
         draft["rate_3hr"] = str(form.get("rate_3hr", "")).strip()
         draft["rate_overnight"] = str(form.get("rate_overnight", "")).strip()
+        draft["incalls_from"] = str(form.get("incalls_from", "")).strip()
+        draft["outcalls_from"] = str(form.get("outcalls_from", "")).strip()
         _portal_set_onboarding_draft(request, draft)
         if action != "back" and not _parse_csv_values(draft["services_text"]):
             return _render_provider_onboarding_template(
@@ -181,6 +187,9 @@ async def provider_portal_onboarding_submit(request: Request):
                 step=step,
                 error="Please add at least one service before continuing.",
             )
+    elif step == ONBOARDING_TOTAL_STEPS:
+        draft["video_url"] = str(form.get("video_url", "")).strip()
+        _portal_set_onboarding_draft(request, draft)
 
     if action == "back":
         return RedirectResponse(
@@ -227,12 +236,19 @@ async def provider_portal_onboarding_submit(request: Request):
         "height_cm": _to_int_or_none(draft.get("height_cm")),
         "weight_kg": _to_int_or_none(draft.get("weight_kg")),
         "build": draft.get("build", ""),
+        "gender": draft.get("gender", ""),
+        "sexual_orientation": draft.get("sexual_orientation", ""),
+        "nationality": draft.get("nationality", ""),
+        "county": draft.get("county", ""),
         "services": services,
         "bio": bio,
         "nearby_places": draft.get("nearby_places", ""),
         "availability_type": draft.get("availability_type", ""),
         "languages": languages,
         "profile_photos": existing_photo_urls,
+        "incalls_from": _to_int_or_none(draft.get("incalls_from")),
+        "outcalls_from": _to_int_or_none(draft.get("outcalls_from")),
+        "video_url": draft.get("video_url", ""),
         "rate_30min": _to_int_or_none(draft.get("rate_30min")),
         "rate_1hr": _to_int_or_none(draft.get("rate_1hr")),
         "rate_2hr": _to_int_or_none(draft.get("rate_2hr")),

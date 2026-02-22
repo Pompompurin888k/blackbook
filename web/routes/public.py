@@ -260,3 +260,15 @@ async def contact_discreet(request: Request, provider_id: int):
 async def safety(request: Request):
     """Safety page - shows blacklist and verification info."""
     return templates.TemplateResponse("safety.html", {"request": request})
+
+
+@router.get("/privacy", response_class=HTMLResponse)
+async def privacy(request: Request):
+    """Public privacy policy page."""
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+
+@router.get("/terms", response_class=HTMLResponse)
+async def terms(request: Request):
+    """Public terms of service page."""
+    return templates.TemplateResponse("terms.html", {"request": request})

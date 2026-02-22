@@ -213,6 +213,8 @@ class ProvidersRepository(BaseRepository):
                         SELECT id, telegram_id, display_name, phone, city, neighborhood, is_online,
                                age, height_cm, weight_kg, build, services, bio, nearby_places,
                                availability_type, languages,
+                               gender, sexual_orientation, nationality, county,
+                               incalls_from, outcalls_from, video_url,
                                rate_30min, rate_1hr, rate_2hr, rate_3hr, rate_overnight,
                                created_at, profile_photos, telegram_username,
                                subscription_tier, boost_until, is_premium_verified
@@ -270,6 +272,8 @@ class ProvidersRepository(BaseRepository):
                 "age", "height_cm", "weight_kg", "build", "services", "bio",
                 "availability_type", "nearby_places", "profile_photos",
                 "rate_30min", "rate_1hr", "rate_2hr", "rate_3hr", "rate_overnight",
+                "gender", "sexual_orientation", "nationality", "county",
+                "incalls_from", "outcalls_from", "video_url",
                 "languages", "subscription_tier", "boost_until", "referral_code",
                 "referred_by", "referral_credits", "is_premium_verified",
                 "trial_used", "trial_started_at", "trial_reminder_day2_sent",
