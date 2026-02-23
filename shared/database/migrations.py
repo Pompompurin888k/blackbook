@@ -345,14 +345,34 @@ class MigrationsRepository(BaseRepository):
 
     def _run_startup_migrations(self):
             """Runs idempotent SQL migrations so deploys stay schema-compatible."""
-            migration_dir = Path(__file__).resolve().parent / "migrations"
-            # Backward-compatible fallback to legacy web/migrations location.
-            if not migration_dir.exists():
-                legacy_dir = Path(__file__).resolve().parents[2] / "web" / "migrations"
-                migration_dir = legacy_dir if legacy_dir.exists() else migration_dir
-            if not migration_dir.exists():
-                logger.info("No migration directory found; skipping startup migrations.")
+            current_file = Path(__file__).resolve()
+            project_root = current_file.parents[2]
+            candidates = [
+                # packaged/shared layout: shared/database/migrations/
+                current_file.parent / "migrations",
+                # docker-compose web volume layout: /app/migrations
+                project_root / "migrations",
+                # monorepo layout: /repo/web/migrations
+                project_root / "web" / "migrations",
+                # cwd-based fallbacks for alternate startup contexts
+                Path.cwd() / "migrations",
+                Path.cwd() / "web" / "migrations",
+            ]
+
+            migration_dir = None
+            for candidate in candidates:
+                if candidate.exists() and candidate.is_dir():
+                    migration_dir = candidate
+                    break
+
+            if migration_dir is None:
+                logger.info(
+                    "No migration directory found; skipping startup migrations. Checked: %s",
+                    ", ".join(str(path) for path in candidates),
+                )
                 return
+
+            logger.info(f"Using migration directory: {migration_dir}")
 
             try:
                 with self.conn.cursor() as cur:
