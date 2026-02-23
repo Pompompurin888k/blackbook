@@ -87,6 +87,7 @@ class PortalRepository(BaseRepository):
                     SELECT id, telegram_id, display_name, phone, email, city, neighborhood,
                            is_verified, is_active, auth_channel, portal_password_hash,
                            email_verified, email_verify_code_created_at,
+                           password_reset_code_hash, password_reset_code_expires_at, password_reset_code_used_at,
                            phone_verified, phone_verify_code, phone_verify_code_created_at,
                            account_state, verification_code_hash, verification_code_expires_at,
                            verification_code_used_at, approved_by_admin, approved_at,
@@ -120,6 +121,7 @@ class PortalRepository(BaseRepository):
                     SELECT id, telegram_id, display_name, phone, email, city, neighborhood,
                            is_verified, is_active, auth_channel, portal_password_hash,
                            email_verified, email_verify_code_created_at,
+                           password_reset_code_hash, password_reset_code_expires_at, password_reset_code_used_at,
                            phone_verified, phone_verify_code, phone_verify_code_created_at,
                            account_state, verification_code_hash, verification_code_expires_at,
                            verification_code_used_at, approved_by_admin, approved_at,
@@ -157,6 +159,7 @@ class PortalRepository(BaseRepository):
                     SELECT id, telegram_id, display_name, phone, email, city, neighborhood,
                            is_verified, is_active, auth_channel, portal_password_hash,
                            email_verified, email_verify_code_created_at,
+                           password_reset_code_hash, password_reset_code_expires_at, password_reset_code_used_at,
                            phone_verified, phone_verify_code, phone_verify_code_created_at,
                            account_state, verification_code_hash, verification_code_expires_at,
                            verification_code_used_at, approved_by_admin, approved_at,
@@ -395,5 +398,58 @@ class PortalRepository(BaseRepository):
                 return cur.rowcount > 0
         except Exception as e:
             logger.error(f"Error marking portal email verified: {e}")
+            self.conn.rollback()
+            return False
+
+    def set_portal_password_reset_code(
+        self,
+        provider_id: int,
+        code_hash: str,
+        ttl_minutes: int = 30,
+    ) -> bool:
+        """Stores a hashed password-reset code for portal authentication."""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE providers
+                    SET password_reset_code_hash = %s,
+                        password_reset_code_expires_at = NOW() + (%s || ' minutes')::INTERVAL,
+                        password_reset_code_used_at = NULL
+                    WHERE id = %s
+                    """,
+                    (code_hash, str(max(1, int(ttl_minutes))), provider_id),
+                )
+                self.conn.commit()
+                return cur.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error setting portal password reset code: {e}")
+            self.conn.rollback()
+            return False
+
+    def reset_portal_password(self, provider_id: int, password_hash: str) -> bool:
+        """Updates portal password and invalidates any active password-reset code."""
+        if not password_hash:
+            return False
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE providers
+                    SET portal_password_hash = %s,
+                        password_reset_code_hash = NULL,
+                        password_reset_code_expires_at = NULL,
+                        password_reset_code_used_at = NOW(),
+                        login_failed_attempts = 0,
+                        locked_until = NULL,
+                        last_login_attempt_at = NOW()
+                    WHERE id = %s
+                    """,
+                    (password_hash, provider_id),
+                )
+                self.conn.commit()
+                return cur.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error resetting portal password: {e}")
             self.conn.rollback()
             return False

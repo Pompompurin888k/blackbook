@@ -203,6 +203,15 @@ class MigrationsRepository(BaseRepository):
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='email_verify_code_created_at') THEN
                     ALTER TABLE providers ADD COLUMN email_verify_code_created_at TIMESTAMP;
                 END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='password_reset_code_hash') THEN
+                    ALTER TABLE providers ADD COLUMN password_reset_code_hash TEXT;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='password_reset_code_expires_at') THEN
+                    ALTER TABLE providers ADD COLUMN password_reset_code_expires_at TIMESTAMP;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='password_reset_code_used_at') THEN
+                    ALTER TABLE providers ADD COLUMN password_reset_code_used_at TIMESTAMP;
+                END IF;
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='phone_verified') THEN
                     ALTER TABLE providers ADD COLUMN phone_verified BOOLEAN DEFAULT FALSE;
                 END IF;

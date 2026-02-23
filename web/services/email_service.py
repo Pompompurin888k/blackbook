@@ -70,3 +70,33 @@ async def send_portal_verification_email(
     except Exception as e:
         logger.error(f"Failed sending verification email to {recipient}: {e}")
         return False
+
+
+async def send_portal_password_reset_email(
+    recipient: str,
+    code: str,
+    ttl_minutes: int,
+    display_name: str = "",
+) -> bool:
+    """Sends the portal password-reset code."""
+    if not (SMTP_HOST and SMTP_PORT and SMTP_USERNAME and SMTP_PASSWORD and SMTP_FROM_EMAIL):
+        logger.error("SMTP is not fully configured; cannot send password-reset email.")
+        return False
+
+    safe_name = (display_name or "there").strip() or "there"
+    subject = "Reset your Blackbook provider password"
+    body = (
+        f"Hi {safe_name},\n\n"
+        "Your Blackbook password reset code is:\n\n"
+        f"{code}\n\n"
+        f"This code expires in {ttl_minutes} minutes.\n"
+        "If you did not request this, you can ignore this email.\n\n"
+        "Blackbook"
+    )
+
+    try:
+        await run_in_threadpool(_send_email_sync, recipient, subject, body)
+        return True
+    except Exception as e:
+        logger.error(f"Failed sending password-reset email to {recipient}: {e}")
+        return False

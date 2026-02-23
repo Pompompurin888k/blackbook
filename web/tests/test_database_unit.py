@@ -188,6 +188,47 @@ class DatabaseUnitTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(cursor.executions, [])
 
+    def test_set_portal_password_reset_code_clamps_ttl(self) -> None:
+        cursor = FakeCursor(rowcount=1)
+        db = build_db(cursor)
+
+        result = db.set_portal_password_reset_code(
+            provider_id=11,
+            code_hash="hash-reset",
+            ttl_minutes=0,
+        )
+
+        self.assertTrue(result)
+        self.assertEqual(db.conn.commit_calls, 1)
+        query, params = cursor.executions[0]
+        self.assertIn("password_reset_code_hash = %s", query)
+        self.assertIn("password_reset_code_expires_at = NOW() + (%s || ' minutes')::INTERVAL", query)
+        self.assertEqual(params, ("hash-reset", "1", 11))
+
+    def test_reset_portal_password_updates_hash_and_clears_reset_state(self) -> None:
+        cursor = FakeCursor(rowcount=1)
+        db = build_db(cursor)
+
+        result = db.reset_portal_password(provider_id=13, password_hash="salt$digest")
+
+        self.assertTrue(result)
+        self.assertEqual(db.conn.commit_calls, 1)
+        query, params = cursor.executions[0]
+        self.assertIn("portal_password_hash = %s", query)
+        self.assertIn("password_reset_code_hash = NULL", query)
+        self.assertIn("login_failed_attempts = 0", query)
+        self.assertEqual(params, ("salt$digest", 13))
+
+    def test_reset_portal_password_rejects_blank_hash(self) -> None:
+        cursor = FakeCursor(rowcount=1)
+        db = build_db(cursor)
+
+        result = db.reset_portal_password(provider_id=13, password_hash="")
+
+        self.assertFalse(result)
+        self.assertEqual(cursor.executions, [])
+        self.assertEqual(db.conn.commit_calls, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
