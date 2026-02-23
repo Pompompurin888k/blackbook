@@ -3,6 +3,8 @@ Redis Service — rate limiting, page caching, and key management.
 """
 import hashlib
 import logging
+import time
+from threading import Lock
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -28,6 +30,9 @@ _redis_client = None
 _redis_unavailable = False
 _arq_pool = None
 _arq_unavailable = False
+_local_limit_lock = Lock()
+_local_limit_store: dict[str, tuple[int, float]] = {}
+_local_limit_max_keys = 10000
 
 
 def _rate_limit_key_suffix(value: str) -> str:
@@ -55,17 +60,49 @@ def _get_redis_client():
         logger.info("Redis rate limiting enabled.")
         return _redis_client
     except Exception as e:
-        logger.warning(f"Redis unavailable, falling back to DB rate controls: {e}")
+        logger.warning(f"Redis unavailable, falling back to in-process rate limits: {e}")
         _redis_unavailable = True
         _redis_client = None
         return None
+
+
+def _local_consume_limit(key: str, limit: int, window_seconds: int) -> tuple[bool, int]:
+    safe_limit = max(1, int(limit))
+    safe_window = max(1, int(window_seconds))
+    now = time.time()
+
+    with _local_limit_lock:
+        current_count = 0
+        reset_at = now + safe_window
+        existing = _local_limit_store.get(key)
+        if existing:
+            existing_count, existing_reset_at = existing
+            if now < existing_reset_at:
+                current_count = existing_count
+                reset_at = existing_reset_at
+        current_count += 1
+        _local_limit_store[key] = (current_count, reset_at)
+
+        if len(_local_limit_store) > _local_limit_max_keys:
+            expired_keys = [k for k, (_, expires_at) in _local_limit_store.items() if expires_at <= now]
+            overflow = len(_local_limit_store) - _local_limit_max_keys
+            for stale_key in expired_keys[:max(1, overflow)]:
+                _local_limit_store.pop(stale_key, None)
+
+        remaining = max(0, safe_limit - current_count)
+        return current_count <= safe_limit, remaining
+
+
+def _local_reset_limit(key: str) -> None:
+    with _local_limit_lock:
+        _local_limit_store.pop(key, None)
 
 
 def _redis_consume_limit(key: str, limit: int, window_seconds: int) -> tuple[bool, int]:
     """Consumes one token from a fixed window counter."""
     client = _get_redis_client()
     if client is None:
-        return True, limit
+        return _local_consume_limit(key, limit, window_seconds)
 
     safe_limit = max(1, int(limit))
     safe_window = max(1, int(window_seconds))
@@ -77,11 +114,12 @@ def _redis_consume_limit(key: str, limit: int, window_seconds: int) -> tuple[boo
         return count <= safe_limit, remaining
     except Exception as e:
         logger.warning(f"Redis consume failed for key {key}: {e}")
-        return True, safe_limit
+        return _local_consume_limit(key, safe_limit, safe_window)
 
 
 def _redis_reset_limit(key: str) -> None:
     """Clears a rate-limit key after successful auth."""
+    _local_reset_limit(key)
     client = _get_redis_client()
     if client is None:
         return

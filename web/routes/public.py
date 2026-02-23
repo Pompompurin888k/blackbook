@@ -19,6 +19,7 @@ from config import (
 from database import Database
 from services.redis_service import _cache_key, _redis_get_text, _redis_set_text
 from utils.auth import _extract_client_ip, _detect_device_type
+from utils.db_async import db_call
 from utils.providers import (
     _cache_photo_path,
     _normalize_photo_sources,
@@ -115,19 +116,19 @@ async def home(
         if cached_html:
             return HTMLResponse(content=cached_html)
 
-    raw_providers = db.get_active_providers(city, neighborhood)
+    raw_providers = await db_call(db.get_active_providers, city, neighborhood)
     providers = []
     for item in raw_providers:
         row = dict(item)
         row["profile_photos"] = _normalize_photo_sources(row.get("profile_photos"))
         providers.append(row)
-    city_counts = db.get_city_counts()
+    city_counts = await db_call(db.get_city_counts)
     total_count = sum(city_counts.values())
 
     # Get stats for hero section
-    total_verified = db.get_total_verified_count()
-    total_online = db.get_online_count()
-    total_premium = db.get_premium_count()
+    total_verified = await db_call(db.get_total_verified_count)
+    total_online = await db_call(db.get_online_count)
+    total_premium = await db_call(db.get_premium_count)
 
     # Get neighborhoods for selected city
     neighborhoods = NEIGHBORHOODS.get(city, []) if city else []
@@ -169,13 +170,18 @@ async def contact_page(request: Request, provider_id: int):
     Contact page - shows Direct vs Discreet messaging options.
     Preserves client privacy with stealth mode.
     """
-    provider = db.get_provider_by_id(provider_id)
+    provider = await db_call(db.get_provider_by_id, provider_id)
     
     if not provider:
         return RedirectResponse(url="/", status_code=302)
 
     profile = _normalize_provider(provider)
-    recommendations = db.get_recommendations(profile.get("city") or "Nairobi", provider_id, limit=4)
+    recommendations = await db_call(
+        db.get_recommendations,
+        profile.get("city") or "Nairobi",
+        provider_id,
+        limit=4,
+    )
     recommendation_cards = [_normalize_recommendation(item) for item in recommendations]
     
     # Log the contact click
@@ -199,7 +205,7 @@ async def connect_provider(
     Tracking bridge for outbound contact actions.
     Logs lead analytics before redirecting to WhatsApp or phone app.
     """
-    provider = db.get_provider_by_id(provider_id)
+    provider = await db_call(db.get_provider_by_id, provider_id)
     if not provider:
         return RedirectResponse(url="/", status_code=302)
 
@@ -212,7 +218,8 @@ async def connect_provider(
 
     client_ip = _extract_client_ip(request)
     device_type = _detect_device_type(request.headers.get("user-agent", ""))
-    db.log_lead_analytics(
+    await db_call(
+        db.log_lead_analytics,
         provider_id=provider_id,
         client_ip=client_ip,
         device_type=device_type,

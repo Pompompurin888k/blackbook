@@ -24,6 +24,7 @@ from database import Database
 from services.metapay import initiate_stk_push
 from services.telegram_service import send_admin_alert
 from utils.auth import _portal_account_state, _portal_session_provider_id, _sanitize_phone
+from utils.db_async import db_call
 from utils.providers import _to_string_list
 
 router = APIRouter()
@@ -38,11 +39,11 @@ def _portal_redirect(path: str, **params: object) -> RedirectResponse:
     return RedirectResponse(url=path, status_code=303)
 
 
-def _get_provider_or_redirect(request: Request) -> tuple[Optional[dict], Optional[RedirectResponse]]:
+async def _get_provider_or_redirect(request: Request) -> tuple[Optional[dict], Optional[RedirectResponse]]:
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
         return None, RedirectResponse(url="/provider", status_code=302)
-    provider = db.get_portal_provider_by_id(provider_id)
+    provider = await db_call(db.get_portal_provider_by_id, provider_id)
     if not provider:
         request.session.clear()
         return None, RedirectResponse(url="/provider?error=Session+expired", status_code=302)
@@ -69,7 +70,7 @@ def _normalize_mpesa_phone(phone: str) -> str:
 
 @router.post("/provider/status/toggle")
 async def provider_toggle_status(request: Request):
-    provider, redirect = _get_provider_or_redirect(request)
+    provider, redirect = await _get_provider_or_redirect(request)
     if redirect:
         return redirect
     tg_id = int(provider.get("telegram_id") or 0)
@@ -78,14 +79,14 @@ async def provider_toggle_status(request: Request):
     if not provider.get("is_active"):
         return _portal_redirect("/provider/dashboard", error="Activate a package before toggling visibility.")
 
-    is_online = db.toggle_online_status(tg_id)
+    is_online = await db_call(db.toggle_online_status, tg_id)
     notice = "You are now online and visible with a Live badge." if is_online else "You are now offline and hidden."
     return _portal_redirect("/provider/dashboard", notice=notice)
 
 
 @router.post("/provider/photos/delete/{photo_index}")
 async def provider_delete_photo(request: Request, photo_index: int):
-    provider, redirect = _get_provider_or_redirect(request)
+    provider, redirect = await _get_provider_or_redirect(request)
     if redirect:
         return redirect
     tg_id = int(provider.get("telegram_id") or 0)
@@ -95,13 +96,13 @@ async def provider_delete_photo(request: Request, photo_index: int):
     if photo_index < 0 or photo_index >= len(photos):
         return _portal_redirect("/provider/onboarding", step=4, error="Photo not found.")
     photos.pop(photo_index)
-    db.save_provider_photos(tg_id, photos)
+    await db_call(db.save_provider_photos, tg_id, photos)
     return _portal_redirect("/provider/onboarding", step=4, saved=1)
 
 
 @router.post("/provider/photos/primary/{photo_index}")
 async def provider_set_primary_photo(request: Request, photo_index: int):
-    provider, redirect = _get_provider_or_redirect(request)
+    provider, redirect = await _get_provider_or_redirect(request)
     if redirect:
         return redirect
     tg_id = int(provider.get("telegram_id") or 0)
@@ -112,13 +113,13 @@ async def provider_set_primary_photo(request: Request, photo_index: int):
         return _portal_redirect("/provider/onboarding", step=4, error="Invalid photo selection.")
     selected = photos.pop(photo_index)
     photos.insert(0, selected)
-    db.save_provider_photos(tg_id, photos)
+    await db_call(db.save_provider_photos, tg_id, photos)
     return _portal_redirect("/provider/onboarding", step=4, saved=1)
 
 
 @router.post("/provider/wallet/trial-activate")
 async def provider_activate_trial(request: Request):
-    provider, redirect = _get_provider_or_redirect(request)
+    provider, redirect = await _get_provider_or_redirect(request)
     if redirect:
         return redirect
     tg_id = int(provider.get("telegram_id") or 0)
@@ -128,15 +129,15 @@ async def provider_activate_trial(request: Request):
             "/provider/wallet",
             error="Trial unavailable. Eligibility requires verified, inactive, and unused trial status.",
         )
-    if db.has_successful_payment_for_provider(tg_id):
+    if await db_call(db.has_successful_payment_for_provider, tg_id):
         return _portal_redirect("/provider/wallet", error="Trial is only available before first successful payment.")
 
-    activated = db.activate_free_trial(tg_id, FREE_TRIAL_DAYS)
+    activated = await db_call(db.activate_free_trial, tg_id, FREE_TRIAL_DAYS)
     if not activated:
         return _portal_redirect("/provider/wallet", error="Could not activate trial right now.")
 
-    db.log_funnel_event(tg_id, "trial_started", {"days": FREE_TRIAL_DAYS, "source": "portal"})
-    db.log_funnel_event(tg_id, "active_live", {"source": "portal_trial"})
+    await db_call(db.log_funnel_event, tg_id, "trial_started", {"days": FREE_TRIAL_DAYS, "source": "portal"})
+    await db_call(db.log_funnel_event, tg_id, "active_live", {"source": "portal_trial"})
     return _portal_redirect("/provider/wallet", notice=f"Free trial activated for {FREE_TRIAL_DAYS} days.")
 
 
@@ -146,7 +147,7 @@ async def provider_wallet_pay(
     package_days: int = Form(...),
     phone: str = Form(""),
 ):
-    provider, redirect = _get_provider_or_redirect(request)
+    provider, redirect = await _get_provider_or_redirect(request)
     if redirect:
         return redirect
 
@@ -167,15 +168,16 @@ async def provider_wallet_pay(
     if not normalized_phone:
         return _portal_redirect("/provider/wallet", error="Enter a valid M-Pesa phone number.")
 
-    db.update_provider_profile(tg_id, {"phone": normalized_phone})
+    await db_call(db.update_provider_profile, tg_id, {"phone": normalized_phone})
     result = await initiate_stk_push(normalized_phone, int(amount), tg_id, package_days)
     if not result.get("success"):
         return _portal_redirect("/provider/wallet", error=result.get("message") or "Payment initiation failed.")
 
     reference = result.get("reference")
     if reference:
-        db.log_payment(tg_id, int(amount), str(reference), "PENDING", package_days)
-    db.log_funnel_event(
+        await db_call(db.log_payment, tg_id, int(amount), str(reference), "PENDING", package_days)
+    await db_call(
+        db.log_funnel_event,
         tg_id,
         "paid_intent",
         {
@@ -202,11 +204,11 @@ async def provider_safety_page(
     check_status: Optional[str] = None,
     check_reason: Optional[str] = None,
 ):
-    provider, redirect = _get_provider_or_redirect(request)
+    provider, redirect = await _get_provider_or_redirect(request)
     if redirect:
         return redirect
     tg_id = int(provider.get("telegram_id") or 0)
-    active_session = db.get_active_session(tg_id)
+    active_session = await db_call(db.get_active_session, tg_id)
     return templates.TemplateResponse(
         "provider_safety.html",
         {
@@ -225,14 +227,14 @@ async def provider_safety_page(
 
 @router.post("/provider/safety/check")
 async def provider_safety_check(request: Request, phone: str = Form(...)):
-    provider, redirect = _get_provider_or_redirect(request)
+    provider, redirect = await _get_provider_or_redirect(request)
     if redirect:
         return redirect
     normalized_phone = _normalize_mpesa_phone(phone)
     if not normalized_phone:
         return _portal_redirect("/provider/safety", error="Enter a valid phone number.")
 
-    result = db.check_blacklist(normalized_phone)
+    result = await db_call(db.check_blacklist, normalized_phone)
     if result.get("blacklisted"):
         return _portal_redirect(
             "/provider/safety",
@@ -249,7 +251,7 @@ async def provider_safety_report(
     phone: str = Form(...),
     reason: str = Form(...),
 ):
-    provider, redirect = _get_provider_or_redirect(request)
+    provider, redirect = await _get_provider_or_redirect(request)
     if redirect:
         return redirect
     tg_id = int(provider.get("telegram_id") or 0)
@@ -260,7 +262,7 @@ async def provider_safety_report(
     if len(reason_text) < 3:
         return _portal_redirect("/provider/safety", error="Provide a clear report reason.")
 
-    ok = db.add_to_blacklist(normalized_phone, reason_text, tg_id)
+    ok = await db_call(db.add_to_blacklist, normalized_phone, reason_text, tg_id)
     if not ok:
         return _portal_redirect("/provider/safety", error="Could not save report. Try again.")
 
@@ -278,7 +280,7 @@ async def provider_safety_report(
 
 @router.post("/provider/safety/session/start")
 async def provider_safety_start_session(request: Request, minutes: int = Form(...)):
-    provider, redirect = _get_provider_or_redirect(request)
+    provider, redirect = await _get_provider_or_redirect(request)
     if redirect:
         return redirect
     tg_id = int(provider.get("telegram_id") or 0)
@@ -286,7 +288,7 @@ async def provider_safety_start_session(request: Request, minutes: int = Form(..
     duration = int(minutes)
     if duration < 15 or duration > 480:
         return _portal_redirect("/provider/safety", error="Session duration must be 15-480 minutes.")
-    session_id = db.start_session(tg_id, duration)
+    session_id = await db_call(db.start_session, tg_id, duration)
     if not session_id:
         return _portal_redirect("/provider/safety", error="Could not start safety session.")
     return _portal_redirect("/provider/safety", notice=f"Safety session started for {duration} minutes.")
@@ -294,11 +296,11 @@ async def provider_safety_start_session(request: Request, minutes: int = Form(..
 
 @router.post("/provider/safety/session/checkin")
 async def provider_safety_checkin(request: Request):
-    provider, redirect = _get_provider_or_redirect(request)
+    provider, redirect = await _get_provider_or_redirect(request)
     if redirect:
         return redirect
     tg_id = int(provider.get("telegram_id") or 0)
-    success = db.end_session(tg_id)
+    success = await db_call(db.end_session, tg_id)
     if not success:
         return _portal_redirect("/provider/safety", error="No active session found.")
     return _portal_redirect("/provider/safety", notice="Check-in confirmed. Session closed.")
@@ -306,7 +308,7 @@ async def provider_safety_checkin(request: Request):
 
 @router.get("/provider/support", response_class=HTMLResponse)
 async def provider_support_page(request: Request):
-    provider, redirect = _get_provider_or_redirect(request)
+    provider, redirect = await _get_provider_or_redirect(request)
     if redirect:
         return redirect
     admin_contact = ADMIN_CHAT_ID if ADMIN_CHAT_ID else "Admin"
@@ -324,7 +326,7 @@ async def provider_support_page(request: Request):
 
 @router.get("/provider/rules", response_class=HTMLResponse)
 async def provider_rules_page(request: Request):
-    provider, redirect = _get_provider_or_redirect(request)
+    provider, redirect = await _get_provider_or_redirect(request)
     if redirect:
         return redirect
     return templates.TemplateResponse("provider_rules.html", {"request": request, "provider": provider})
@@ -336,11 +338,11 @@ async def provider_claim_referral_reward(
     reward_id: int,
     choice: str = Form(...),
 ):
-    provider, redirect = _get_provider_or_redirect(request)
+    provider, redirect = await _get_provider_or_redirect(request)
     if redirect:
         return redirect
     tg_id = int(provider.get("telegram_id") or 0)
-    reward = db.get_referral_reward(reward_id)
+    reward = await db_call(db.get_referral_reward, reward_id)
     if not reward:
         return _portal_redirect("/provider/referrals", error="Reward not found.")
     if int(reward.get("referrer_tg_id") or 0) != tg_id:
@@ -349,17 +351,17 @@ async def provider_claim_referral_reward(
         return _portal_redirect("/provider/referrals", error="Reward already claimed.")
 
     if choice == "credit":
-        ok = db.add_referral_credits(tg_id, int(reward.get("reward_credit") or 0))
+        ok = await db_call(db.add_referral_credits, tg_id, int(reward.get("reward_credit") or 0))
         if not ok:
             return _portal_redirect("/provider/referrals", error="Could not add reward credit.")
-        db.mark_referral_reward_claimed(reward_id, "credit")
+        await db_call(db.mark_referral_reward_claimed, reward_id, "credit")
         return _portal_redirect("/provider/referrals", notice=f"Reward claimed: +{reward.get('reward_credit', 0)} KES.")
 
     if choice == "days":
-        ok = db.extend_subscription(tg_id, int(reward.get("reward_days") or 0))
+        ok = await db_call(db.extend_subscription, tg_id, int(reward.get("reward_days") or 0))
         if not ok:
             return _portal_redirect("/provider/referrals", error="Could not extend subscription.")
-        db.mark_referral_reward_claimed(reward_id, "days")
+        await db_call(db.mark_referral_reward_claimed, reward_id, "days")
         return _portal_redirect("/provider/referrals", notice=f"Reward claimed: +{reward.get('reward_days', 0)} days.")
 
     return _portal_redirect("/provider/referrals", error="Invalid reward choice.")

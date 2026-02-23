@@ -1,5 +1,6 @@
 import os
 import time
+import threading
 import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -19,10 +20,20 @@ class DatabaseConnection:
         self.password = os.getenv("DB_PASSWORD")
         self.port = os.getenv("DB_PORT", "5432")
         self.db_timezone = os.getenv("DB_TIMEZONE", "Africa/Nairobi")
-        self.conn = None
+        self._local = threading.local()
         
         # Open connection initially
         self._connect()
+
+    @property
+    def conn(self):
+        """Returns the current thread-local connection instance."""
+        return getattr(self._local, "conn", None)
+
+    @conn.setter
+    def conn(self, value):
+        """Sets the current thread-local connection instance."""
+        self._local.conn = value
 
     def _connect(self):
         """Attempts to connect to Postgres. Retries every 2 seconds if DB is still booting."""

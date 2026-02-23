@@ -11,7 +11,7 @@ services:
       POSTGRES_DB: ${DB_NAME}
       TZ: ${TZ:-Africa/Nairobi}
     ports:
-      - "0.0.0.0:8291:5432" # Accessible from host (needed for bot running in host mode)
+      - "127.0.0.1:8291:5432" # Host-local access only
     volumes:
       - ./db_data:/var/lib/postgresql/data # This keeps your data safe if the container stops
     healthcheck:

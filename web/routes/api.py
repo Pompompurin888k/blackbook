@@ -13,6 +13,7 @@ from config import (
 )
 from database import Database
 from services.redis_service import _cache_key, _redis_get_text, _redis_set_text
+from utils.db_async import db_call
 from utils.providers import _normalize_photo_sources
 
 db = Database()
@@ -42,7 +43,7 @@ async def api_grid(
         if cached_html:
             return HTMLResponse(content=cached_html)
 
-    raw_providers = db.get_active_providers(city, neighborhood)
+    raw_providers = await db_call(db.get_active_providers, city, neighborhood)
     providers = []
     for item in raw_providers:
         row = dict(item)
@@ -78,10 +79,10 @@ async def api_recommendations(
         if cached_html:
             return HTMLResponse(content=cached_html)
 
-    recommendations = db.get_recommendations(city, exclude_id, limit=4)
+    recommendations = await db_call(db.get_recommendations, city, exclude_id, limit=4)
     
     # Get source provider for comparison
-    source_provider = db.get_provider_by_id(exclude_id)
+    source_provider = await db_call(db.get_provider_by_id, exclude_id)
     
     # Add relevance hints to each recommendation
     enriched_recommendations = []
@@ -127,7 +128,7 @@ async def get_provider_status(provider_id: int):
     Real-time status endpoint for HTMX polling.
     Returns the Live badge HTML if provider is online.
     """
-    provider = db.get_provider_by_id(provider_id)
+    provider = await db_call(db.get_provider_by_id, provider_id)
     
     if provider and provider.get("is_online"):
         return f'''
@@ -157,7 +158,7 @@ async def api_providers(
     neighborhood: Optional[str] = Query(None)
 ):
     """JSON API endpoint for providers."""
-    providers = db.get_public_active_providers(city, neighborhood)
+    providers = await db_call(db.get_public_active_providers, city, neighborhood)
     return {"providers": providers, "count": len(providers)}
 
 
@@ -176,7 +177,7 @@ async def api_analytics(request: Request):
     if not isinstance(event_payload, dict):
         event_payload = {"value": str(event_payload)}
 
-    ok = db.log_analytics_event(event_name=event, event_payload=event_payload)
+    ok = await db_call(db.log_analytics_event, event_name=event, event_payload=event_payload)
     if not ok:
         return JSONResponse({"status": "error", "message": "Failed"}, status_code=500)
     return {"status": "ok"}
@@ -190,14 +191,14 @@ async def seed_data(request: Request):
     client_host = request.client.host if request.client else None
     if client_host not in LOCALHOSTS:
         return JSONResponse({"status": "error", "message": "Forbidden"}, status_code=403)
-    db.seed_test_providers()
+    await db_call(db.seed_test_providers)
     return {"status": "seeded", "message": "Test providers added."}
 
 
 @router.get("/health")
 async def health():
     """Readiness health endpoint (checks DB)."""
-    db_ok = db.healthcheck()
+    db_ok = await db_call(db.healthcheck)
     status_code = 200 if db_ok else 503
     return JSONResponse(
         {"status": "healthy" if db_ok else "unhealthy", "database": "up" if db_ok else "down"},

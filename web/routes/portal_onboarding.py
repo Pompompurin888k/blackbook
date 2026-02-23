@@ -22,6 +22,7 @@ from utils.auth import (
     _portal_account_state, _portal_admin_review_keyboard,
     _portal_generate_whatsapp_code, _portal_hash_verification_code,
 )
+from utils.db_async import db_call
 from utils.providers import _to_string_list, _normalize_photo_sources
 from utils.onboarding import (
     _normalize_onboarding_step, _parse_csv_values,
@@ -97,7 +98,7 @@ async def provider_portal_onboarding(
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
         return RedirectResponse(url="/provider", status_code=302)
-    provider = db.get_portal_provider_by_id(provider_id)
+    provider = await db_call(db.get_portal_provider_by_id, provider_id)
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
@@ -122,7 +123,7 @@ async def provider_portal_onboarding_submit(request: Request):
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
         return RedirectResponse(url="/provider", status_code=302)
-    provider = db.get_portal_provider_by_id(provider_id)
+    provider = await db_call(db.get_portal_provider_by_id, provider_id)
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
@@ -263,7 +264,7 @@ async def provider_portal_onboarding_submit(request: Request):
             and len(existing_photo_urls) >= PORTAL_MIN_PROFILE_PHOTOS
         ),
     }
-    saved = db.update_portal_provider_profile(provider_id, update_data)
+    saved = await db_call(db.update_portal_provider_profile, provider_id, update_data)
     if not saved:
         return _render_provider_onboarding_template(
             request=request,
@@ -273,11 +274,12 @@ async def provider_portal_onboarding_submit(request: Request):
             error="Could not save your profile right now. Please try again.",
         )
 
-    provider_after = db.get_portal_provider_by_id(provider_id) or {}
+    provider_after = await db_call(db.get_portal_provider_by_id, provider_id) or {}
     phone_code = provider_after.get("phone_verify_code")
     if not phone_code:
         phone_code = _portal_generate_whatsapp_code()
-        db.set_portal_phone_verification_code(
+        await db_call(
+            db.set_portal_phone_verification_code,
             provider_id,
             phone_code,
             _portal_hash_verification_code(phone_code),
@@ -297,7 +299,8 @@ async def provider_portal_onboarding_submit(request: Request):
             "Review profile quality, then approve/reject in admin bot."
         ),
     )
-    db.log_provider_verification_event(
+    await db_call(
+        db.log_provider_verification_event,
         provider_id,
         "profile_submitted",
         payload={"photo_count": len(existing_photo_urls), "city": city, "neighborhood": neighborhood},

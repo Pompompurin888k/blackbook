@@ -17,6 +17,7 @@ from config import (
 from database import Database
 from services.redis_service import _rate_limit_key_suffix, _redis_consume_limit, _redis_reset_limit
 from services.telegram_service import send_admin_alert
+from utils.db_async import db_call
 from utils.auth import (
     _normalize_portal_phone, _hash_password, _verify_password,
     _portal_session_provider_id, _portal_generate_whatsapp_code,
@@ -38,7 +39,7 @@ async def provider_portal_auth(request: Request, error: Optional[str] = None, su
     """Provider portal auth page (phone + password)."""
     provider_id = _portal_session_provider_id(request)
     if provider_id:
-        provider = db.get_portal_provider_by_id(provider_id)
+        provider = await db_call(db.get_portal_provider_by_id, provider_id)
         if not provider:
             request.session.clear()
         else:
@@ -90,7 +91,8 @@ async def provider_portal_register(request: Request):
             status_code=400,
         )
 
-    created = db.create_portal_provider_account(
+    created = await db_call(
+        db.create_portal_provider_account,
         phone=phone,
         password_hash=_hash_password(password),
         display_name=display_name,
@@ -111,19 +113,22 @@ async def provider_portal_register(request: Request):
     request.session["provider_portal_id"] = provider_id
     verify_code = _portal_generate_whatsapp_code()
     code_hash = _portal_hash_verification_code(verify_code)
-    db.set_portal_phone_verification_code(
+    await db_call(
+        db.set_portal_phone_verification_code,
         provider_id,
         verify_code,
         code_hash,
         ttl_minutes=PORTAL_VERIFY_CODE_TTL_MINUTES,
         mark_pending=True,
     )
-    db.log_provider_verification_event(
+    await db_call(
+        db.log_provider_verification_event,
         provider_id,
         "account_created",
         payload={"phone": phone, "display_name": display_name},
     )
-    db.log_provider_verification_event(
+    await db_call(
+        db.log_provider_verification_event,
         provider_id,
         "code_issued",
         payload={"ttl_minutes": PORTAL_VERIFY_CODE_TTL_MINUTES},
@@ -174,7 +179,7 @@ async def provider_portal_login(request: Request):
             status_code=429,
         )
 
-    provider = db.get_portal_provider_by_phone(phone) if phone else None
+    provider = await db_call(db.get_portal_provider_by_phone, phone) if phone else None
     if not provider:
         return templates.TemplateResponse(
             "provider_auth.html",
@@ -199,12 +204,14 @@ async def provider_portal_login(request: Request):
         )
     stored_hash = provider.get("portal_password_hash")
     if not _verify_password(password, stored_hash):
-        failure = db.register_portal_login_failure(
+        failure = await db_call(
+            db.register_portal_login_failure,
             int(provider["id"]),
             max_attempts=PORTAL_LOGIN_MAX_ATTEMPTS,
             lock_minutes=PORTAL_LOGIN_LOCK_MINUTES,
         )
-        db.log_provider_verification_event(
+        await db_call(
+            db.log_provider_verification_event,
             int(provider["id"]),
             "login_failed",
             payload={"phone": phone},
@@ -225,9 +232,10 @@ async def provider_portal_login(request: Request):
             status_code=401,
         )
 
-    db.reset_portal_login_failures(int(provider["id"]))
+    await db_call(db.reset_portal_login_failures, int(provider["id"]))
     _redis_reset_limit(login_rate_key)
-    db.log_provider_verification_event(
+    await db_call(
+        db.log_provider_verification_event,
         int(provider["id"]),
         "login_success",
         payload={"phone": phone},

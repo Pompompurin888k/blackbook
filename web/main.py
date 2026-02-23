@@ -1,9 +1,9 @@
-import os
 import logging
 import uuid
 import json
 from pathlib import Path
 import httpx
+from fastapi.concurrency import run_in_threadpool
 from fastapi import FastAPI, Request, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
@@ -35,6 +35,7 @@ from config import (
     FALLBACK_PROFILE_IMAGES, photo_url_cache,
     ONBOARDING_TOTAL_STEPS, ONBOARDING_STEP_META,
     CITIES, NEIGHBORHOODS,
+    PROVIDER_PORTAL_SESSION_SECRET, SESSION_COOKIE_SECURE,
 )
 
 # ── Services ────────────────────────────────────────────────
@@ -99,9 +100,9 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="Blackbook Directory", docs_url=None, redoc_url=None)
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("PROVIDER_PORTAL_SESSION_SECRET", "replace-this-portal-secret"),
+    secret_key=PROVIDER_PORTAL_SESSION_SECRET,
     same_site="lax",
-    https_only=os.getenv("SESSION_COOKIE_SECURE", "false").strip().lower() == "true",
+    https_only=SESSION_COOKIE_SECURE,
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -228,7 +229,7 @@ async def startup_event():
     try:
         from config import SUPPRESS_MIGRATIONS
         if not SUPPRESS_MIGRATIONS:
-            db._run_startup_migrations()
+            await run_in_threadpool(db._run_startup_migrations)
             logger.info("Database migrations completed.")
     except Exception as e:
         logger.error(f"Error during database startup: {e}")

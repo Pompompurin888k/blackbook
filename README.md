@@ -28,9 +28,13 @@ On startup, the web service now auto-applies versioned SQL migrations from `web/
 ## Environment Variables
 
 ```env
+APP_ENV=development
 TELEGRAM_TOKEN=your_bot_token
 ADMIN_CHAT_ID=your_admin_id
 PARTNER_TELEGRAM_ID=partner_id
+PROVIDER_PORTAL_SESSION_SECRET=long_random_secret
+PORTAL_VERIFY_CODE_PEPPER=another_random_secret
+TRUSTED_PROXY_CIDRS=127.0.0.1/32,::1/128
 DB_HOST=db
 DB_NAME=blackbook_db
 DB_USER=bb_operator

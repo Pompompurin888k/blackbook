@@ -24,6 +24,7 @@ from config import (
 from database import Database
 from services.redis_service import _redis_consume_limit, _get_redis_client
 from services.telegram_service import send_admin_alert
+from utils.db_async import db_call
 from utils.auth import (
     _sanitize_phone, _portal_session_provider_id,
     _portal_account_state, _portal_admin_review_keyboard,
@@ -51,7 +52,7 @@ async def provider_portal_dashboard(
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
         return RedirectResponse(url="/provider", status_code=302)
-    provider = db.get_portal_provider_by_id(provider_id)
+    provider = await db_call(db.get_portal_provider_by_id, provider_id)
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
@@ -61,14 +62,15 @@ async def provider_portal_dashboard(
     phone_code = provider.get("phone_verify_code")
     if not phone_code:
         phone_code = _portal_generate_whatsapp_code()
-        db.set_portal_phone_verification_code(
+        await db_call(
+            db.set_portal_phone_verification_code,
             provider_id,
             phone_code,
             _portal_hash_verification_code(phone_code),
             ttl_minutes=PORTAL_VERIFY_CODE_TTL_MINUTES,
             mark_pending=False,
         )
-        provider = db.get_portal_provider_by_id(provider_id) or provider
+        provider = await db_call(db.get_portal_provider_by_id, provider_id) or provider
 
     photo_urls = _normalize_photo_sources(provider.get("profile_photos"))[:5]
     services_list = _to_string_list(provider.get("services"))
@@ -82,7 +84,7 @@ async def provider_portal_dashboard(
         provider.get("is_verified") is True
         and provider.get("is_active") is False
         and not provider.get("trial_used")
-        and not db.has_successful_payment_for_provider(tg_id)
+        and not await db_call(db.has_successful_payment_for_provider, tg_id)
     ) if tg_id else False
 
     return templates.TemplateResponse(
@@ -120,7 +122,7 @@ async def provider_portal_verify_phone(
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
         return RedirectResponse(url="/provider", status_code=302)
-    provider = db.get_portal_provider_by_id(provider_id)
+    provider = await db_call(db.get_portal_provider_by_id, provider_id)
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
@@ -132,14 +134,16 @@ async def provider_portal_verify_phone(
     phone_code = provider.get("phone_verify_code")
     if not phone_code:
         phone_code = _portal_generate_whatsapp_code()
-        db.set_portal_phone_verification_code(
+        await db_call(
+            db.set_portal_phone_verification_code,
             provider_id,
             phone_code,
             _portal_hash_verification_code(phone_code),
             ttl_minutes=PORTAL_VERIFY_CODE_TTL_MINUTES,
             mark_pending=True,
         )
-        db.log_provider_verification_event(
+        await db_call(
+            db.log_provider_verification_event,
             provider_id,
             "code_issued",
             payload={"ttl_minutes": PORTAL_VERIFY_CODE_TTL_MINUTES, "source": "verify_phone_page"},
@@ -171,7 +175,7 @@ async def provider_portal_regenerate_verify_code(request: Request):
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
         return RedirectResponse(url="/provider", status_code=302)
-    provider = db.get_portal_provider_by_id(provider_id)
+    provider = await db_call(db.get_portal_provider_by_id, provider_id)
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
@@ -185,20 +189,27 @@ async def provider_portal_regenerate_verify_code(request: Request):
     if not allowed_regen:
         return RedirectResponse(url="/provider/verify-phone?rate_limited=1", status_code=303)
     if _get_redis_client() is None:
-        regen_count = db.count_provider_verification_events(provider_id, "code_regenerated", hours=24)
+        regen_count = await db_call(
+            db.count_provider_verification_events,
+            provider_id,
+            "code_regenerated",
+            hours=24,
+        )
         if regen_count >= PORTAL_VERIFY_CODE_REGEN_LIMIT_PER_DAY:
             return RedirectResponse(url="/provider/verify-phone?rate_limited=1", status_code=303)
 
     new_code = _portal_generate_whatsapp_code()
-    db.set_portal_phone_verification_code(
+    await db_call(
+        db.set_portal_phone_verification_code,
         provider_id,
         new_code,
         _portal_hash_verification_code(new_code),
         ttl_minutes=PORTAL_VERIFY_CODE_TTL_MINUTES,
         mark_pending=True,
     )
-    provider = db.get_portal_provider_by_id(provider_id)
-    db.log_provider_verification_event(
+    provider = await db_call(db.get_portal_provider_by_id, provider_id)
+    await db_call(
+        db.log_provider_verification_event,
         provider_id,
         "code_regenerated",
         payload={"ttl_minutes": PORTAL_VERIFY_CODE_TTL_MINUTES},
@@ -226,7 +237,7 @@ async def provider_portal_analytics(request: Request):
     if not provider_id:
         return RedirectResponse(url="/provider", status_code=302)
         
-    provider = db.get_portal_provider_by_id(provider_id)
+    provider = await db_call(db.get_portal_provider_by_id, provider_id)
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
@@ -235,7 +246,7 @@ async def provider_portal_analytics(request: Request):
         return RedirectResponse(url=f"/provider/verify-phone?status={_portal_account_state(provider)}", status_code=302)
 
     # Fetch stats
-    stats = db.get_provider_analytics_stats(provider_id)
+    stats = await db_call(db.get_provider_analytics_stats, provider_id)
 
     return templates.TemplateResponse(
         "provider_analytics.html",
@@ -258,7 +269,7 @@ async def provider_portal_wallet(
     if not provider_id:
         return RedirectResponse(url="/provider", status_code=302)
         
-    provider = db.get_portal_provider_by_id(provider_id)
+    provider = await db_call(db.get_portal_provider_by_id, provider_id)
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
@@ -267,12 +278,12 @@ async def provider_portal_wallet(
         return RedirectResponse(url=f"/provider/verify-phone?status={_portal_account_state(provider)}", status_code=302)
 
     tg_id = int(provider.get("telegram_id") or 0)
-    latest_payment = db.get_latest_payment_for_provider(tg_id) if tg_id else None
+    latest_payment = await db_call(db.get_latest_payment_for_provider, tg_id) if tg_id else None
     trial_eligible = (
         provider.get("is_verified") is True
         and provider.get("is_active") is False
         and not provider.get("trial_used")
-        and not db.has_successful_payment_for_provider(tg_id)
+        and not await db_call(db.has_successful_payment_for_provider, tg_id)
     ) if tg_id else False
     return templates.TemplateResponse(
         "provider_wallet.html",
@@ -303,7 +314,7 @@ async def provider_portal_referrals(
     if not provider_id:
         return RedirectResponse(url="/provider", status_code=302)
         
-    provider = db.get_portal_provider_by_id(provider_id)
+    provider = await db_call(db.get_portal_provider_by_id, provider_id)
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
@@ -322,13 +333,13 @@ async def provider_portal_referrals(
         actual_tg_id = 0
 
     if actual_tg_id != 0:
-        stats = db.get_referral_stats(actual_tg_id)
-        history = db.get_referral_history(actual_tg_id)
+        stats = await db_call(db.get_referral_stats, actual_tg_id)
+        history = await db_call(db.get_referral_history, actual_tg_id)
         
         # If they don't have a referral code yet, generate one.
         if not stats.get("referral_code"):
-            db.generate_referral_code(actual_tg_id)
-            stats = db.get_referral_stats(actual_tg_id)
+            await db_call(db.generate_referral_code, actual_tg_id)
+            stats = await db_call(db.get_referral_stats, actual_tg_id)
 
     return templates.TemplateResponse(
         "provider_referrals.html",
@@ -342,5 +353,4 @@ async def provider_portal_referrals(
             "error": error,
         }
     )
-
 

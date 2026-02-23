@@ -2,9 +2,50 @@
 Blackbook Web Configuration
 Imports shared constants and adds web-specific portal and cache settings.
 """
+import logging
 import os
+import secrets
 from collections import OrderedDict
+from ipaddress import ip_network
 from shared.config import *
+
+logger = logging.getLogger(__name__)
+
+
+_INSECURE_SECRET_MARKERS = {
+    "",
+    "replace-this-portal-secret",
+    "replace_with_long_random_secret",
+    "replace_with_random_secret",
+    "change-me",
+    "changeme",
+    "your_secret_here",
+}
+
+
+def _is_insecure_secret(value: str) -> bool:
+    normalized = (value or "").strip().lower()
+    if not normalized:
+        return True
+    if normalized in _INSECURE_SECRET_MARKERS:
+        return True
+    return normalized.startswith("replace")
+
+
+APP_ENV = (os.getenv("APP_ENV") or os.getenv("ENVIRONMENT") or "development").strip().lower()
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").strip().lower() == "true"
+IS_PRODUCTION = APP_ENV in {"prod", "production", "staging"}
+
+PROVIDER_PORTAL_SESSION_SECRET = os.getenv("PROVIDER_PORTAL_SESSION_SECRET", "").strip()
+if _is_insecure_secret(PROVIDER_PORTAL_SESSION_SECRET):
+    if IS_PRODUCTION:
+        raise RuntimeError(
+            "PROVIDER_PORTAL_SESSION_SECRET must be a strong random secret in production."
+        )
+    PROVIDER_PORTAL_SESSION_SECRET = secrets.token_urlsafe(48)
+    logger.warning(
+        "PROVIDER_PORTAL_SESSION_SECRET is missing or insecure; using an ephemeral development secret."
+    )
 
 # ==================== PORTAL SPECIFIC ====================
 PORTAL_ADMIN_WHATSAPP = os.getenv("PORTAL_ADMIN_WHATSAPP", "")
@@ -29,10 +70,14 @@ PORTAL_LOGIN_LOCK_MINUTES = int(os.getenv("PORTAL_LOGIN_LOCK_MINUTES", "15"))
 PORTAL_LOGIN_RATE_LIMIT_ATTEMPTS = int(os.getenv("PORTAL_LOGIN_RATE_LIMIT_ATTEMPTS", "20"))
 PORTAL_LOGIN_RATE_WINDOW_SECONDS = int(os.getenv("PORTAL_LOGIN_RATE_WINDOW_SECONDS", "900"))
 PORTAL_VERIFY_REGEN_WINDOW_SECONDS = int(os.getenv("PORTAL_VERIFY_REGEN_WINDOW_SECONDS", "86400"))
-PORTAL_VERIFY_CODE_PEPPER = os.getenv(
-    "PORTAL_VERIFY_CODE_PEPPER",
-    os.getenv("PROVIDER_PORTAL_SESSION_SECRET", "replace-this-portal-secret"),
-)
+PORTAL_VERIFY_CODE_PEPPER = os.getenv("PORTAL_VERIFY_CODE_PEPPER", "").strip()
+if _is_insecure_secret(PORTAL_VERIFY_CODE_PEPPER):
+    if IS_PRODUCTION:
+        raise RuntimeError("PORTAL_VERIFY_CODE_PEPPER must be set to a strong random secret in production.")
+    PORTAL_VERIFY_CODE_PEPPER = secrets.token_urlsafe(48)
+    logger.warning(
+        "PORTAL_VERIFY_CODE_PEPPER is missing or insecure; using an ephemeral development pepper."
+    )
 
 # Account states
 PORTAL_ACCOUNT_APPROVED = "approved"
@@ -69,6 +114,18 @@ CF_R2_UPLOAD_PREFIX = os.getenv("CF_R2_UPLOAD_PREFIX", "providers").strip().stri
 # Web specific payment seed endpoint (from old config)
 ENABLE_SEED_ENDPOINT = os.getenv("ENABLE_SEED_ENDPOINT", "false").strip().lower() == "true"
 LOCALHOSTS = {"127.0.0.1", "::1", "localhost"}
+_trusted_proxy_env = os.getenv("TRUSTED_PROXY_CIDRS", "127.0.0.1/32,::1/128")
+TRUSTED_PROXY_CIDRS = []
+for raw_cidr in _trusted_proxy_env.split(","):
+    cidr = raw_cidr.strip()
+    if not cidr:
+        continue
+    try:
+        TRUSTED_PROXY_CIDRS.append(ip_network(cidr, strict=False))
+    except ValueError:
+        logger.warning(f"Ignoring invalid TRUSTED_PROXY_CIDRS entry: {cidr}")
+if not TRUSTED_PROXY_CIDRS:
+    TRUSTED_PROXY_CIDRS = [ip_network("127.0.0.1/32"), ip_network("::1/128")]
 
 # Photo proxy cache
 MAX_PHOTO_CACHE_ITEMS = int(os.getenv("MAX_PHOTO_CACHE_ITEMS", "2000"))

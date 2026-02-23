@@ -15,6 +15,7 @@ from config import (
 from database import Database
 from services.redis_service import _enqueue_payment_callback
 from services.telegram_service import send_admin_alert, send_telegram_notification
+from utils.db_async import db_call
 from utils.auth import _is_valid_callback_signature
 from payment_queue_utils import extract_callback_reference
 
@@ -103,7 +104,7 @@ async def megapay_callback(request: Request):
             return JSONResponse({"status": "error", "message": "Invalid payment amount"}, status_code=400)
 
         # Idempotency: already-processed successful transaction
-        if db.has_successful_payment(reference):
+        if await db_call(db.has_successful_payment, reference):
             logger.info(f"ℹ️ Duplicate callback ignored for reference {reference}")
             return JSONResponse({"status": "success", "message": "Already processed"})
 
@@ -112,28 +113,28 @@ async def megapay_callback(request: Request):
         success = str(status).strip().lower() in success_markers
 
         if success:
-            provider_data = db.get_provider_by_telegram_id(telegram_id)
+            provider_data = await db_call(db.get_provider_by_telegram_id, telegram_id)
             if not provider_data:
                 logger.warning(f"⚠️ Callback references unknown provider: {telegram_id}")
-                db.log_payment(telegram_id, amount, reference, "FAILED_NO_PROVIDER", package_days)
+                await db_call(db.log_payment, telegram_id, amount, reference, "FAILED_NO_PROVIDER", package_days)
                 return JSONResponse({"status": "error", "message": "Provider not found"}, status_code=404)
 
             if not provider_data.get("is_verified"):
                 logger.warning(f"⚠️ Callback rejected for unverified provider: {telegram_id}")
-                db.log_payment(telegram_id, amount, reference, "REJECTED_UNVERIFIED", package_days)
+                await db_call(db.log_payment, telegram_id, amount, reference, "REJECTED_UNVERIFIED", package_days)
                 return JSONResponse({"status": "error", "message": "Provider not verified"}, status_code=403)
 
-            is_first_payment = not db.has_successful_payment_for_provider(telegram_id)
+            is_first_payment = not await db_call(db.has_successful_payment_for_provider, telegram_id)
 
             # Boost transaction
             if package_days == 0:
-                if not db.boost_provider(telegram_id, BOOST_DURATION_HOURS):
+                if not await db_call(db.boost_provider, telegram_id, BOOST_DURATION_HOURS):
                     logger.error(f"❌ Failed to boost provider {telegram_id}")
                     await send_admin_alert(
                         f"Web callback error: failed boost activation for provider {telegram_id}, reference {reference}."
                     )
                     return JSONResponse({"status": "error", "message": "Failed to activate boost"}, status_code=400)
-                if not db.log_payment(telegram_id, amount, reference, "SUCCESS", package_days):
+                if not await db_call(db.log_payment, telegram_id, amount, reference, "SUCCESS", package_days):
                     logger.error(f"❌ Failed to log successful boost payment for {telegram_id}")
                     await send_admin_alert(
                         f"Web callback error: failed to log boost payment for provider {telegram_id}, reference {reference}."
@@ -150,7 +151,8 @@ async def megapay_callback(request: Request):
                     f"📈 Active until: **{boost_until.strftime('%Y-%m-%d %H:%M')}**\n\n"
                     f"Your profile is now prioritized in results."
                 )
-                db.log_funnel_event(
+                await db_call(
+                    db.log_funnel_event,
                     telegram_id,
                     "boost_purchased",
                     {"amount": amount, "hours": BOOST_DURATION_HOURS, "reference": reference},
@@ -159,24 +161,26 @@ async def megapay_callback(request: Request):
                 return JSONResponse({"status": "success", "message": "Boost activated"})
 
             # Subscription transaction
-            if not db.activate_subscription(telegram_id, package_days):
+            if not await db_call(db.activate_subscription, telegram_id, package_days):
                 logger.error(f"❌ Failed to activate subscription for {telegram_id}")
                 await send_admin_alert(
                     f"Web callback error: failed subscription activation for provider {telegram_id}, reference {reference}."
                 )
                 return JSONResponse({"status": "error", "message": "Failed to activate subscription"}, status_code=500)
-            if not db.log_payment(telegram_id, amount, reference, "SUCCESS", package_days):
+            if not await db_call(db.log_payment, telegram_id, amount, reference, "SUCCESS", package_days):
                 logger.error(f"❌ Failed to log successful payment for {telegram_id}")
                 await send_admin_alert(
                     f"Web callback error: failed to log successful payment for provider {telegram_id}, reference {reference}."
                 )
                 return JSONResponse({"status": "error", "message": "Failed to log payment"}, status_code=500)
-            db.log_funnel_event(
+            await db_call(
+                db.log_funnel_event,
                 telegram_id,
                 "paid_success",
                 {"amount": amount, "days": package_days, "reference": reference},
             )
-            db.log_funnel_event(
+            await db_call(
+                db.log_funnel_event,
                 telegram_id,
                 "active_live",
                 {"source": "payment", "days": package_days},
@@ -189,7 +193,14 @@ async def megapay_callback(request: Request):
                 try:
                     commission = int(float(amount or 0) * 0.20)  # 20% commission
                     if commission > 0:
-                        reward_id = db.create_referral_reward(referrer_id, telegram_id, amount, commission, 3)
+                        reward_id = await db_call(
+                            db.create_referral_reward,
+                            referrer_id,
+                            telegram_id,
+                            amount,
+                            commission,
+                            3,
+                        )
                         if reward_id:
                             reply_markup = {
                                 "inline_keyboard": [
@@ -228,7 +239,7 @@ async def megapay_callback(request: Request):
             logger.info(f"✅ Payment SUCCESS: Provider {telegram_id} activated for {package_days} days")
             return JSONResponse({"status": "success", "message": "Subscription activated"})
 
-        db.log_payment(telegram_id, amount, reference, "FAILED", package_days)
+        await db_call(db.log_payment, telegram_id, amount, reference, "FAILED", package_days)
         logger.warning(f"❌ Payment FAILED for {telegram_id}: {status}")
         return JSONResponse({"status": "failed", "message": "Payment failed"})
 

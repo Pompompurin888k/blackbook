@@ -5,11 +5,19 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime
+from ipaddress import ip_address
 from typing import Optional
 
 from fastapi import Request
 
-from config import PORTAL_VERIFY_CODE_PEPPER, PORTAL_ACCOUNT_APPROVED, PORTAL_ACCOUNT_PENDING, PORTAL_ACCOUNT_REJECTED, PORTAL_ACCOUNT_SUSPENDED
+from config import (
+    PORTAL_VERIFY_CODE_PEPPER,
+    PORTAL_ACCOUNT_APPROVED,
+    PORTAL_ACCOUNT_PENDING,
+    PORTAL_ACCOUNT_REJECTED,
+    PORTAL_ACCOUNT_SUSPENDED,
+    TRUSTED_PROXY_CIDRS,
+)
 
 
 def _sanitize_phone(value: Optional[str]) -> str:
@@ -135,16 +143,44 @@ def _to_int_or_none(value) -> Optional[int]:
         return None
 
 
+def _parse_ip(value: Optional[str]):
+    text = (value or "").strip()
+    if not text:
+        return None
+    if text.startswith("[") and text.endswith("]"):
+        text = text[1:-1]
+    try:
+        return ip_address(text)
+    except ValueError:
+        return None
+
+
+def _is_trusted_proxy(host: Optional[str]) -> bool:
+    candidate = _parse_ip(host)
+    if candidate is None:
+        return False
+    return any(candidate in network for network in TRUSTED_PROXY_CIDRS)
+
+
 def _extract_client_ip(request: Request) -> str:
-    """Best-effort client IP extraction behind reverse proxies."""
-    forwarded_for = request.headers.get("x-forwarded-for", "")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    real_ip = request.headers.get("x-real-ip")
-    if real_ip:
-        return real_ip.strip()
-    if request.client and request.client.host:
-        return request.client.host
+    """Extracts client IP, trusting forwarding headers only from trusted proxies."""
+    remote_host = request.client.host if request.client else ""
+
+    if _is_trusted_proxy(remote_host):
+        forwarded_for = request.headers.get("x-forwarded-for", "")
+        if forwarded_for:
+            for item in forwarded_for.split(","):
+                candidate = _parse_ip(item)
+                if candidate is not None:
+                    return str(candidate)
+
+        real_ip = _parse_ip(request.headers.get("x-real-ip", ""))
+        if real_ip is not None:
+            return str(real_ip)
+
+    remote_ip = _parse_ip(remote_host)
+    if remote_ip is not None:
+        return str(remote_ip)
     return "unknown"
 
 
