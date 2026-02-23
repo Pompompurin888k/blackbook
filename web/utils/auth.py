@@ -3,6 +3,7 @@ Auth Utilities — password hashing, session helpers, phone normalization, locko
 """
 import hashlib
 import hmac
+import re
 import secrets
 from datetime import datetime
 from ipaddress import ip_address
@@ -39,6 +40,15 @@ def _normalize_portal_phone(value: str) -> str:
     if len(digits) < 12:
         return ""
     return digits[:12]
+
+
+def _normalize_portal_email(value: str) -> str:
+    """Normalizes and validates email for portal auth."""
+    email = str(value or "").strip().lower()
+    if not email or len(email) > 254:
+        return ""
+    pattern = r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
+    return email if re.match(pattern, email) else ""
 
 
 def _hash_password(password: str) -> str:
@@ -84,10 +94,36 @@ def _portal_generate_whatsapp_code() -> str:
     return "BB-" + "".join(secrets.choice(alphabet) for _ in range(8))
 
 
+def _portal_generate_email_code() -> str:
+    """Generates a 6-digit email verification code."""
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
 def _portal_hash_verification_code(code: str) -> str:
     """Hashes verification code with an app-level pepper."""
     base = f"{PORTAL_VERIFY_CODE_PEPPER}:{code}".encode("utf-8")
     return hashlib.sha256(base).hexdigest()
+
+
+def _portal_is_verification_code_match(submitted_code: str, stored_hash: str) -> bool:
+    """Compares submitted verification code against stored hash."""
+    if not submitted_code or not stored_hash:
+        return False
+    candidate = _portal_hash_verification_code(submitted_code)
+    return hmac.compare_digest(candidate, stored_hash)
+
+
+def _mask_email(value: str) -> str:
+    """Masks email for safe UI display."""
+    email = _normalize_portal_email(value)
+    if not email or "@" not in email:
+        return ""
+    local, domain = email.split("@", 1)
+    if len(local) <= 2:
+        masked_local = local[:1] + "*" * max(1, len(local) - 1)
+    else:
+        masked_local = local[:2] + "*" * (len(local) - 2)
+    return f"{masked_local}@{domain}"
 
 
 def _portal_account_state(provider: Optional[dict]) -> str:

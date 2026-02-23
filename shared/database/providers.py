@@ -280,6 +280,7 @@ class ProvidersRepository(BaseRepository):
                 "trial_reminder_day5_sent", "trial_reminder_lastday_sent",
                 "trial_expired_notified", "trial_winback_sent",
                 "phone_verified", "phone_verify_code", "phone_verify_code_created_at",
+                "email", "email_verified", "email_verify_code_created_at",
                 "account_state", "verification_code_hash", "verification_code_expires_at",
                 "verification_code_used_at", "approved_by_admin", "approved_at",
                 "rejection_reason", "login_failed_attempts", "locked_until", "last_login_attempt_at"

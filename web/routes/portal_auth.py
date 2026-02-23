@@ -1,42 +1,49 @@
 """
-Portal Auth Routes — Login, registration, and logout for providers.
+Portal Auth Routes - Login, registration, and logout for providers.
 """
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from config import (
     PORTAL_VERIFY_CODE_TTL_MINUTES,
-    PORTAL_LOGIN_MAX_ATTEMPTS, PORTAL_LOGIN_LOCK_MINUTES,
-    PORTAL_LOGIN_RATE_LIMIT_ATTEMPTS, PORTAL_LOGIN_RATE_WINDOW_SECONDS,
-    PORTAL_ACCOUNT_APPROVED, PORTAL_ACCOUNT_PENDING,
-    PORTAL_ACCOUNT_REJECTED, PORTAL_ACCOUNT_SUSPENDED,
+    PORTAL_LOGIN_MAX_ATTEMPTS,
+    PORTAL_LOGIN_LOCK_MINUTES,
+    PORTAL_LOGIN_RATE_LIMIT_ATTEMPTS,
+    PORTAL_LOGIN_RATE_WINDOW_SECONDS,
+    PORTAL_ACCOUNT_APPROVED,
+    PORTAL_ACCOUNT_SUSPENDED,
 )
 from database import Database
+from services.email_service import send_portal_verification_email
 from services.redis_service import _rate_limit_key_suffix, _redis_consume_limit, _redis_reset_limit
-from services.telegram_service import send_admin_alert
 from utils.db_async import db_call
 from utils.auth import (
-    _normalize_portal_phone, _hash_password, _verify_password,
-    _portal_session_provider_id, _portal_generate_whatsapp_code,
-    _portal_hash_verification_code, _portal_account_state,
-    _portal_is_locked, _portal_admin_review_keyboard,
     _extract_client_ip,
+    _hash_password,
+    _normalize_portal_email,
+    _normalize_portal_phone,
+    _portal_account_state,
+    _portal_generate_email_code,
+    _portal_hash_verification_code,
+    _portal_is_locked,
+    _portal_session_provider_id,
+    _verify_password,
 )
 
-db = Database()
 from fastapi.templating import Jinja2Templates
-templates = Jinja2Templates(directory="templates")
 
+templates = Jinja2Templates(directory="templates")
 router = APIRouter()
+db = Database()
 logger = logging.getLogger(__name__)
 
 
 @router.get("/provider", response_class=HTMLResponse)
 async def provider_portal_auth(request: Request, error: Optional[str] = None, success: Optional[str] = None):
-    """Provider portal auth page (phone + password)."""
+    """Provider portal auth page (email + password)."""
     provider_id = _portal_session_provider_id(request)
     if provider_id:
         provider = await db_call(db.get_portal_provider_by_id, provider_id)
@@ -44,9 +51,9 @@ async def provider_portal_auth(request: Request, error: Optional[str] = None, su
             request.session.clear()
         else:
             state = _portal_account_state(provider)
-            if state == PORTAL_ACCOUNT_APPROVED:
+            if state == PORTAL_ACCOUNT_APPROVED and provider.get("email_verified") is True:
                 return RedirectResponse(url="/provider/dashboard", status_code=302)
-            return RedirectResponse(url=f"/provider/verify-phone?status={state}", status_code=302)
+            return RedirectResponse(url=f"/provider/verify-email?status={state}", status_code=302)
     return templates.TemplateResponse(
         "provider_auth.html",
         {
@@ -59,10 +66,11 @@ async def provider_portal_auth(request: Request, error: Optional[str] = None, su
 
 @router.post("/provider/register")
 async def provider_portal_register(request: Request):
-    """Creates a new non-Telegram provider account."""
+    """Creates a new non-Telegram provider account and sends email verification code."""
     form = await request.form()
     display_name = str(form.get("display_name", "")).strip()
     phone = _normalize_portal_phone(str(form.get("phone", "")).strip())
+    email = _normalize_portal_email(str(form.get("email", "")).strip())
     password = str(form.get("password", ""))
     confirm_password = str(form.get("confirm_password", ""))
 
@@ -76,6 +84,12 @@ async def provider_portal_register(request: Request):
         return templates.TemplateResponse(
             "provider_auth.html",
             {"request": request, "error": "Use a valid Kenyan phone number (e.g. 2547XXXXXXXX).", "success": None},
+            status_code=400,
+        )
+    if not email:
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {"request": request, "error": "Enter a valid email address.", "success": None},
             status_code=400,
         )
     if len(password) < 6:
@@ -94,6 +108,7 @@ async def provider_portal_register(request: Request):
     created = await db_call(
         db.create_portal_provider_account,
         phone=phone,
+        email=email,
         password_hash=_hash_password(password),
         display_name=display_name,
     )
@@ -102,65 +117,76 @@ async def provider_portal_register(request: Request):
             "provider_auth.html",
             {
                 "request": request,
-                "error": "This phone is already registered. Please log in instead.",
+                "error": "This phone or email is already registered. Please log in instead.",
                 "success": None,
             },
             status_code=400,
         )
 
     provider_id = int(created["id"])
-    provider_tg_id = int(created["telegram_id"])
     request.session["provider_portal_id"] = provider_id
-    verify_code = _portal_generate_whatsapp_code()
+
+    verify_code = _portal_generate_email_code()
     code_hash = _portal_hash_verification_code(verify_code)
-    await db_call(
-        db.set_portal_phone_verification_code,
+    code_saved = await db_call(
+        db.set_portal_email_verification_code,
         provider_id,
-        verify_code,
         code_hash,
         ttl_minutes=PORTAL_VERIFY_CODE_TTL_MINUTES,
         mark_pending=True,
     )
+    if not code_saved:
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {
+                "request": request,
+                "error": "Account created, but verification setup failed. Please try logging in again.",
+                "success": None,
+            },
+            status_code=500,
+        )
+
     await db_call(
         db.log_provider_verification_event,
         provider_id,
         "account_created",
-        payload={"phone": phone, "display_name": display_name},
+        payload={"phone": phone, "email": email, "display_name": display_name},
     )
+
+    email_sent = await send_portal_verification_email(
+        recipient=email,
+        code=verify_code,
+        ttl_minutes=PORTAL_VERIFY_CODE_TTL_MINUTES,
+        display_name=display_name,
+    )
+
     await db_call(
         db.log_provider_verification_event,
         provider_id,
         "code_issued",
-        payload={"ttl_minutes": PORTAL_VERIFY_CODE_TTL_MINUTES},
+        payload={
+            "ttl_minutes": PORTAL_VERIFY_CODE_TTL_MINUTES,
+            "source": "register",
+            "delivery": "email",
+            "sent": bool(email_sent),
+        },
     )
-    await send_admin_alert(
-        (
-            "🆕 PORTAL SIGNUP - PENDING REVIEW\n"
-            "━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"👤 Name: {display_name}\n"
-            f"📞 Phone: {phone}\n"
-            f"🆔 Provider ID: {provider_id}\n"
-            f"🔐 WhatsApp Code: {verify_code}\n"
-            "━━━━━━━━━━━━━━━━━━━━━━\n"
-            "Next step:\n"
-            "1. Confirm sender number + code on WhatsApp\n"
-            "2. Tap Approve or Reject below"
-        ),
-        reply_markup=_portal_admin_review_keyboard(provider_tg_id),
-    )
-    return RedirectResponse(url="/provider/verify-phone?registered=1", status_code=303)
+
+    if not email_sent:
+        return RedirectResponse(url="/provider/verify-email?registered=1&email_failed=1", status_code=303)
+    return RedirectResponse(url="/provider/verify-email?registered=1", status_code=303)
 
 
 @router.post("/provider/login")
 async def provider_portal_login(request: Request):
     """Logs in an existing portal provider account."""
     form = await request.form()
-    phone = _normalize_portal_phone(str(form.get("phone", "")).strip())
+    email = _normalize_portal_email(str(form.get("email", "")).strip())
     password = str(form.get("password", ""))
     client_ip = _extract_client_ip(request)
     login_rate_key = (
         f"rl:provider_login:{_rate_limit_key_suffix(client_ip)}:"
-        f"{_rate_limit_key_suffix(phone or 'unknown')}"
+        f"{_rate_limit_key_suffix(email or 'unknown')}"
     )
     allowed_attempt, _ = _redis_consume_limit(
         key=login_rate_key,
@@ -179,20 +205,17 @@ async def provider_portal_login(request: Request):
             status_code=429,
         )
 
-    provider = await db_call(db.get_portal_provider_by_phone, phone) if phone else None
+    provider = await db_call(db.get_portal_provider_by_email, email) if email else None
     if not provider:
         return templates.TemplateResponse(
             "provider_auth.html",
-            {"request": request, "error": "Invalid phone or password.", "success": None},
+            {"request": request, "error": "Invalid email or password.", "success": None},
             status_code=401,
         )
+
     if _portal_is_locked(provider):
         locked_until = provider.get("locked_until")
-        locked_text = (
-            locked_until.strftime("%H:%M")
-            if hasattr(locked_until, "strftime")
-            else "later"
-        )
+        locked_text = locked_until.strftime("%H:%M") if hasattr(locked_until, "strftime") else "later"
         return templates.TemplateResponse(
             "provider_auth.html",
             {
@@ -202,6 +225,7 @@ async def provider_portal_login(request: Request):
             },
             status_code=423,
         )
+
     stored_hash = provider.get("portal_password_hash")
     if not _verify_password(password, stored_hash):
         failure = await db_call(
@@ -214,18 +238,14 @@ async def provider_portal_login(request: Request):
             db.log_provider_verification_event,
             int(provider["id"]),
             "login_failed",
-            payload={"phone": phone},
+            payload={"email": email},
         )
         if failure and failure.get("locked_until"):
             locked_until = failure.get("locked_until")
-            locked_text = (
-                locked_until.strftime("%H:%M")
-                if hasattr(locked_until, "strftime")
-                else "later"
-            )
+            locked_text = locked_until.strftime("%H:%M") if hasattr(locked_until, "strftime") else "later"
             message = f"Too many failed logins. Try again after {locked_text}."
         else:
-            message = "Invalid phone or password."
+            message = "Invalid email or password."
         return templates.TemplateResponse(
             "provider_auth.html",
             {"request": request, "error": message, "success": None},
@@ -238,7 +258,7 @@ async def provider_portal_login(request: Request):
         db.log_provider_verification_event,
         int(provider["id"]),
         "login_success",
-        payload={"phone": phone},
+        payload={"email": email},
     )
 
     request.session["provider_portal_id"] = int(provider["id"])
@@ -253,8 +273,9 @@ async def provider_portal_login(request: Request):
             },
             status_code=403,
         )
-    if state != PORTAL_ACCOUNT_APPROVED:
-        return RedirectResponse(url=f"/provider/verify-phone?status={state}", status_code=303)
+
+    if state != PORTAL_ACCOUNT_APPROVED or provider.get("email_verified") is not True:
+        return RedirectResponse(url=f"/provider/verify-email?status={state}", status_code=303)
     return RedirectResponse(url="/provider/dashboard", status_code=303)
 
 

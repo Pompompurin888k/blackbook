@@ -48,8 +48,8 @@ async def _get_provider_or_redirect(request: Request) -> tuple[Optional[dict], O
         request.session.clear()
         return None, RedirectResponse(url="/provider?error=Session+expired", status_code=302)
     state = _portal_account_state(provider)
-    if state != PORTAL_ACCOUNT_APPROVED:
-        return None, RedirectResponse(url=f"/provider/verify-phone?status={state}", status_code=302)
+    if state != PORTAL_ACCOUNT_APPROVED or provider.get("email_verified") is not True:
+        return None, RedirectResponse(url=f"/provider/verify-email?status={state}", status_code=302)
     return provider, None
 
 

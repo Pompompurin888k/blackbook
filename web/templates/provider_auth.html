@@ -200,14 +200,14 @@
                     <form method="post" action="/provider/login" class="space-y-5 relative">
                         <div>
                             <label
-                                class="block text-[10px] uppercase font-bold tracking-[0.15em] text-zinc-400 mb-2 pl-1">Phone
-                                Number</label>
+                                class="block text-[10px] uppercase font-bold tracking-[0.15em] text-zinc-400 mb-2 pl-1">Email
+                                Address</label>
                             <div class="relative">
-                                <i data-feather="phone"
+                                <i data-feather="mail"
                                     class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
-                                <input name="phone" required
+                                <input name="email" type="email" required
                                     class="input-glass w-full rounded-2xl py-3.5 pl-11 pr-4 text-sm"
-                                    placeholder="254712345678">
+                                    placeholder="you@example.com">
                             </div>
                         </div>
 
@@ -234,8 +234,8 @@
                         <div
                             class="mt-4 p-4 rounded-2xl bg-black/30 border border-white/5 flex gap-3 text-xs text-zinc-400 leading-relaxed">
                             <i data-feather="info" class="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5"></i>
-                            <p>No SMS required. Brand new accounts remain locked until admin approves your initial
-                                WhatsApp message.</p>
+                            <p>Email verification required. We send a short code to your inbox before dashboard access
+                                is unlocked.</p>
                         </div>
                     </form>
                 </div>
@@ -313,6 +313,19 @@
                             </div>
                         </div>
 
+                        <div>
+                            <label
+                                class="block text-[10px] uppercase font-bold tracking-[0.15em] text-zinc-400 mb-2 pl-1">Email
+                                Address</label>
+                            <div class="relative">
+                                <i data-feather="mail"
+                                    class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
+                                <input name="email" required type="email"
+                                    class="input-glass w-full rounded-2xl py-3.5 pl-11 pr-4 text-sm"
+                                    placeholder="you@example.com">
+                            </div>
+                        </div>
+
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label
@@ -321,7 +334,7 @@
                                 <div class="relative">
                                     <i data-feather="lock"
                                         class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
-                                    <input name="password" type="password" minlength="4" required
+                                    <input name="password" type="password" minlength="6" required
                                         class="input-glass w-full rounded-2xl py-3.5 pl-11 pr-4 text-sm"
                                         placeholder="Secret">
                                 </div>
@@ -331,7 +344,7 @@
                                     class="block text-[10px] uppercase font-bold tracking-[0.15em] text-zinc-400 mb-2 pl-1">Repeat
                                     PIN</label>
                                 <div class="relative">
-                                    <input name="confirm_password" type="password" minlength="4" required
+                                    <input name="confirm_password" type="password" minlength="6" required
                                         class="input-glass w-full rounded-2xl py-3.5 px-4 text-sm"
                                         placeholder="Confirm">
                                 </div>

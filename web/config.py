@@ -79,6 +79,17 @@ if _is_insecure_secret(PORTAL_VERIFY_CODE_PEPPER):
         "PORTAL_VERIFY_CODE_PEPPER is missing or insecure; using an ephemeral development pepper."
     )
 
+# SMTP / Email verification
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp-relay.brevo.com").strip() or "smtp-relay.brevo.com"
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME", "").strip()
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
+SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", "").strip()
+SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "Blackbook").strip() or "Blackbook"
+
+if (SMTP_USERNAME and not SMTP_PASSWORD) or (SMTP_PASSWORD and not SMTP_USERNAME):
+    logger.warning("SMTP credentials are incomplete; email verification delivery may fail.")
+
 # Account states
 PORTAL_ACCOUNT_APPROVED = "approved"
 PORTAL_ACCOUNT_PENDING = "pending_review"

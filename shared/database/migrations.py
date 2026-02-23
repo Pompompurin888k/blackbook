@@ -194,6 +194,15 @@ class MigrationsRepository(BaseRepository):
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='portal_password_hash') THEN
                     ALTER TABLE providers ADD COLUMN portal_password_hash TEXT;
                 END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='email') THEN
+                    ALTER TABLE providers ADD COLUMN email VARCHAR(255);
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='email_verified') THEN
+                    ALTER TABLE providers ADD COLUMN email_verified BOOLEAN DEFAULT FALSE;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='email_verify_code_created_at') THEN
+                    ALTER TABLE providers ADD COLUMN email_verify_code_created_at TIMESTAMP;
+                END IF;
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='providers' AND column_name='phone_verified') THEN
                     ALTER TABLE providers ADD COLUMN phone_verified BOOLEAN DEFAULT FALSE;
                 END IF;

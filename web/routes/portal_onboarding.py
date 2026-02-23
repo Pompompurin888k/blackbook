@@ -1,44 +1,46 @@
 """
-Portal Onboarding Routes — Multi-step profile completion wizard.
+Portal Onboarding Routes - Multi-step profile completion wizard.
 """
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from config import (
-    PORTAL_MAX_PROFILE_PHOTOS, PORTAL_MIN_PROFILE_PHOTOS,
-    PORTAL_RECOMMENDED_PROFILE_PHOTOS,
-    PORTAL_VERIFY_CODE_TTL_MINUTES,
+    CITIES,
+    NEIGHBORHOODS,
+    ONBOARDING_STEP_META,
+    ONBOARDING_TOTAL_STEPS,
     PORTAL_ACCOUNT_APPROVED,
-    CITIES, NEIGHBORHOODS,
-    ONBOARDING_TOTAL_STEPS, ONBOARDING_STEP_META,
+    PORTAL_MAX_PROFILE_PHOTOS,
+    PORTAL_MIN_PROFILE_PHOTOS,
+    PORTAL_RECOMMENDED_PROFILE_PHOTOS,
 )
 from database import Database
 from services.telegram_service import send_admin_alert
-from utils.auth import (
-    _portal_session_provider_id, _to_int_or_none,
-    _portal_account_state, _portal_admin_review_keyboard,
-    _portal_generate_whatsapp_code, _portal_hash_verification_code,
-)
+from utils.auth import _portal_account_state, _portal_session_provider_id, _to_int_or_none
 from utils.db_async import db_call
-from utils.providers import _to_string_list, _normalize_photo_sources
 from utils.onboarding import (
-    _normalize_onboarding_step, _parse_csv_values,
-    _portal_get_onboarding_draft, _portal_set_onboarding_draft,
-    _portal_clear_onboarding_draft, _portal_build_preview,
-    _portal_compute_profile_strength, _portal_build_ranking_tips,
+    _normalize_onboarding_step,
+    _parse_csv_values,
+    _portal_build_preview,
+    _portal_build_ranking_tips,
+    _portal_clear_onboarding_draft,
+    _portal_compute_profile_strength,
+    _portal_get_onboarding_draft,
+    _portal_set_onboarding_draft,
 )
+from utils.providers import _normalize_photo_sources
 
 # Shared upload handler currently lives in main.py.
 from main import _save_provider_upload
 
-db = Database()
 from fastapi.templating import Jinja2Templates
-templates = Jinja2Templates(directory="templates")
 
+templates = Jinja2Templates(directory="templates")
 router = APIRouter()
+db = Database()
 logger = logging.getLogger(__name__)
 
 
@@ -52,14 +54,8 @@ def _render_provider_onboarding_template(
 ):
     """Renders the multi-step portal onboarding screen."""
     photo_urls = _normalize_photo_sources(provider.get("profile_photos"))[:PORTAL_MAX_PROFILE_PHOTOS]
-    preview = _portal_build_preview(
-        draft=draft,
-        photo_urls=photo_urls,
-    )
-    profile_strength = _portal_compute_profile_strength(
-        draft=draft,
-        photo_count=len(photo_urls),
-    )
+    preview = _portal_build_preview(draft=draft, photo_urls=photo_urls)
+    profile_strength = _portal_compute_profile_strength(draft=draft, photo_count=len(photo_urls))
     ranking_tips = _portal_build_ranking_tips(draft=draft, photo_count=len(photo_urls))
     return templates.TemplateResponse(
         "provider_onboarding.html",
@@ -94,16 +90,19 @@ async def provider_portal_onboarding(
     saved: Optional[int] = 0,
     error: Optional[str] = None,
 ):
-    """Multi-step onboarding wizard for non-Telegram providers."""
+    """Multi-step onboarding wizard for portal providers."""
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
         return RedirectResponse(url="/provider", status_code=302)
+
     provider = await db_call(db.get_portal_provider_by_id, provider_id)
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
-    if _portal_account_state(provider) != PORTAL_ACCOUNT_APPROVED:
-        return RedirectResponse(url=f"/provider/verify-phone?status={_portal_account_state(provider)}", status_code=302)
+
+    if _portal_account_state(provider) != PORTAL_ACCOUNT_APPROVED or provider.get("email_verified") is not True:
+        return RedirectResponse(url=f"/provider/verify-email?status={_portal_account_state(provider)}", status_code=302)
+
     current_step = _normalize_onboarding_step(step)
     draft = _portal_get_onboarding_draft(request, provider)
     _portal_set_onboarding_draft(request, draft)
@@ -123,12 +122,14 @@ async def provider_portal_onboarding_submit(request: Request):
     provider_id = _portal_session_provider_id(request)
     if not provider_id:
         return RedirectResponse(url="/provider", status_code=302)
+
     provider = await db_call(db.get_portal_provider_by_id, provider_id)
     if not provider:
         request.session.clear()
         return RedirectResponse(url="/provider?error=Session+expired", status_code=302)
-    if _portal_account_state(provider) != PORTAL_ACCOUNT_APPROVED:
-        return RedirectResponse(url=f"/provider/verify-phone?status={_portal_account_state(provider)}", status_code=302)
+
+    if _portal_account_state(provider) != PORTAL_ACCOUNT_APPROVED or provider.get("email_verified") is not True:
+        return RedirectResponse(url=f"/provider/verify-email?status={_portal_account_state(provider)}", status_code=302)
 
     form = await request.form()
     step = _normalize_onboarding_step(form.get("step"))
@@ -156,6 +157,7 @@ async def provider_portal_onboarding_submit(request: Request):
                 step=step,
                 error="Please set display name, city, and neighborhood before continuing.",
             )
+
     elif step == 2:
         draft["bio"] = str(form.get("bio", "")).strip()
         draft["nearby_places"] = str(form.get("nearby_places", "")).strip()
@@ -169,6 +171,7 @@ async def provider_portal_onboarding_submit(request: Request):
                 step=step,
                 error="Please write a richer bio (at least 20 characters).",
             )
+
     elif step == 3:
         draft["services_text"] = str(form.get("services_text", "")).strip()
         draft["languages_text"] = str(form.get("languages_text", "")).strip()
@@ -188,20 +191,17 @@ async def provider_portal_onboarding_submit(request: Request):
                 step=step,
                 error="Please add at least one service before continuing.",
             )
+
     elif step == ONBOARDING_TOTAL_STEPS:
         draft["video_url"] = str(form.get("video_url", "")).strip()
         _portal_set_onboarding_draft(request, draft)
 
     if action == "back":
-        return RedirectResponse(
-            url=f"/provider/onboarding?step={max(1, step - 1)}&saved=1",
-            status_code=303,
-        )
+        return RedirectResponse(url=f"/provider/onboarding?step={max(1, step - 1)}&saved=1", status_code=303)
 
     if step < ONBOARDING_TOTAL_STEPS:
         return RedirectResponse(url=f"/provider/onboarding?step={step + 1}&saved=1", status_code=303)
 
-    # Final step: save to DB and submit.
     existing_photo_urls = _normalize_photo_sources(provider.get("profile_photos"))
     upload_items = form.getlist("photos")
     for upload in upload_items:
@@ -217,11 +217,9 @@ async def provider_portal_onboarding_submit(request: Request):
             provider=provider,
             draft=draft,
             step=ONBOARDING_TOTAL_STEPS,
-            error=(
-                f"Please upload at least {PORTAL_MIN_PROFILE_PHOTOS} profile photos "
-                "before submitting."
-            ),
+            error=f"Please upload at least {PORTAL_MIN_PROFILE_PHOTOS} profile photos before submitting.",
         )
+
     display_name = draft.get("display_name") or provider.get("display_name")
     city = draft.get("city", "")
     neighborhood = draft.get("neighborhood", "")
@@ -257,11 +255,7 @@ async def provider_portal_onboarding_submit(request: Request):
         "rate_overnight": _to_int_or_none(draft.get("rate_overnight")),
         "is_online": False,
         "portal_onboarding_complete": bool(
-            display_name
-            and city
-            and neighborhood
-            and bio
-            and len(existing_photo_urls) >= PORTAL_MIN_PROFILE_PHOTOS
+            display_name and city and neighborhood and bio and len(existing_photo_urls) >= PORTAL_MIN_PROFILE_PHOTOS
         ),
     }
     saved = await db_call(db.update_portal_provider_profile, provider_id, update_data)
@@ -274,30 +268,15 @@ async def provider_portal_onboarding_submit(request: Request):
             error="Could not save your profile right now. Please try again.",
         )
 
-    provider_after = await db_call(db.get_portal_provider_by_id, provider_id) or {}
-    phone_code = provider_after.get("phone_verify_code")
-    if not phone_code:
-        phone_code = _portal_generate_whatsapp_code()
-        await db_call(
-            db.set_portal_phone_verification_code,
-            provider_id,
-            phone_code,
-            _portal_hash_verification_code(phone_code),
-            ttl_minutes=PORTAL_VERIFY_CODE_TTL_MINUTES,
-            mark_pending=False,
-        )
-
     await send_admin_alert(
         (
-            "📝 PORTAL PROFILE SUBMITTED\n"
-            "━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"👤 Name: {display_name or provider.get('display_name', 'Unknown')}\n"
-            f"📞 Phone: {provider.get('phone', '')}\n"
-            f"🆔 Provider ID: {provider_id}\n"
-            f"🔐 Active Code: {phone_code}\n"
-            "━━━━━━━━━━━━━━━━━━━━━━\n"
-            "Review profile quality, then approve/reject in admin bot."
-        ),
+            "PORTAL PROFILE SUBMITTED\n"
+            "-----------------------\n"
+            f"Name: {display_name or provider.get('display_name', 'Unknown')}\n"
+            f"Phone: {provider.get('phone', '')}\n"
+            f"Provider ID: {provider_id}\n"
+            "Review profile quality in admin bot."
+        )
     )
     await db_call(
         db.log_provider_verification_event,
