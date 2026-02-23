@@ -25,6 +25,37 @@ docker-compose up -d
 
 On startup, the web service now auto-applies versioned SQL migrations from `web/migrations/`.
 
+## Server Ops (Common Commands)
+
+Use these on your server after changing code or `.env`.
+
+```bash
+# 1) Pull latest code
+git pull origin main
+
+# 2) Restart all services (reloads .env)
+docker-compose down
+docker-compose up -d --build
+
+# 3) Restart only web (faster when web/.env changed)
+docker-compose up -d --build web
+
+# 4) Check running services
+docker-compose ps
+
+# 5) Tail logs
+docker-compose logs -f web
+docker-compose logs -f bot
+
+# 6) If something is stuck, full reset of containers
+docker-compose down
+docker-compose up -d
+```
+
+Notes:
+- If you update `.env`, you must restart affected services.
+- For SMTP/email auth changes, restart at least `web`.
+
 ## Environment Variables
 
 ```env
