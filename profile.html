@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sasha | BLACKBOOK Private Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --gold: #D4AF37;
+            --black: #050505;
+            --zinc: #111111;
+        }
+        body { font-family: 'Inter', sans-serif; background-color: var(--black); color: white; }
+        .serif { font-family: 'Cinzel', serif; }
+        .gold-text { color: var(--gold); }
+        .gold-bg { background-color: var(--gold); }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        
+        .profile-gradient {
+            background: linear-gradient(to top, var(--black) 0%, rgba(5, 5, 5, 0.8) 20%, transparent 50%);
+        }
+
+        .pulse-green {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- HEADER / NAVIGATION -->
+    <nav class="fixed top-0 left-0 right-0 z-50 p-6 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
+        <button onclick="history.back()" class="glass p-3 rounded-full hover:bg-white/10 transition-all">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </button>
+        <div class="text-center">
+            <h1 class="serif text-xl gold-text tracking-[0.3em]">BLACKBOOK</h1>
+        </div>
+        <button class="glass p-3 rounded-full opacity-0"> <!-- Spacer -->
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+        </button>
+    </nav>
+
+    <main class="max-w-4xl mx-auto pb-32">
+        
+        <!-- HERO SECTION -->
+        <div class="relative w-full aspect-[3/4] md:aspect-video overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=1200" class="w-full h-full object-cover">
+            <div class="absolute inset-0 profile-gradient"></div>
+            
+            <!-- Floating Status -->
+            <div class="absolute bottom-10 left-8 flex items-center gap-3">
+                <div class="h-3 w-3 bg-green-500 rounded-full pulse-green"></div>
+                <span class="text-sm font-bold uppercase tracking-widest text-green-500">Online & Available</span>
+            </div>
+        </div>
+
+        <!-- PROFILE HEADER -->
+        <div class="px-8 -mt-6 relative z-10">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
+                <div class="space-y-2">
+                    <div class="flex items-center gap-3">
+                        <span class="gold-bg text-[9px] text-black px-3 py-0.5 rounded-sm font-black uppercase tracking-[0.2em]">Platinum VIP</span>
+                        <div class="flex items-center text-[#00A3FF] text-[10px] font-bold gap-1 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293l-4 4a1 1 0 01-1.414 0l-2-2a1 1 0 111.414-1.414L9 10.586l3.293-3.293a1 1 0 011.414 1.414z"></path></svg>
+                            Verified Identity
+                        </div>
+                    </div>
+                    <h1 class="serif text-6xl md:text-8xl tracking-tighter">Sasha, 21</h1>
+                    <p class="text-gray-400 font-light tracking-[0.2em] text-xs uppercase flex items-center gap-2">
+                        <svg class="w-3 h-3 gold-text" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
+                        Kilimani, Nairobi • Near Prestige Plaza
+                    </p>
+                </div>
+                <div class="bg-zinc-900 border border-white/5 p-6 rounded-3xl min-w-[180px]">
+                    <p class="text-[9px] text-gray-500 uppercase tracking-[0.3em] mb-1">Honorarium</p>
+                    <p class="serif text-3xl gold-text">10,000<span class="text-xs ml-1">KES</span></p>
+                </div>
+            </div>
+
+            <!-- THE STATS GRID (Competitor Buster) -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12">
+                <div class="glass p-5 rounded-3xl text-center">
+                    <p class="text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-1">Height</p>
+                    <p class="font-bold text-lg">173 <span class="text-[10px] font-light text-gray-400">CM</span></p>
+                </div>
+                <div class="glass p-5 rounded-3xl text-center">
+                    <p class="text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-1">Weight</p>
+                    <p class="font-bold text-lg">53 <span class="text-[10px] font-light text-gray-400">KG</span></p>
+                </div>
+                <div class="glass p-5 rounded-3xl text-center">
+                    <p class="text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-1">Build</p>
+                    <p class="font-bold text-lg">Slim</p>
+                </div>
+                <div class="glass p-5 rounded-3xl text-center">
+                    <p class="text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-1">Access</p>
+                    <p class="font-bold text-lg gold-text">Incall</p>
+                </div>
+            </div>
+
+            <!-- ABOUT SECTION -->
+            <div class="mt-16 space-y-6">
+                <h3 class="serif text-xl gold-text tracking-[0.2em] uppercase">The Experience</h3>
+                <p class="text-gray-400 leading-relaxed font-light text-lg italic">
+                    "I am a beautiful classy lady, always immaculately groomed and elegant. You can always expect me to be genuine, nurturing, sweet, and attentive. I seek to meet gentlemen who appreciate the finer things in life."
+                </p>
+            </div>
+
+            <!-- SERVICES (PILLS) -->
+            <div class="mt-16 space-y-6">
+                <h3 class="serif text-xl gold-text tracking-[0.2em] uppercase">Specialties</h3>
+                <div class="flex flex-wrap gap-2">
+                    <span class="px-4 py-2 glass rounded-full text-[10px] uppercase font-bold text-gray-300">Girlfriend Experience (GFE)</span>
+                    <span class="px-4 py-2 glass rounded-full text-[10px] uppercase font-bold text-gray-300">Dinner & Events</span>
+                    <span class="px-4 py-2 glass rounded-full text-[10px] uppercase font-bold text-gray-300">Full Body Massage</span>
+                    <span class="px-4 py-2 glass rounded-full text-[10px] uppercase font-bold text-gray-300">Travel Companion</span>
+                    <span class="px-4 py-2 glass rounded-full text-[10px] uppercase font-bold text-gray-300">Intimate Dates</span>
+                </div>
+            </div>
+
+            <!-- REVIEWS / TRUST SECTION -->
+            <div class="mt-16 p-8 glass rounded-[40px] border-gold-500/20">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="text-gold-500">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                    </div>
+                    <h4 class="serif text-lg tracking-widest uppercase">Verified Trust</h4>
+                </div>
+                <p class="text-sm text-gray-500 leading-relaxed font-light">
+                    Sasha has successfully completed our **Live Security Vetting**. This profile represents an active, verified professional within our network.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- FIXED FOOTER ACTIONS (CONVERSION) -->
+    <div class="fixed bottom-0 left-0 right-0 z-[60] p-6 glass border-t border-white/5 bg-black/80 backdrop-blur-3xl flex gap-3">
+        <!-- Discreet Option -->
+        <button onclick="contact('stealth')" class="flex-1 glass py-4 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 border-white/10">
+            <span class="text-[9px] uppercase tracking-widest text-gray-500 mb-1">Discreet Inquiry</span>
+            <span class="text-xs font-black uppercase tracking-tighter">Business Intro</span>
+        </button>
+        
+        <!-- Direct Option -->
+        <button onclick="contact('direct')" class="flex-[2] bg-white text-black py-4 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95">
+            <span class="text-[9px] uppercase tracking-widest text-gray-600 mb-1">Fast Connection</span>
+            <span class="text-sm font-black uppercase tracking-widest">Connect on WhatsApp</span>
+        </button>
+    </div>
+
+    <script>
+        function contact(mode) {
+            let message = "";
+            if (mode === 'stealth') {
+                message = encodeURIComponent("Hello, I am interested in the lifestyle management services we discussed. Please let me know your availability for a consultation.");
+            } else {
+                message = encodeURIComponent("Hi Sasha, I saw your profile on BLACKBOOK. Are you available for a session?");
+            }
+            window.open(`https://wa.me/254718890126?text=${message}`, '_blank');
+        }
+    </script>
+</body>
+</html>
