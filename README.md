@@ -1,102 +1,110 @@
 # Blackbook
 
-Private Concierge Network - Premium directory for verified professionals.
+Private concierge network for verified providers.
 
 ## Tech Stack
-- **Bot**: Python + python-telegram-bot
-- **Web**: FastAPI + Jinja2 templates
-- **Database**: PostgreSQL
-- **Payments**: MegaPay (M-Pesa STK Push)
+- Bot: Python + python-telegram-bot
+- Web: FastAPI + Jinja2
+- Database: PostgreSQL
+- Queue/Cache: Redis + ARQ
+- Storage: Local uploads or Cloudflare R2
 
 ## Quick Start
 
 ```bash
-# Clone
 git clone https://github.com/Pompompurin888k/blackbook.git
 cd blackbook
-
-# Configure
 cp .env.example .env
-# Edit .env with your credentials
-
-# Deploy
-docker-compose up -d
+# edit .env
+docker compose up -d --build
 ```
 
-On startup, the web service now auto-applies versioned SQL migrations from `web/migrations/`.
+Web startup automatically applies SQL migrations from `web/migrations/`.
 
-## Server Ops (Common Commands)
+## One-Command Deploy
 
-Use these on your server after changing code or `.env`.
+Run this on the server after you update code or `.env`:
 
 ```bash
-# 1) Pull latest code
+bash ./deploy.sh
+```
+
+Useful options:
+
+```bash
+bash ./deploy.sh --skip-pull
+bash ./deploy.sh --no-build
+bash ./deploy.sh --migrate-r2         # dry-run migration after deploy
+bash ./deploy.sh --migrate-r2-apply   # apply migration after deploy
+```
+
+What it does:
+- Pulls latest code (`git pull --ff-only origin main`) unless skipped
+- Rebuilds and starts containers
+- Waits for `http://127.0.0.1:8080/health`
+- Prints container status + migration-related logs
+
+## Migrate Existing Local Photos to Cloudflare R2
+
+New uploads already use R2 when enabled. This command migrates older `/static/uploads/...` DB references.
+
+Dry run:
+
+```bash
+bash ./migrate_photos_to_r2.sh
+```
+
+Apply changes:
+
+```bash
+bash ./migrate_photos_to_r2.sh --apply
+```
+
+Target one provider:
+
+```bash
+bash ./migrate_photos_to_r2.sh --apply --provider-id 59
+```
+
+Requirements in `.env` before `--apply`:
+- `ENABLE_CLOUDFLARE_R2_UPLOADS=true`
+- `CF_R2_BUCKET`
+- `CF_R2_ENDPOINT`
+- `CF_R2_ACCESS_KEY_ID`
+- `CF_R2_SECRET_ACCESS_KEY`
+- `CF_R2_PUBLIC_BASE_URL`
+
+## Server Ops (Frequent Commands)
+
+```bash
+# Pull + full rebuild
 git pull origin main
+docker compose up -d --build
 
-# 2) Restart all services (reloads .env)
-docker-compose down
-docker-compose up -d --build
+# Fast restart only web
+docker compose up -d --build web
 
-# 3) Restart only web (faster when web/.env changed)
-docker-compose up -d --build web
+# Check service status
+docker compose ps
 
-# 4) Check running services
-docker-compose ps
+# Logs
+docker compose logs -f web
+docker compose logs -f worker
+docker compose logs -f bot
 
-# 5) Tail logs
-docker-compose logs -f web
-docker-compose logs -f bot
-
-# 6) If something is stuck, full reset of containers
-docker-compose down
-docker-compose up -d
+# DB quick checks
+docker compose exec db psql -U bb_operator -d blackbook_db -c "SELECT COUNT(*) FROM providers;"
+docker compose exec db psql -U bb_operator -d blackbook_db -c "SELECT id, display_name, email, email_verified, account_state FROM providers WHERE COALESCE(auth_channel,'telegram')='portal' ORDER BY created_at DESC LIMIT 20;"
 ```
 
 Notes:
-- If you update `.env`, you must restart affected services.
-- For SMTP/email auth changes, restart at least `web`.
-
-## Environment Variables
-
-```env
-APP_ENV=development
-TELEGRAM_TOKEN=your_bot_token
-ADMIN_CHAT_ID=your_admin_id
-PARTNER_TELEGRAM_ID=partner_id
-PROVIDER_PORTAL_SESSION_SECRET=long_random_secret
-PORTAL_VERIFY_CODE_PEPPER=another_random_secret
-SMTP_HOST=smtp-relay.brevo.com
-SMTP_PORT=587
-SMTP_USERNAME=your_smtp_username
-SMTP_PASSWORD=your_smtp_password
-SMTP_FROM_EMAIL=no-reply@yourdomain.com
-SMTP_FROM_NAME=Blackbook
-TRUSTED_PROXY_CIDRS=127.0.0.1/32,::1/128
-DB_HOST=db
-DB_NAME=blackbook_db
-DB_USER=bb_operator
-DB_PASSWORD=your_password
-DB_PORT=5432
-MEGAPAY_API_KEY=your_megapay_key
-MEGAPAY_EMAIL=your_megapay_account_email
-MEGAPAY_CALLBACK_URL=https://yourdomain.com/payments/callback
-MEGAPAY_STK_ENDPOINT=https://megapay.co.ke/backend/v1/initiatestk
-MEGAPAY_CALLBACK_SECRET=your_shared_callback_secret
-BOOST_DURATION_HOURS=12
-BOOST_PRICE=100
-PACKAGE_PRICE_3=300
-PACKAGE_PRICE_7=600
-PACKAGE_PRICE_30=1500
-PACKAGE_PRICE_90=4000
-MAX_PHOTO_CACHE_ITEMS=2000
-ENABLE_SEED_ENDPOINT=false
-```
+- After `.env` changes, restart affected containers.
+- For SMTP/auth or R2 config changes, restart at least `web` and `worker`.
 
 ## Features
-
-- ✅ Provider registration & verification
-- ✅ Blue Tick verification system
-- ✅ M-Pesa payment integration
-- ✅ Safety suite (Blacklist, Session Timer)
-- ✅ Live status toggle
-- ✅ Premium website directory
+- Provider registration/login with email verification
+- Password reset flow
+- Portal onboarding + dashboard
+- Provider listing + recommendations
+- Payments + trial activation
+- Admin review and safety controls
