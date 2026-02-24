@@ -101,6 +101,52 @@ Notes:
 - After `.env` changes, restart affected containers.
 - For SMTP/auth or R2 config changes, restart at least `web` and `worker`.
 
+## Email Deliverability Checklist (Brevo + Your Domain)
+
+1. In DNS, publish and verify all Brevo records:
+- SPF TXT includes Brevo sender (`include:spf.brevo.com`)
+- DKIM TXT/CNAME records from Brevo (all selectors they provide)
+- DMARC TXT (recommended start): `v=DMARC1; p=none; rua=mailto:postmaster@yourdomain.com`
+2. In `.env`, ensure:
+- `SMTP_HOST=smtp-relay.brevo.com`
+- `SMTP_PORT=587`
+- `SMTP_USERNAME`, `SMTP_PASSWORD`
+- `SMTP_FROM_EMAIL` uses your verified sender/domain
+3. Restart services:
+
+```bash
+docker compose up -d --build web worker
+```
+
+4. Watch delivery/failure logs:
+
+```bash
+docker compose logs -f web | grep -Ei "verification email sent|password-reset email sent|Failed sending|SMTP is not fully configured"
+```
+
+## Abuse Protection (Portal)
+
+New protections:
+- Register route rate limit (IP+email)
+- Verify-email confirm rate limit (provider+IP)
+- Verify-email regenerate rate limit (IP window + provider daily cap)
+- Password reset confirm rate limit (IP+email)
+- Optional Cloudflare Turnstile captcha for register, verify-email, and password-reset request
+
+Enable captcha in `.env`:
+
+```bash
+PORTAL_CAPTCHA_ENABLED=true
+PORTAL_TURNSTILE_SITE_KEY=...
+PORTAL_TURNSTILE_SECRET_KEY=...
+```
+
+Tune rate limits in `.env` (defaults are already set in `.env.example`):
+- `PORTAL_REGISTER_RATE_LIMIT_ATTEMPTS`, `PORTAL_REGISTER_RATE_WINDOW_SECONDS`
+- `PORTAL_VERIFY_REGEN_RATE_LIMIT_ATTEMPTS`, `PORTAL_VERIFY_REGEN_RATE_WINDOW_SECONDS`
+- `PORTAL_VERIFY_CONFIRM_RATE_LIMIT_ATTEMPTS`, `PORTAL_VERIFY_CONFIRM_RATE_WINDOW_SECONDS`
+- `PORTAL_PASSWORD_RESET_CONFIRM_LIMIT`, `PORTAL_PASSWORD_RESET_CONFIRM_WINDOW_SECONDS`
+
 ## Features
 - Provider registration/login with email verification
 - Password reset flow

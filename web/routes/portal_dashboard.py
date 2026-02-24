@@ -14,15 +14,20 @@ from config import (
     FREE_TRIAL_DAYS,
     PACKAGE_PRICES,
     PORTAL_ACCOUNT_APPROVED,
+    PORTAL_VERIFY_CONFIRM_RATE_LIMIT_ATTEMPTS,
+    PORTAL_VERIFY_CONFIRM_RATE_WINDOW_SECONDS,
     PORTAL_VERIFY_CODE_REGEN_LIMIT_PER_DAY,
     PORTAL_VERIFY_CODE_TTL_MINUTES,
+    PORTAL_VERIFY_REGEN_RATE_LIMIT_ATTEMPTS,
+    PORTAL_VERIFY_REGEN_RATE_WINDOW_SECONDS,
     PORTAL_VERIFY_REGEN_WINDOW_SECONDS,
     TELEGRAM_BOT_USERNAME,
 )
 from database import Database
 from services.email_service import send_portal_verification_email
-from services.redis_service import _get_redis_client, _redis_consume_limit
+from services.redis_service import _get_redis_client, _rate_limit_key_suffix, _redis_consume_limit
 from utils.auth import (
+    _extract_client_ip,
     _mask_email,
     _normalize_portal_email,
     _portal_account_state,
@@ -34,6 +39,7 @@ from utils.auth import (
 from utils.db_async import db_call
 from utils.onboarding import _portal_compute_profile_strength, _portal_onboarding_base_draft
 from utils.providers import _build_short_profile_url, _normalize_photo_sources, _to_string_list
+from utils.security import _captcha_template_context, _verify_portal_captcha
 
 from fastapi.templating import Jinja2Templates
 
@@ -164,6 +170,7 @@ async def provider_portal_verify_email(
     invalid: Optional[int] = 0,
     expired: Optional[int] = 0,
     email_failed: Optional[int] = 0,
+    captcha_failed: Optional[int] = 0,
 ):
     """Email-based verification page for pending portal accounts."""
     provider_id = _portal_session_provider_id(request)
@@ -207,6 +214,8 @@ async def provider_portal_verify_email(
             "expired": bool(expired),
             "email_failed": bool(email_failed),
             "email_missing": not bool(email),
+            "captcha_failed": bool(captcha_failed),
+            **_captcha_template_context(),
         },
     )
 
@@ -227,7 +236,23 @@ async def provider_portal_confirm_email_code(request: Request):
     if state == PORTAL_ACCOUNT_APPROVED and provider.get("email_verified") is True:
         return RedirectResponse(url="/provider/dashboard", status_code=302)
 
+    client_ip = _extract_client_ip(request)
     form = await request.form()
+    captcha_token = str(form.get("cf-turnstile-response", "")).strip()
+    if not await _verify_portal_captcha(captcha_token, client_ip):
+        return RedirectResponse(url="/provider/verify-email?captcha_failed=1", status_code=303)
+
+    confirm_rate_key = (
+        f"rl:provider_verify_confirm:{provider_id}:{_rate_limit_key_suffix(client_ip)}"
+    )
+    allowed_attempt, _ = _redis_consume_limit(
+        key=confirm_rate_key,
+        limit=PORTAL_VERIFY_CONFIRM_RATE_LIMIT_ATTEMPTS,
+        window_seconds=PORTAL_VERIFY_CONFIRM_RATE_WINDOW_SECONDS,
+    )
+    if not allowed_attempt:
+        return RedirectResponse(url="/provider/verify-email?rate_limited=1", status_code=303)
+
     submitted_code = str(form.get("code", "")).strip().replace(" ", "")
     if not submitted_code:
         return RedirectResponse(url="/provider/verify-email?invalid=1", status_code=303)
@@ -280,6 +305,20 @@ async def provider_portal_regenerate_verify_code(request: Request):
 
     if _portal_account_state(provider) == PORTAL_ACCOUNT_APPROVED and provider.get("email_verified") is True:
         return RedirectResponse(url="/provider/dashboard", status_code=302)
+
+    client_ip = _extract_client_ip(request)
+    form = await request.form()
+    captcha_token = str(form.get("cf-turnstile-response", "")).strip()
+    if not await _verify_portal_captcha(captcha_token, client_ip):
+        return RedirectResponse(url="/provider/verify-email?captcha_failed=1", status_code=303)
+
+    allowed_ip_regen, _ = _redis_consume_limit(
+        key=f"rl:provider_verify_regen_ip:{_rate_limit_key_suffix(client_ip)}",
+        limit=PORTAL_VERIFY_REGEN_RATE_LIMIT_ATTEMPTS,
+        window_seconds=PORTAL_VERIFY_REGEN_RATE_WINDOW_SECONDS,
+    )
+    if not allowed_ip_regen:
+        return RedirectResponse(url="/provider/verify-email?rate_limited=1", status_code=303)
 
     allowed_regen, _ = _redis_consume_limit(
         key=f"rl:provider_verify_regen:{provider_id}",

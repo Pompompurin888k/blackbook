@@ -7,6 +7,9 @@
     <title>Provider Portal | Blackbook</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/feather-icons"></script>
+    {% if captcha_enabled and turnstile_site_key %}
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    {% endif %}
     <script>
         tailwind.config = {
             theme: {
@@ -212,6 +215,11 @@
                                 class="field w-full rounded-xl px-3 py-3 text-sm" placeholder="Repeat password">
                         </div>
                     </div>
+                    {% if captcha_enabled and turnstile_site_key %}
+                    <div class="flex justify-center">
+                        <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+                    </div>
+                    {% endif %}
 
                     <button type="submit"
                         class="w-full rounded-xl bg-cyan-500 px-4 py-3 text-sm font-extrabold uppercase tracking-[0.15em] text-black hover:bg-cyan-400">

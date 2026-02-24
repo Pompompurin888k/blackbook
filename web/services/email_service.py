@@ -21,6 +21,25 @@ from config import (
 logger = logging.getLogger(__name__)
 
 
+def _recipient_domain(recipient: str) -> str:
+    address = str(recipient or "").strip()
+    if "@" not in address:
+        return "unknown"
+    return address.rsplit("@", 1)[-1].lower() or "unknown"
+
+
+def _mask_recipient(recipient: str) -> str:
+    address = str(recipient or "").strip()
+    if "@" not in address:
+        return "***"
+    local, domain = address.split("@", 1)
+    if not local:
+        return f"***@{domain}"
+    if len(local) == 1:
+        return f"{local}***@{domain}"
+    return f"{local[0]}***{local[-1]}@{domain}"
+
+
 def _build_from_header() -> str:
     if SMTP_FROM_NAME and SMTP_FROM_EMAIL:
         return f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
@@ -50,7 +69,11 @@ async def send_portal_verification_email(
 ) -> bool:
     """Sends the portal email verification code."""
     if not (SMTP_HOST and SMTP_PORT and SMTP_USERNAME and SMTP_PASSWORD and SMTP_FROM_EMAIL):
-        logger.error("SMTP is not fully configured; cannot send verification email.")
+        logger.error(
+            "SMTP is not fully configured; cannot send verification email. "
+            f"host_set={bool(SMTP_HOST)} username_set={bool(SMTP_USERNAME)} "
+            f"password_set={bool(SMTP_PASSWORD)} from_set={bool(SMTP_FROM_EMAIL)}"
+        )
         return False
 
     safe_name = (display_name or "there").strip() or "there"
@@ -66,9 +89,16 @@ async def send_portal_verification_email(
 
     try:
         await run_in_threadpool(_send_email_sync, recipient, subject, body)
+        logger.info(
+            f"Verification email sent to {_mask_recipient(recipient)} "
+            f"(domain={_recipient_domain(recipient)})"
+        )
         return True
     except Exception as e:
-        logger.error(f"Failed sending verification email to {recipient}: {e}")
+        logger.error(
+            f"Failed sending verification email to {_mask_recipient(recipient)} "
+            f"(domain={_recipient_domain(recipient)}): {type(e).__name__}: {e}"
+        )
         return False
 
 
@@ -80,7 +110,11 @@ async def send_portal_password_reset_email(
 ) -> bool:
     """Sends the portal password-reset code."""
     if not (SMTP_HOST and SMTP_PORT and SMTP_USERNAME and SMTP_PASSWORD and SMTP_FROM_EMAIL):
-        logger.error("SMTP is not fully configured; cannot send password-reset email.")
+        logger.error(
+            "SMTP is not fully configured; cannot send password-reset email. "
+            f"host_set={bool(SMTP_HOST)} username_set={bool(SMTP_USERNAME)} "
+            f"password_set={bool(SMTP_PASSWORD)} from_set={bool(SMTP_FROM_EMAIL)}"
+        )
         return False
 
     safe_name = (display_name or "there").strip() or "there"
@@ -96,7 +130,14 @@ async def send_portal_password_reset_email(
 
     try:
         await run_in_threadpool(_send_email_sync, recipient, subject, body)
+        logger.info(
+            f"Password-reset email sent to {_mask_recipient(recipient)} "
+            f"(domain={_recipient_domain(recipient)})"
+        )
         return True
     except Exception as e:
-        logger.error(f"Failed sending password-reset email to {recipient}: {e}")
+        logger.error(
+            f"Failed sending password-reset email to {_mask_recipient(recipient)} "
+            f"(domain={_recipient_domain(recipient)}): {type(e).__name__}: {e}"
+        )
         return False

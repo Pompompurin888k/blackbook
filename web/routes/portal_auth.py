@@ -14,9 +14,13 @@ from config import (
     PORTAL_LOGIN_LOCK_MINUTES,
     PORTAL_LOGIN_RATE_LIMIT_ATTEMPTS,
     PORTAL_LOGIN_RATE_WINDOW_SECONDS,
+    PORTAL_REGISTER_RATE_LIMIT_ATTEMPTS,
+    PORTAL_REGISTER_RATE_WINDOW_SECONDS,
     PORTAL_PASSWORD_RESET_CODE_TTL_MINUTES,
     PORTAL_PASSWORD_RESET_REQUEST_LIMIT,
     PORTAL_PASSWORD_RESET_REQUEST_WINDOW_SECONDS,
+    PORTAL_PASSWORD_RESET_CONFIRM_LIMIT,
+    PORTAL_PASSWORD_RESET_CONFIRM_WINDOW_SECONDS,
     PORTAL_ACCOUNT_APPROVED,
     PORTAL_ACCOUNT_SUSPENDED,
 )
@@ -38,6 +42,7 @@ from utils.auth import (
     _portal_session_provider_id,
     _verify_password,
 )
+from utils.security import _captcha_template_context, _verify_portal_captcha
 
 from fastapi.templating import Jinja2Templates
 
@@ -45,6 +50,16 @@ templates = Jinja2Templates(directory="templates")
 router = APIRouter()
 db = Database()
 logger = logging.getLogger(__name__)
+
+
+def _provider_auth_base_context(request: Request) -> dict:
+    context = {
+        "request": request,
+        "error": None,
+        "success": None,
+    }
+    context.update(_captcha_template_context())
+    return context
 
 
 @router.get("/provider", response_class=HTMLResponse)
@@ -66,10 +81,11 @@ async def provider_portal_auth(
                 return RedirectResponse(url="/provider/dashboard", status_code=302)
             return RedirectResponse(url=f"/provider/verify-email?status={state}", status_code=302)
     selected_tab = tab if tab in {"login", "register"} else "login"
+    base_context = _provider_auth_base_context(request)
     return templates.TemplateResponse(
         "provider_auth.html",
         {
-            "request": request,
+            **base_context,
             "error": error,
             "success": success,
             "active_tab": selected_tab,
@@ -91,14 +107,44 @@ async def provider_portal_register(request: Request):
     email = _normalize_portal_email(register_email)
     password = str(form.get("password", ""))
     confirm_password = str(form.get("confirm_password", ""))
+    client_ip = _extract_client_ip(request)
     register_page_context = {
-        "request": request,
-        "success": None,
+        **_provider_auth_base_context(request),
         "active_tab": "register",
         "register_username": register_username,
         "register_display_name": register_display_name,
         "register_email": register_email,
     }
+    register_rate_key = (
+        f"rl:provider_register:{_rate_limit_key_suffix(client_ip)}:"
+        f"{_rate_limit_key_suffix(email or 'unknown')}"
+    )
+    allowed_attempt, _ = _redis_consume_limit(
+        key=register_rate_key,
+        limit=PORTAL_REGISTER_RATE_LIMIT_ATTEMPTS,
+        window_seconds=PORTAL_REGISTER_RATE_WINDOW_SECONDS,
+    )
+    if not allowed_attempt:
+        wait_minutes = max(1, PORTAL_REGISTER_RATE_WINDOW_SECONDS // 60)
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {
+                **register_page_context,
+                "error": f"Too many registration attempts. Try again in about {wait_minutes} minutes.",
+            },
+            status_code=429,
+        )
+
+    captcha_token = str(form.get("cf-turnstile-response", "")).strip()
+    if not await _verify_portal_captcha(captcha_token, client_ip):
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {
+                **register_page_context,
+                "error": "Complete the security check and try again.",
+            },
+            status_code=400,
+        )
 
     if not username:
         return templates.TemplateResponse(
@@ -210,8 +256,7 @@ async def provider_portal_login(request: Request):
     email = _normalize_portal_email(login_email)
     password = str(form.get("password", ""))
     login_page_context = {
-        "request": request,
-        "success": None,
+        **_provider_auth_base_context(request),
         "active_tab": "login",
         "login_email": login_email,
     }
@@ -306,6 +351,7 @@ async def provider_portal_password_reset(
     invalid: Optional[int] = 0,
     expired: Optional[int] = 0,
     rate_limited: Optional[int] = 0,
+    captcha_failed: Optional[int] = 0,
 ):
     """Renders provider password-reset page."""
     return templates.TemplateResponse(
@@ -316,6 +362,8 @@ async def provider_portal_password_reset(
             "invalid": bool(invalid),
             "expired": bool(expired),
             "rate_limited": bool(rate_limited),
+            "captcha_failed": bool(captcha_failed),
+            **_captcha_template_context(),
         },
     )
 
@@ -326,6 +374,10 @@ async def provider_portal_password_reset_request(request: Request):
     form = await request.form()
     email = _normalize_portal_email(str(form.get("email", "")).strip())
     client_ip = _extract_client_ip(request)
+    captcha_token = str(form.get("cf-turnstile-response", "")).strip()
+    if not await _verify_portal_captcha(captcha_token, client_ip):
+        return RedirectResponse(url="/provider/password-reset?captcha_failed=1", status_code=303)
+
     reset_rate_key = (
         f"rl:provider_password_reset:{_rate_limit_key_suffix(client_ip)}:"
         f"{_rate_limit_key_suffix(email or 'unknown')}"
@@ -385,6 +437,19 @@ async def provider_portal_password_reset_confirm(request: Request):
 
     if not email or not submitted_code or len(password) < 6 or password != confirm_password:
         return RedirectResponse(url="/provider/password-reset?invalid=1", status_code=303)
+
+    client_ip = _extract_client_ip(request)
+    confirm_rate_key = (
+        f"rl:provider_password_reset_confirm:{_rate_limit_key_suffix(client_ip)}:"
+        f"{_rate_limit_key_suffix(email)}"
+    )
+    allowed_attempt, _ = _redis_consume_limit(
+        key=confirm_rate_key,
+        limit=PORTAL_PASSWORD_RESET_CONFIRM_LIMIT,
+        window_seconds=PORTAL_PASSWORD_RESET_CONFIRM_WINDOW_SECONDS,
+    )
+    if not allowed_attempt:
+        return RedirectResponse(url="/provider/password-reset?rate_limited=1", status_code=303)
 
     provider = await db_call(db.get_portal_provider_by_email, email)
     if not provider:
