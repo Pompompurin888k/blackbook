@@ -13,6 +13,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from utils.providers import _build_public_profile_url  # noqa: E402
+from utils.providers import _build_short_profile_url  # noqa: E402
 
 
 class TestProviderPublicUrls(unittest.TestCase):
@@ -30,6 +31,9 @@ class TestProviderPublicUrls(unittest.TestCase):
     def test_falls_back_when_fields_missing(self):
         url = _build_public_profile_url({"id": 12, "display_name": "", "city": "", "neighborhood": ""})
         self.assertEqual(url, "/nairobi/nairobi/escorts/12/provider-12")
+
+    def test_builds_short_profile_url(self):
+        self.assertEqual(_build_short_profile_url({"id": 55}), "/p/55")
 
 
 if __name__ == "__main__":

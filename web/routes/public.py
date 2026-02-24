@@ -22,6 +22,7 @@ from utils.auth import _extract_client_ip, _detect_device_type
 from utils.db_async import db_call
 from utils.providers import (
     _build_public_profile_url,
+    _build_short_profile_url,
     _cache_photo_path,
     _normalize_photo_sources,
     _normalize_provider,
@@ -39,6 +40,13 @@ templates = Jinja2Templates(directory="templates")
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+async def _redirect_to_canonical_profile(provider_id: int) -> RedirectResponse:
+    provider = await db_call(db.get_provider_by_id, provider_id)
+    if not provider:
+        return RedirectResponse(url="/", status_code=302)
+    return RedirectResponse(url=_build_public_profile_url(provider), status_code=302)
 
 
 @router.get("/photo/{file_id}")
@@ -123,6 +131,7 @@ async def home(
         row = dict(item)
         row["profile_photos"] = _normalize_photo_sources(row.get("profile_photos"))
         row["public_profile_url"] = _build_public_profile_url(row)
+        row["short_profile_url"] = _build_short_profile_url(row)
         providers.append(row)
     city_counts = await db_call(db.get_city_counts)
     total_count = sum(city_counts.values())
@@ -163,6 +172,13 @@ async def public_profile_page(request: Request, city: str, neighborhood: str, pr
     SEO-friendly public profile route.
     Maps to the provider dashboard 'View Public Profile' link.
     """
+    provider = await db_call(db.get_provider_by_id, provider_id)
+    if not provider:
+        return RedirectResponse(url="/", status_code=302)
+    canonical_url = _build_public_profile_url(provider)
+    current_path = request.url.path.rstrip("/")
+    if current_path != canonical_url.rstrip("/"):
+        return RedirectResponse(url=canonical_url, status_code=302)
     return await contact_page(request, provider_id)
 
 
@@ -177,7 +193,32 @@ async def public_profile_page_with_slug(
     """
     SEO-friendly public profile route with display-name slug.
     """
+    provider = await db_call(db.get_provider_by_id, provider_id)
+    if not provider:
+        return RedirectResponse(url="/", status_code=302)
+    canonical_url = _build_public_profile_url(provider)
+    current_path = request.url.path.rstrip("/")
+    if current_path != canonical_url.rstrip("/"):
+        return RedirectResponse(url=canonical_url, status_code=302)
     return await contact_page(request, provider_id)
+
+
+@router.get("/providers/{provider_id}", response_class=HTMLResponse)
+async def provider_profile_alias(provider_id: int):
+    """Simple alias that redirects to canonical SEO profile URL."""
+    return await _redirect_to_canonical_profile(provider_id)
+
+
+@router.get("/providers/{provider_id}/{profile_slug}", response_class=HTMLResponse)
+async def provider_profile_alias_with_slug(provider_id: int, profile_slug: str):
+    """Simple alias with optional slug that redirects to canonical SEO profile URL."""
+    return await _redirect_to_canonical_profile(provider_id)
+
+
+@router.get("/p/{provider_id}", response_class=HTMLResponse)
+async def provider_profile_short_alias(provider_id: int):
+    """Short share alias that redirects to canonical SEO profile URL."""
+    return await _redirect_to_canonical_profile(provider_id)
 
 
 @router.get("/contact/{provider_id}", response_class=HTMLResponse)

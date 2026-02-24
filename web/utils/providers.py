@@ -116,6 +116,14 @@ def _build_public_profile_url(provider: dict) -> str:
     return f"/{city}/{neighborhood}/escorts/{safe_id}/{name_slug}"
 
 
+def _build_short_profile_url(provider: dict) -> str:
+    """Builds a compact share URL that redirects to the canonical profile path."""
+    provider_id = provider.get("id")
+    if provider_id in (None, "", 0):
+        return "/"
+    return f"/p/{int(provider_id)}"
+
+
 def _normalize_provider(provider: dict) -> dict:
     """Builds a stable profile payload for the template."""
     profile = dict(provider)
@@ -155,6 +163,7 @@ def _normalize_provider(provider: dict) -> dict:
     profile["rate_cards"] = rate_cards
     provider_id = profile.get("id")
     profile["public_profile_url"] = _build_public_profile_url(profile)
+    profile["short_profile_url"] = _build_short_profile_url(profile)
     profile["call_url"] = f"/connect/{provider_id}?channel=call&mode=direct"
     profile["whatsapp_url"] = f"/connect/{provider_id}?channel=whatsapp&mode=direct"
     profile["connect_direct_url"] = f"/connect/{provider_id}?channel=whatsapp&mode=direct"
@@ -171,6 +180,7 @@ def _normalize_recommendation(provider: dict) -> dict:
     else:
         card["photo_url"] = _fallback_image(card.get("id", 0))
     card["public_profile_url"] = _build_public_profile_url(card)
+    card["short_profile_url"] = _build_short_profile_url(card)
     card["location"] = card.get("neighborhood") or card.get("city") or "Nairobi"
     card["services_list"] = _to_string_list(card.get("services"))[:2]
     return card
