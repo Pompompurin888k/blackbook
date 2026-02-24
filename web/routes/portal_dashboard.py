@@ -171,7 +171,8 @@ async def provider_portal_verify_email(
 
     state = _portal_account_state(provider)
     if state == PORTAL_ACCOUNT_APPROVED and provider.get("email_verified") is True:
-        return RedirectResponse(url="/provider/dashboard", status_code=302)
+        request.session.clear()
+        return RedirectResponse(url="/provider?success=Email+already+verified.+Please+log+in", status_code=303)
 
     email = _normalize_portal_email(provider.get("email") or "")
     if email and not _verification_code_is_active(provider):
@@ -255,7 +256,8 @@ async def provider_portal_confirm_email_code(request: Request):
         "email_verified",
         payload={"source": "verify_email_confirm"},
     )
-    return RedirectResponse(url="/provider/dashboard?saved=1", status_code=303)
+    request.session.clear()
+    return RedirectResponse(url="/provider?success=Email+verified.+Please+log+in", status_code=303)
 
 
 @router.post("/provider/verify-email/regenerate")
