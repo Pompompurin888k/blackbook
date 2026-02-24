@@ -53,8 +53,9 @@
         "is_new_arrival": is_new_arrival,
         "tier": provider.subscription_tier or "none",
         "is_boosted": (provider.boost_until and provider.boost_until > now()) | default(false, true),
-        "is_premium_verified": provider.is_premium_verified or false
-    } | tojson | safe }}' onclick="window.location.href='/contact/{{ provider.id }}'">
+        "is_premium_verified": provider.is_premium_verified or false,
+        "public_profile_url": provider.public_profile_url or ('/contact/' ~ provider.id)
+    } | tojson | safe }}' onclick="window.location.href='{{ provider.public_profile_url or ('/contact/' ~ provider.id) }}'">
         <div
             class="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/10 bg-zinc-900/90 shadow-[0_8px_28px_rgba(0,0,0,0.35)] transition-all duration-300 group-hover:border-[#D4AF37]/70 group-hover:shadow-[0_20px_40px_rgba(212,175,55,0.22)] after:absolute after:inset-0 after:z-30 after:pointer-events-none after:bg-gradient-to-r after:from-transparent after:via-white/10 after:to-transparent after:-translate-x-[150%] group-hover:after:translate-x-[150%] after:transition-transform after:duration-[1.5s] after:ease-in-out {% if provider.is_online or is_new_arrival %} p-[2.5px] {% endif %}">
 

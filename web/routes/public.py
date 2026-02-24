@@ -21,6 +21,7 @@ from services.redis_service import _cache_key, _redis_get_text, _redis_set_text
 from utils.auth import _extract_client_ip, _detect_device_type
 from utils.db_async import db_call
 from utils.providers import (
+    _build_public_profile_url,
     _cache_photo_path,
     _normalize_photo_sources,
     _normalize_provider,
@@ -121,6 +122,7 @@ async def home(
     for item in raw_providers:
         row = dict(item)
         row["profile_photos"] = _normalize_photo_sources(row.get("profile_photos"))
+        row["public_profile_url"] = _build_public_profile_url(row)
         providers.append(row)
     city_counts = await db_call(db.get_city_counts)
     total_count = sum(city_counts.values())
@@ -160,6 +162,20 @@ async def public_profile_page(request: Request, city: str, neighborhood: str, pr
     """
     SEO-friendly public profile route.
     Maps to the provider dashboard 'View Public Profile' link.
+    """
+    return await contact_page(request, provider_id)
+
+
+@router.get("/{city}/{neighborhood}/escorts/{provider_id}/{profile_slug}", response_class=HTMLResponse)
+async def public_profile_page_with_slug(
+    request: Request,
+    city: str,
+    neighborhood: str,
+    provider_id: int,
+    profile_slug: str,
+):
+    """
+    SEO-friendly public profile route with display-name slug.
     """
     return await contact_page(request, provider_id)
 

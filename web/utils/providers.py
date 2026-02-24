@@ -2,6 +2,7 @@
 Provider Utilities — template payload normalization, photo URLs, fallback images.
 """
 import json
+import re
 from typing import Optional
 from urllib.parse import quote
 from urllib.parse import urlparse
@@ -94,6 +95,27 @@ def _build_gallery_urls(provider_id: int, photo_ids: list[str]) -> list[str]:
     return [_fallback_image(provider_id)]
 
 
+def _slugify_segment(value: Optional[str], fallback: str) -> str:
+    text = str(value or "").strip().lower()
+    if not text:
+        return fallback
+    slug = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+    return slug or fallback
+
+
+def _build_public_profile_url(provider: dict) -> str:
+    """Builds the canonical public profile URL for a provider."""
+    provider_id = provider.get("id")
+    if provider_id in (None, "", 0):
+        return "/"
+
+    safe_id = int(provider_id)
+    city = _slugify_segment(provider.get("city"), "nairobi")
+    neighborhood = _slugify_segment(provider.get("neighborhood") or provider.get("city"), city)
+    name_slug = _slugify_segment(provider.get("display_name"), f"provider-{safe_id}")
+    return f"/{city}/{neighborhood}/escorts/{safe_id}/{name_slug}"
+
+
 def _normalize_provider(provider: dict) -> dict:
     """Builds a stable profile payload for the template."""
     profile = dict(provider)
@@ -132,6 +154,7 @@ def _normalize_provider(provider: dict) -> dict:
             rate_cards.append({"label": label, "amount": int(amount)})
     profile["rate_cards"] = rate_cards
     provider_id = profile.get("id")
+    profile["public_profile_url"] = _build_public_profile_url(profile)
     profile["call_url"] = f"/connect/{provider_id}?channel=call&mode=direct"
     profile["whatsapp_url"] = f"/connect/{provider_id}?channel=whatsapp&mode=direct"
     profile["connect_direct_url"] = f"/connect/{provider_id}?channel=whatsapp&mode=direct"
@@ -147,6 +170,7 @@ def _normalize_recommendation(provider: dict) -> dict:
         card["photo_url"] = photo_urls[0]
     else:
         card["photo_url"] = _fallback_image(card.get("id", 0))
+    card["public_profile_url"] = _build_public_profile_url(card)
     card["location"] = card.get("neighborhood") or card.get("city") or "Nairobi"
     card["services_list"] = _to_string_list(card.get("services"))[:2]
     return card

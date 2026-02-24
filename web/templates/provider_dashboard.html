@@ -23,6 +23,22 @@
         {{ notice }}
     </div>
     {% endif %}
+    {% if trial_auto %}
+    <div
+        class="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-100 shadow-lg shadow-emerald-500/5">
+        Your free {{ free_trial_days }}-day trial is active. You can now go live and receive leads.
+    </div>
+    {% endif %}
+    {% if went_live %}
+    <div
+        class="rounded-2xl border border-emerald-300/40 bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-transparent px-5 py-4 text-sm text-emerald-100 shadow-lg shadow-emerald-500/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <span>You are now live. Clients can now find and contact you.</span>
+        <a href="{{ public_profile_url }}" target="_blank"
+            class="inline-flex items-center justify-center rounded-lg border border-emerald-300/40 bg-emerald-500/20 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.1em] text-emerald-100 hover:bg-emerald-500/30 transition-colors">
+            View Your Profile
+        </a>
+    </div>
+    {% endif %}
     {% if error %}
     <div
         class="rounded-2xl border border-red-400/30 bg-red-500/10 px-5 py-4 text-sm text-red-100 shadow-lg shadow-red-500/5">
@@ -103,7 +119,7 @@
                             Open Wallet
                         </a>
                         {% endif %}
-                        <a href="/contact/{{ provider.id }}" target="_blank"
+                        <a href="{{ public_profile_url }}" target="_blank"
                             class="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.1em] text-white hover:bg-white/15 transition-colors">
                             View Your Profile Here
                         </a>
@@ -118,7 +134,7 @@
             </div>
 
             <div class="flex gap-3">
-                <a href="/contact/{{ provider.id }}"
+                <a href="{{ public_profile_url }}"
                     target="_blank"
                     class="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors flex items-center gap-2">
                     <i data-feather="external-link" class="w-4 h-4"></i>

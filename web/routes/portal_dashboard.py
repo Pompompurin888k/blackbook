@@ -33,7 +33,7 @@ from utils.auth import (
 )
 from utils.db_async import db_call
 from utils.onboarding import _portal_compute_profile_strength, _portal_onboarding_base_draft
-from utils.providers import _normalize_photo_sources, _to_string_list
+from utils.providers import _build_public_profile_url, _normalize_photo_sources, _to_string_list
 
 from fastapi.templating import Jinja2Templates
 
@@ -96,6 +96,8 @@ async def _send_verification_code(provider: dict, provider_id: int, event_type: 
 async def provider_portal_dashboard(
     request: Request,
     saved: Optional[int] = 0,
+    went_live: Optional[int] = 0,
+    trial_auto: Optional[int] = 0,
     notice: Optional[str] = None,
     error: Optional[str] = None,
 ):
@@ -126,6 +128,7 @@ async def provider_portal_dashboard(
         and not provider.get("trial_used")
         and not await db_call(db.has_successful_payment_for_provider, tg_id)
     ) if tg_id else False
+    public_profile_url = _build_public_profile_url(provider)
 
     return templates.TemplateResponse(
         "provider_dashboard.html",
@@ -136,12 +139,15 @@ async def provider_portal_dashboard(
             "services_list": services_list,
             "languages_list": languages_list,
             "saved": bool(saved),
+            "went_live": bool(went_live),
+            "trial_auto": bool(trial_auto),
             "profile_strength": profile_strength,
             "photo_count": len(photo_urls),
             "services_count": len(services_list),
             "languages_count": len(languages_list),
             "notice": notice,
             "error": error,
+            "public_profile_url": public_profile_url,
             "free_trial_days": FREE_TRIAL_DAYS,
             "trial_eligible": trial_eligible,
         },

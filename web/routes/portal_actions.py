@@ -77,12 +77,33 @@ async def provider_toggle_status(request: Request):
     tg_id = int(provider.get("telegram_id") or 0)
     if tg_id == 0:
         return _portal_redirect("/provider/dashboard", error="Provider account missing Telegram ID.")
+    auto_trial_activated = False
     if not provider.get("is_active"):
-        return _portal_redirect("/provider/dashboard", error="Activate a package before toggling visibility.")
+        if not provider.get("portal_onboarding_complete"):
+            return _portal_redirect("/provider/dashboard", error="Complete your profile first, then go live.")
+        if await db_call(db.has_successful_payment_for_provider, tg_id):
+            return _portal_redirect("/provider/dashboard", error="Activate a package before toggling visibility.")
+
+        # Promote completed portal accounts to verified before auto trial activation.
+        await db_call(db.update_provider_profile, tg_id, {"is_verified": True})
+        auto_trial_activated = await db_call(db.activate_free_trial, tg_id, FREE_TRIAL_DAYS)
+        if not auto_trial_activated:
+            return _portal_redirect(
+                "/provider/dashboard",
+                error="Could not auto-start free trial right now. Try again in a moment.",
+            )
+        await db_call(db.log_funnel_event, tg_id, "trial_started", {"days": FREE_TRIAL_DAYS, "source": "portal_toggle"})
+        await db_call(db.log_funnel_event, tg_id, "active_live", {"source": "portal_toggle"})
 
     is_online = await db_call(db.toggle_online_status, tg_id)
     _invalidate_provider_listing_cache()
-    notice = "You are now online and visible with a Live badge." if is_online else "You are now offline and hidden."
+    if is_online:
+        return _portal_redirect(
+            "/provider/dashboard",
+            went_live=1,
+            trial_auto=1 if auto_trial_activated else 0,
+        )
+    notice = "You are now offline and hidden."
     return _portal_redirect("/provider/dashboard", notice=notice)
 
 

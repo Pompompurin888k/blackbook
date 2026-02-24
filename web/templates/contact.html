@@ -346,7 +346,7 @@
 
             <div class="flex overflow-x-auto gap-4 no-scrollbar pb-4 md:grid md:grid-cols-3">
                 {% for rec in recommendations %}
-                <div onclick="window.location.href='/contact/{{ rec.id }}'" class="min-w-[220px] group cursor-pointer">
+                <div onclick="window.location.href='{{ rec.public_profile_url or ('/contact/' ~ rec.id) }}'" class="min-w-[220px] group cursor-pointer">
                     <div class="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 border border-white/5">
                         <img src="{{ rec.photo_url }}"
                             class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-all">

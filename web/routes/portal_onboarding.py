@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from config import (
     CITIES,
+    FREE_TRIAL_DAYS,
     NEIGHBORHOODS,
     ONBOARDING_STEP_META,
     ONBOARDING_TOTAL_STEPS,
@@ -269,6 +270,21 @@ async def provider_portal_onboarding_submit(request: Request):
             error="Could not save your profile right now. Please try again.",
         )
 
+    tg_id = int(provider.get("telegram_id") or 0)
+    auto_trial_activated = False
+    if tg_id:
+        await db_call(db.update_provider_profile, tg_id, {"is_verified": True})
+        if not await db_call(db.has_successful_payment_for_provider, tg_id):
+            auto_trial_activated = await db_call(db.activate_free_trial, tg_id, FREE_TRIAL_DAYS)
+            if auto_trial_activated:
+                await db_call(
+                    db.log_funnel_event,
+                    tg_id,
+                    "trial_started",
+                    {"days": FREE_TRIAL_DAYS, "source": "portal_onboarding_complete"},
+                )
+                await db_call(db.log_funnel_event, tg_id, "active_live", {"source": "portal_onboarding_complete"})
+
     _invalidate_provider_listing_cache()
 
     await send_admin_alert(
@@ -289,4 +305,6 @@ async def provider_portal_onboarding_submit(request: Request):
     )
 
     _portal_clear_onboarding_draft(request)
+    if auto_trial_activated:
+        return RedirectResponse(url="/provider/dashboard?saved=1&trial_auto=1", status_code=303)
     return RedirectResponse(url="/provider/dashboard?saved=1", status_code=303)

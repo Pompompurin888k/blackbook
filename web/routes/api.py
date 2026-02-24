@@ -15,6 +15,7 @@ from database import Database
 from services.redis_service import _cache_key, _redis_get_text, _redis_set_text
 from utils.db_async import db_call
 from utils.providers import _normalize_photo_sources
+from utils.providers import _build_public_profile_url
 
 db = Database()
 from fastapi.templating import Jinja2Templates
@@ -48,6 +49,7 @@ async def api_grid(
     for item in raw_providers:
         row = dict(item)
         row["profile_photos"] = _normalize_photo_sources(row.get("profile_photos"))
+        row["public_profile_url"] = _build_public_profile_url(row)
         providers.append(row)
 
     context = {
@@ -88,6 +90,7 @@ async def api_recommendations(
     enriched_recommendations = []
     for rec in recommendations:
         rec_dict = dict(rec)
+        rec_dict["public_profile_url"] = _build_public_profile_url(rec_dict)
         hints = []
         
         if source_provider:
