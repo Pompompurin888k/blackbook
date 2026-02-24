@@ -18,6 +18,7 @@ from config import (
     PORTAL_RECOMMENDED_PROFILE_PHOTOS,
 )
 from database import Database
+from services.redis_service import _invalidate_provider_listing_cache
 from services.telegram_service import send_admin_alert
 from utils.auth import _portal_account_state, _portal_session_provider_id, _to_int_or_none
 from utils.db_async import db_call
@@ -267,6 +268,8 @@ async def provider_portal_onboarding_submit(request: Request):
             step=ONBOARDING_TOTAL_STEPS,
             error="Could not save your profile right now. Please try again.",
         )
+
+    _invalidate_provider_listing_cache()
 
     await send_admin_alert(
         (

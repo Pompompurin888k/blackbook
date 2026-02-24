@@ -156,6 +156,33 @@ def _redis_set_text(key: str, value: str, ttl_seconds: int) -> None:
         logger.warning(f"Redis set failed for key {key}: {e}")
 
 
+def _redis_delete_by_pattern(pattern: str) -> int:
+    """Deletes Redis keys matching a pattern. Returns deleted key count."""
+    client = _get_redis_client()
+    if client is None:
+        return 0
+    deleted = 0
+    try:
+        for key in client.scan_iter(match=pattern, count=200):
+            deleted += int(client.delete(key) or 0)
+    except Exception as e:
+        logger.warning(f"Redis delete by pattern failed for {pattern}: {e}")
+    return deleted
+
+
+def _invalidate_provider_listing_cache() -> int:
+    """Clears cached public listing fragments so provider updates appear immediately."""
+    patterns = (
+        "cache:home:*",
+        "cache:grid:*",
+        "cache:recommendations:*",
+    )
+    total = 0
+    for pattern in patterns:
+        total += _redis_delete_by_pattern(pattern)
+    return total
+
+
 def _arq_redis_settings():
     if RedisSettings is None:
         return None

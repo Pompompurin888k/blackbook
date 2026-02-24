@@ -22,6 +22,7 @@ from config import (
 )
 from database import Database
 from services.metapay import initiate_stk_push
+from services.redis_service import _invalidate_provider_listing_cache
 from services.telegram_service import send_admin_alert
 from utils.auth import _portal_account_state, _portal_session_provider_id, _sanitize_phone
 from utils.db_async import db_call
@@ -80,6 +81,7 @@ async def provider_toggle_status(request: Request):
         return _portal_redirect("/provider/dashboard", error="Activate a package before toggling visibility.")
 
     is_online = await db_call(db.toggle_online_status, tg_id)
+    _invalidate_provider_listing_cache()
     notice = "You are now online and visible with a Live badge." if is_online else "You are now offline and hidden."
     return _portal_redirect("/provider/dashboard", notice=notice)
 
@@ -97,6 +99,7 @@ async def provider_delete_photo(request: Request, photo_index: int):
         return _portal_redirect("/provider/onboarding", step=4, error="Photo not found.")
     photos.pop(photo_index)
     await db_call(db.save_provider_photos, tg_id, photos)
+    _invalidate_provider_listing_cache()
     return _portal_redirect("/provider/onboarding", step=4, saved=1)
 
 
@@ -114,6 +117,7 @@ async def provider_set_primary_photo(request: Request, photo_index: int):
     selected = photos.pop(photo_index)
     photos.insert(0, selected)
     await db_call(db.save_provider_photos, tg_id, photos)
+    _invalidate_provider_listing_cache()
     return _portal_redirect("/provider/onboarding", step=4, saved=1)
 
 
@@ -136,6 +140,7 @@ async def provider_activate_trial(request: Request):
     if not activated:
         return _portal_redirect("/provider/wallet", error="Could not activate trial right now.")
 
+    _invalidate_provider_listing_cache()
     await db_call(db.log_funnel_event, tg_id, "trial_started", {"days": FREE_TRIAL_DAYS, "source": "portal"})
     await db_call(db.log_funnel_event, tg_id, "active_live", {"source": "portal_trial"})
     return _portal_redirect("/provider/wallet", notice=f"Free trial activated for {FREE_TRIAL_DAYS} days.")
