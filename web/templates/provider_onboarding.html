@@ -64,6 +64,13 @@
                         <p class="mt-1.5 text-[11px] font-medium text-zinc-500">Use a short memorable stage name.
                             Example: Sasha Luxe.</p>
                     </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs font-bold uppercase tracking-widest text-zinc-400">Phone (for Call button)</label>
+                        <input name="phone" required value="{{ draft.phone }}"
+                            class="mt-1.5 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm text-white focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors"
+                            placeholder="2547XXXXXXXX">
+                        <p class="mt-1.5 text-[11px] font-medium text-zinc-500">Used for the public "Call {{ draft.display_name or 'you' }}" button.</p>
+                    </div>
                     <div>
                         <label class="text-xs text-zinc-400">City</label>
                         <select name="city" required

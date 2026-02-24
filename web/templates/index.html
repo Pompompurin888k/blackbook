@@ -1135,7 +1135,7 @@
                             {% endif %}
                             {% endif %}
 
-                            <button type="button" onclick="window.location.href='{{ provider.public_profile_url or ('/contact/' ~ provider.id) }}'"
+                            <button type="button" onclick="window.location.href='{{ provider.short_profile_url or ('/p/' ~ provider.id) }}'"
                                 class="flex-shrink-0 flex flex-col items-center gap-2 w-[5.5rem] group cursor-pointer focus:outline-none active:scale-95 transition-transform">
 
                                 <!-- Massive Avatar Ring -->
@@ -2479,7 +2479,7 @@
                 }
 
                 trackEvent('card_open', { profile_id: data.id, city: data.city || null });
-                window.location.href = data.public_profile_url || `/contact/${data.id}`;
+                window.location.href = data.short_profile_url || `/p/${data.id}`;
                 return;
 
                 // Basic Info
@@ -2488,7 +2488,7 @@
 
                 // Safe Contact Buttons (no direct phone exposure)
                 window.currentProfileId = data.id;
-                window.currentProfileContactUrl = `${window.location.origin}${data.public_profile_url || `/contact/${data.id}`}`;
+                window.currentProfileContactUrl = `${window.location.origin}${data.short_profile_url || `/p/${data.id}`}`;
                 window.currentProfileTelegramUsername = data.telegram_username || '';
                 window.currentProfileTelegramId = data.telegram_id || null;
                 const firstName = data.name.split(' ')[0];

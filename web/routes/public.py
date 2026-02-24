@@ -21,7 +21,6 @@ from services.redis_service import _cache_key, _redis_get_text, _redis_set_text
 from utils.auth import _extract_client_ip, _detect_device_type
 from utils.db_async import db_call
 from utils.providers import (
-    _build_public_profile_url,
     _build_short_profile_url,
     _cache_photo_path,
     _normalize_photo_sources,
@@ -42,11 +41,35 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-async def _redirect_to_canonical_profile(provider_id: int) -> RedirectResponse:
+async def _redirect_to_short_profile(provider_id: int) -> RedirectResponse:
     provider = await db_call(db.get_provider_by_id, provider_id)
     if not provider:
         return RedirectResponse(url="/", status_code=302)
-    return RedirectResponse(url=_build_public_profile_url(provider), status_code=302)
+    return RedirectResponse(url=_build_short_profile_url(provider), status_code=302)
+
+
+async def _render_contact_page(request: Request, provider_id: int) -> HTMLResponse | RedirectResponse:
+    provider = await db_call(db.get_provider_by_id, provider_id)
+    if not provider:
+        return RedirectResponse(url="/", status_code=302)
+
+    profile = _normalize_provider(provider)
+    recommendations = await db_call(
+        db.get_recommendations,
+        profile.get("city") or "Nairobi",
+        provider_id,
+        limit=4,
+    )
+    recommendation_cards = [_normalize_recommendation(item) for item in recommendations]
+    logger.info(f"Contact page: Provider ID {provider_id} ({provider.get('display_name', 'Unknown')})")
+    return templates.TemplateResponse(
+        "contact.html",
+        {
+            "request": request,
+            "provider": profile,
+            "recommendations": recommendation_cards,
+        },
+    )
 
 
 @router.get("/photo/{file_id}")
@@ -130,7 +153,6 @@ async def home(
     for item in raw_providers:
         row = dict(item)
         row["profile_photos"] = _normalize_photo_sources(row.get("profile_photos"))
-        row["public_profile_url"] = _build_public_profile_url(row)
         row["short_profile_url"] = _build_short_profile_url(row)
         providers.append(row)
     city_counts = await db_call(db.get_city_counts)
@@ -169,17 +191,9 @@ async def home(
 @router.get("/{city}/{neighborhood}/escorts/{provider_id}", response_class=HTMLResponse)
 async def public_profile_page(request: Request, city: str, neighborhood: str, provider_id: int):
     """
-    SEO-friendly public profile route.
-    Maps to the provider dashboard 'View Public Profile' link.
+    Legacy SEO route that now redirects to short profile URL.
     """
-    provider = await db_call(db.get_provider_by_id, provider_id)
-    if not provider:
-        return RedirectResponse(url="/", status_code=302)
-    canonical_url = _build_public_profile_url(provider)
-    current_path = request.url.path.rstrip("/")
-    if current_path != canonical_url.rstrip("/"):
-        return RedirectResponse(url=canonical_url, status_code=302)
-    return await contact_page(request, provider_id)
+    return await _redirect_to_short_profile(provider_id)
 
 
 @router.get("/{city}/{neighborhood}/escorts/{provider_id}/{profile_slug}", response_class=HTMLResponse)
@@ -191,65 +205,35 @@ async def public_profile_page_with_slug(
     profile_slug: str,
 ):
     """
-    SEO-friendly public profile route with display-name slug.
+    Legacy SEO route with slug that now redirects to short profile URL.
     """
-    provider = await db_call(db.get_provider_by_id, provider_id)
-    if not provider:
-        return RedirectResponse(url="/", status_code=302)
-    canonical_url = _build_public_profile_url(provider)
-    current_path = request.url.path.rstrip("/")
-    if current_path != canonical_url.rstrip("/"):
-        return RedirectResponse(url=canonical_url, status_code=302)
-    return await contact_page(request, provider_id)
+    return await _redirect_to_short_profile(provider_id)
 
 
 @router.get("/providers/{provider_id}", response_class=HTMLResponse)
 async def provider_profile_alias(provider_id: int):
-    """Simple alias that redirects to canonical SEO profile URL."""
-    return await _redirect_to_canonical_profile(provider_id)
+    """Simple alias that redirects to short profile URL."""
+    return await _redirect_to_short_profile(provider_id)
 
 
 @router.get("/providers/{provider_id}/{profile_slug}", response_class=HTMLResponse)
 async def provider_profile_alias_with_slug(provider_id: int, profile_slug: str):
-    """Simple alias with optional slug that redirects to canonical SEO profile URL."""
-    return await _redirect_to_canonical_profile(provider_id)
+    """Simple alias with optional slug that redirects to short profile URL."""
+    return await _redirect_to_short_profile(provider_id)
 
 
 @router.get("/p/{provider_id}", response_class=HTMLResponse)
-async def provider_profile_short_alias(provider_id: int):
-    """Short share alias that redirects to canonical SEO profile URL."""
-    return await _redirect_to_canonical_profile(provider_id)
+async def provider_profile_short_alias(request: Request, provider_id: int):
+    """Short share alias that renders the public profile directly."""
+    return await _render_contact_page(request, provider_id)
 
 
 @router.get("/contact/{provider_id}", response_class=HTMLResponse)
 async def contact_page(request: Request, provider_id: int):
     """
-    Contact page - shows Direct vs Discreet messaging options.
-    Preserves client privacy with stealth mode.
+    Legacy contact route now redirected to short profile URL.
     """
-    provider = await db_call(db.get_provider_by_id, provider_id)
-    
-    if not provider:
-        return RedirectResponse(url="/", status_code=302)
-
-    profile = _normalize_provider(provider)
-    recommendations = await db_call(
-        db.get_recommendations,
-        profile.get("city") or "Nairobi",
-        provider_id,
-        limit=4,
-    )
-    recommendation_cards = [_normalize_recommendation(item) for item in recommendations]
-    
-    # Log the contact click
-    logger.info(f"📲 Contact page: Provider ID {provider_id} ({provider.get('display_name', 'Unknown')})")
-    
-    return templates.TemplateResponse("contact.html", {
-        "request": request,
-        "provider": profile,
-        "recommendations": recommendation_cards,
-    })
-
+    return await _redirect_to_short_profile(provider_id)
 
 @router.get("/connect/{provider_id}")
 async def connect_provider(

@@ -33,6 +33,7 @@ def _portal_onboarding_base_draft(provider: dict) -> dict:
     """Builds onboarding draft defaults from an existing provider profile."""
     return {
         "display_name": str(provider.get("display_name") or "").strip(),
+        "phone": str(provider.get("phone") or "").strip(),
         "city": str(provider.get("city") or "").strip(),
         "neighborhood": str(provider.get("neighborhood") or "").strip(),
         "age": str(provider.get("age") or "").strip(),
@@ -139,6 +140,11 @@ def _portal_compute_profile_strength(
             8,
             bool((draft.get("display_name") or "").strip()),
             "Set a memorable display name",
+        ),
+        (
+            6,
+            bool((draft.get("phone") or "").strip()),
+            "Add your contact phone for Call button",
         ),
         (6, bool((draft.get("city") or "").strip()), "Select your city"),
         (

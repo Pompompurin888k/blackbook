@@ -33,7 +33,7 @@ from utils.auth import (
 )
 from utils.db_async import db_call
 from utils.onboarding import _portal_compute_profile_strength, _portal_onboarding_base_draft
-from utils.providers import _build_public_profile_url, _normalize_photo_sources, _to_string_list
+from utils.providers import _build_short_profile_url, _normalize_photo_sources, _to_string_list
 
 from fastapi.templating import Jinja2Templates
 
@@ -128,7 +128,7 @@ async def provider_portal_dashboard(
         and not provider.get("trial_used")
         and not await db_call(db.has_successful_payment_for_provider, tg_id)
     ) if tg_id else False
-    public_profile_url = _build_public_profile_url(provider)
+    short_profile_url = _build_short_profile_url(provider)
 
     return templates.TemplateResponse(
         "provider_dashboard.html",
@@ -147,7 +147,7 @@ async def provider_portal_dashboard(
             "languages_count": len(languages_list),
             "notice": notice,
             "error": error,
-            "public_profile_url": public_profile_url,
+            "short_profile_url": short_profile_url,
             "free_trial_days": FREE_TRIAL_DAYS,
             "trial_eligible": trial_eligible,
         },

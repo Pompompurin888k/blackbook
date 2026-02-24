@@ -21,7 +21,7 @@ from config import (
 from database import Database
 from services.redis_service import _invalidate_provider_listing_cache
 from services.telegram_service import send_admin_alert
-from utils.auth import _portal_account_state, _portal_session_provider_id, _to_int_or_none
+from utils.auth import _normalize_portal_phone, _portal_account_state, _portal_session_provider_id, _to_int_or_none
 from utils.db_async import db_call
 from utils.onboarding import (
     _normalize_onboarding_step,
@@ -140,6 +140,8 @@ async def provider_portal_onboarding_submit(request: Request):
 
     if step == 1:
         draft["display_name"] = str(form.get("display_name", "")).strip()
+        phone_input = str(form.get("phone", "")).strip()
+        draft["phone"] = _normalize_portal_phone(phone_input) if phone_input else ""
         draft["city"] = str(form.get("city", "")).strip()
         draft["neighborhood"] = str(form.get("neighborhood", "")).strip()
         draft["age"] = str(form.get("age", "")).strip()
@@ -151,6 +153,14 @@ async def provider_portal_onboarding_submit(request: Request):
         draft["nationality"] = str(form.get("nationality", "")).strip()
         draft["county"] = str(form.get("county", "")).strip()
         _portal_set_onboarding_draft(request, draft)
+        if action != "back" and not draft["phone"]:
+            return _render_provider_onboarding_template(
+                request=request,
+                provider=provider,
+                draft=draft,
+                step=step,
+                error="Add a valid phone number (e.g. 2547XXXXXXXX) for your Call button.",
+            )
         if action != "back" and (not draft["display_name"] or not draft["city"] or not draft["neighborhood"]):
             return _render_provider_onboarding_template(
                 request=request,
@@ -223,6 +233,15 @@ async def provider_portal_onboarding_submit(request: Request):
         )
 
     display_name = draft.get("display_name") or provider.get("display_name")
+    normalized_phone = _normalize_portal_phone(draft.get("phone", ""))
+    if not normalized_phone:
+        return _render_provider_onboarding_template(
+            request=request,
+            provider=provider,
+            draft=draft,
+            step=1,
+            error="Add a valid phone number (e.g. 2547XXXXXXXX) for your Call button.",
+        )
     city = draft.get("city", "")
     neighborhood = draft.get("neighborhood", "")
     bio = draft.get("bio", "")
@@ -231,6 +250,7 @@ async def provider_portal_onboarding_submit(request: Request):
 
     update_data = {
         "display_name": display_name,
+        "phone": normalized_phone,
         "city": city,
         "neighborhood": neighborhood,
         "age": _to_int_or_none(draft.get("age")),
@@ -257,7 +277,12 @@ async def provider_portal_onboarding_submit(request: Request):
         "rate_overnight": _to_int_or_none(draft.get("rate_overnight")),
         "is_online": False,
         "portal_onboarding_complete": bool(
-            display_name and city and neighborhood and bio and len(existing_photo_urls) >= PORTAL_MIN_PROFILE_PHOTOS
+            display_name
+            and normalized_phone
+            and city
+            and neighborhood
+            and bio
+            and len(existing_photo_urls) >= PORTAL_MIN_PROFILE_PHOTOS
         ),
     }
     saved = await db_call(db.update_portal_provider_profile, provider_id, update_data)
@@ -292,7 +317,7 @@ async def provider_portal_onboarding_submit(request: Request):
             "PORTAL PROFILE SUBMITTED\n"
             "-----------------------\n"
             f"Name: {display_name or provider.get('display_name', 'Unknown')}\n"
-            f"Phone: {provider.get('phone', '')}\n"
+            f"Phone: {normalized_phone}\n"
             f"Provider ID: {provider_id}\n"
             "Review profile quality in admin bot."
         )
