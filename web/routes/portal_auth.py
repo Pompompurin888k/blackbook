@@ -48,7 +48,12 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/provider", response_class=HTMLResponse)
-async def provider_portal_auth(request: Request, error: Optional[str] = None, success: Optional[str] = None):
+async def provider_portal_auth(
+    request: Request,
+    error: Optional[str] = None,
+    success: Optional[str] = None,
+    tab: Optional[str] = None,
+):
     """Provider portal auth page (email + password)."""
     provider_id = _portal_session_provider_id(request)
     if provider_id:
@@ -60,12 +65,14 @@ async def provider_portal_auth(request: Request, error: Optional[str] = None, su
             if state == PORTAL_ACCOUNT_APPROVED and provider.get("email_verified") is True:
                 return RedirectResponse(url="/provider/dashboard", status_code=302)
             return RedirectResponse(url=f"/provider/verify-email?status={state}", status_code=302)
+    selected_tab = tab if tab in {"login", "register"} else "login"
     return templates.TemplateResponse(
         "provider_auth.html",
         {
             "request": request,
             "error": error,
             "success": success,
+            "active_tab": selected_tab,
         },
     )
 
@@ -74,52 +81,59 @@ async def provider_portal_auth(request: Request, error: Optional[str] = None, su
 async def provider_portal_register(request: Request):
     """Creates a new non-Telegram provider account and sends email verification code."""
     form = await request.form()
-    username = _normalize_portal_username(str(form.get("username", "")).strip())
-    display_name = str(form.get("display_name", "")).strip()
+    register_username = str(form.get("username", "")).strip()
+    register_display_name = str(form.get("display_name", "")).strip()
+    register_email = str(form.get("email", "")).strip()
+    username = _normalize_portal_username(register_username)
+    display_name = register_display_name
     phone_input = str(form.get("phone", "")).strip()
     phone = _normalize_portal_phone(phone_input) if phone_input else ""
-    email = _normalize_portal_email(str(form.get("email", "")).strip())
+    email = _normalize_portal_email(register_email)
     password = str(form.get("password", ""))
     confirm_password = str(form.get("confirm_password", ""))
+    register_page_context = {
+        "request": request,
+        "success": None,
+        "active_tab": "register",
+        "register_username": register_username,
+        "register_display_name": register_display_name,
+        "register_email": register_email,
+    }
 
     if not username:
         return templates.TemplateResponse(
             "provider_auth.html",
-            {
-                "request": request,
-                "error": "Username must be 3-32 chars using letters, numbers, or underscores.",
-                "success": None,
-            },
+            {**register_page_context, "error": "Username must be 3-32 chars using letters, numbers, or underscores."},
             status_code=400,
         )
     if len(display_name) < 2:
         return templates.TemplateResponse(
             "provider_auth.html",
-            {"request": request, "error": "Display name must be at least 2 characters.", "success": None},
+            {**register_page_context, "error": "Display name must be at least 2 characters."},
             status_code=400,
         )
     if phone_input and not phone:
         return templates.TemplateResponse(
             "provider_auth.html",
-            {"request": request, "error": "Use a valid Kenyan phone number (e.g. 2547XXXXXXXX).", "success": None},
+            {**register_page_context, "error": "Use a valid Kenyan phone number (e.g. 2547XXXXXXXX)."},
             status_code=400,
         )
     if not email:
         return templates.TemplateResponse(
             "provider_auth.html",
-            {"request": request, "error": "Enter a valid email address.", "success": None},
+            {**register_page_context, "error": "Enter a valid email address."},
             status_code=400,
         )
     if len(password) < 6:
         return templates.TemplateResponse(
             "provider_auth.html",
-            {"request": request, "error": "Password must be at least 6 characters.", "success": None},
+            {**register_page_context, "error": "Password must be at least 6 characters."},
             status_code=400,
         )
     if password != confirm_password:
         return templates.TemplateResponse(
             "provider_auth.html",
-            {"request": request, "error": "Passwords do not match.", "success": None},
+            {**register_page_context, "error": "Passwords do not match."},
             status_code=400,
         )
 
@@ -134,11 +148,7 @@ async def provider_portal_register(request: Request):
     if not created:
         return templates.TemplateResponse(
             "provider_auth.html",
-            {
-                "request": request,
-                "error": "This username or email is already registered. Please log in instead.",
-                "success": None,
-            },
+            {**register_page_context, "error": "This username or email is already registered. Please log in instead."},
             status_code=400,
         )
 
@@ -157,11 +167,7 @@ async def provider_portal_register(request: Request):
     if not code_saved:
         return templates.TemplateResponse(
             "provider_auth.html",
-            {
-                "request": request,
-                "error": "Account created, but verification setup failed. Please try logging in again.",
-                "success": None,
-            },
+            {**register_page_context, "error": "Account created, but verification setup failed. Please try logging in again."},
             status_code=500,
         )
 
@@ -200,8 +206,15 @@ async def provider_portal_register(request: Request):
 async def provider_portal_login(request: Request):
     """Logs in an existing portal provider account."""
     form = await request.form()
-    email = _normalize_portal_email(str(form.get("email", "")).strip())
+    login_email = str(form.get("email", "")).strip()
+    email = _normalize_portal_email(login_email)
     password = str(form.get("password", ""))
+    login_page_context = {
+        "request": request,
+        "success": None,
+        "active_tab": "login",
+        "login_email": login_email,
+    }
     client_ip = _extract_client_ip(request)
     login_rate_key = (
         f"rl:provider_login:{_rate_limit_key_suffix(client_ip)}:"
@@ -216,11 +229,7 @@ async def provider_portal_login(request: Request):
         wait_minutes = max(1, PORTAL_LOGIN_RATE_WINDOW_SECONDS // 60)
         return templates.TemplateResponse(
             "provider_auth.html",
-            {
-                "request": request,
-                "error": f"Too many login attempts from this network. Try again in about {wait_minutes} minutes.",
-                "success": None,
-            },
+            {**login_page_context, "error": f"Too many login attempts from this network. Try again in about {wait_minutes} minutes."},
             status_code=429,
         )
 
@@ -228,7 +237,7 @@ async def provider_portal_login(request: Request):
     if not provider:
         return templates.TemplateResponse(
             "provider_auth.html",
-            {"request": request, "error": "Invalid email or password.", "success": None},
+            {**login_page_context, "error": "Invalid email or password."},
             status_code=401,
         )
 
@@ -237,11 +246,7 @@ async def provider_portal_login(request: Request):
         locked_text = locked_until.strftime("%H:%M") if hasattr(locked_until, "strftime") else "later"
         return templates.TemplateResponse(
             "provider_auth.html",
-            {
-                "request": request,
-                "error": f"Too many failed logins. Try again after {locked_text}.",
-                "success": None,
-            },
+            {**login_page_context, "error": f"Too many failed logins. Try again after {locked_text}."},
             status_code=423,
         )
 
@@ -267,7 +272,7 @@ async def provider_portal_login(request: Request):
             message = "Invalid email or password."
         return templates.TemplateResponse(
             "provider_auth.html",
-            {"request": request, "error": message, "success": None},
+            {**login_page_context, "error": message},
             status_code=401,
         )
 
@@ -285,11 +290,7 @@ async def provider_portal_login(request: Request):
     if state == PORTAL_ACCOUNT_SUSPENDED:
         return templates.TemplateResponse(
             "provider_auth.html",
-            {
-                "request": request,
-                "error": "This account is suspended. Contact support/admin.",
-                "success": None,
-            },
+            {**login_page_context, "error": "This account is suspended. Contact support/admin."},
             status_code=403,
         )
 
