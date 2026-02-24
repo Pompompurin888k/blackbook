@@ -51,6 +51,17 @@ def _normalize_portal_email(value: str) -> str:
     return email if re.match(pattern, email) else ""
 
 
+def _normalize_portal_username(value: str) -> str:
+    """Normalizes and validates a portal username."""
+    username = str(value or "").strip().lower().lstrip("@")
+    if not username:
+        return ""
+    if len(username) < 3 or len(username) > 32:
+        return ""
+    pattern = r"^[a-z0-9_]+$"
+    return username if re.match(pattern, username) else ""
+
+
 def _hash_password(password: str) -> str:
     """Hashes password with PBKDF2 for provider portal auth."""
     salt = secrets.token_hex(16)

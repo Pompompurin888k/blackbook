@@ -29,6 +29,7 @@ from utils.auth import (
     _hash_password,
     _normalize_portal_email,
     _normalize_portal_phone,
+    _normalize_portal_username,
     _portal_account_state,
     _portal_generate_email_code,
     _portal_hash_verification_code,
@@ -73,19 +74,31 @@ async def provider_portal_auth(request: Request, error: Optional[str] = None, su
 async def provider_portal_register(request: Request):
     """Creates a new non-Telegram provider account and sends email verification code."""
     form = await request.form()
+    username = _normalize_portal_username(str(form.get("username", "")).strip())
     display_name = str(form.get("display_name", "")).strip()
-    phone = _normalize_portal_phone(str(form.get("phone", "")).strip())
+    phone_input = str(form.get("phone", "")).strip()
+    phone = _normalize_portal_phone(phone_input) if phone_input else ""
     email = _normalize_portal_email(str(form.get("email", "")).strip())
     password = str(form.get("password", ""))
     confirm_password = str(form.get("confirm_password", ""))
 
+    if not username:
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {
+                "request": request,
+                "error": "Username must be 3-32 chars using letters, numbers, or underscores.",
+                "success": None,
+            },
+            status_code=400,
+        )
     if len(display_name) < 2:
         return templates.TemplateResponse(
             "provider_auth.html",
             {"request": request, "error": "Display name must be at least 2 characters.", "success": None},
             status_code=400,
         )
-    if not phone:
+    if phone_input and not phone:
         return templates.TemplateResponse(
             "provider_auth.html",
             {"request": request, "error": "Use a valid Kenyan phone number (e.g. 2547XXXXXXXX).", "success": None},
@@ -112,8 +125,9 @@ async def provider_portal_register(request: Request):
 
     created = await db_call(
         db.create_portal_provider_account,
-        phone=phone,
+        phone=phone or None,
         email=email,
+        username=username,
         password_hash=_hash_password(password),
         display_name=display_name,
     )
@@ -122,7 +136,7 @@ async def provider_portal_register(request: Request):
             "provider_auth.html",
             {
                 "request": request,
-                "error": "This phone or email is already registered. Please log in instead.",
+                "error": "This username or email is already registered. Please log in instead.",
                 "success": None,
             },
             status_code=400,
@@ -155,7 +169,7 @@ async def provider_portal_register(request: Request):
         db.log_provider_verification_event,
         provider_id,
         "account_created",
-        payload={"phone": phone, "email": email, "display_name": display_name},
+        payload={"username": username, "phone": phone, "email": email, "display_name": display_name},
     )
 
     email_sent = await send_portal_verification_email(

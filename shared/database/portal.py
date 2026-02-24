@@ -13,14 +13,17 @@ class PortalRepository(BaseRepository):
 
     def create_portal_provider_account(
         self,
-        phone: str,
+        phone: Optional[str],
         email: str,
+        username: str,
         password_hash: str,
         display_name: str,
     ) -> Optional[Dict]:
         """Creates a non-Telegram provider account for portal onboarding."""
+        normalized_phone = (phone or "").strip()
         normalized_email = (email or "").strip().lower()
-        if not normalized_email:
+        normalized_username = (username or "").strip().lower().lstrip("@")
+        if not normalized_email or not normalized_username:
             return None
 
         try:
@@ -29,11 +32,15 @@ class PortalRepository(BaseRepository):
                     """
                     SELECT 1
                     FROM providers
-                    WHERE phone = %s
-                       OR LOWER(COALESCE(email, '')) = %s
+                    WHERE LOWER(COALESCE(email, '')) = %s
+                       OR (
+                            COALESCE(auth_channel, 'telegram') = 'portal'
+                            AND LOWER(COALESCE(telegram_username, '')) = %s
+                          )
+                       OR (%s <> '' AND phone = %s)
                     LIMIT 1
                     """,
-                    (phone, normalized_email),
+                    (normalized_email, normalized_username, normalized_phone, normalized_phone),
                 )
                 if cur.fetchone():
                     return None
@@ -53,6 +60,7 @@ class PortalRepository(BaseRepository):
                     """
                     INSERT INTO providers (
                         telegram_id,
+                        telegram_username,
                         display_name,
                         phone,
                         email,
@@ -65,10 +73,17 @@ class PortalRepository(BaseRepository):
                         is_verified,
                         is_active
                     )
-                    VALUES (%s, %s, %s, %s, 'portal', %s, FALSE, FALSE, 'pending_review', FALSE, FALSE, FALSE)
-                    RETURNING id, telegram_id, display_name, phone, email, auth_channel
+                    VALUES (%s, %s, %s, %s, %s, 'portal', %s, FALSE, FALSE, 'pending_review', FALSE, FALSE, FALSE)
+                    RETURNING id, telegram_id, telegram_username, display_name, phone, email, auth_channel
                     """,
-                    (synthetic_tg_id, display_name, phone, normalized_email, password_hash),
+                    (
+                        synthetic_tg_id,
+                        normalized_username,
+                        display_name,
+                        normalized_phone or None,
+                        normalized_email,
+                        password_hash,
+                    ),
                 )
                 created = cur.fetchone()
                 self.conn.commit()
@@ -84,7 +99,7 @@ class PortalRepository(BaseRepository):
             with self.conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT id, telegram_id, display_name, phone, email, city, neighborhood,
+                    SELECT id, telegram_id, telegram_username, display_name, phone, email, city, neighborhood,
                            is_verified, is_active, auth_channel, portal_password_hash,
                            email_verified, email_verify_code_created_at,
                            password_reset_code_hash, password_reset_code_expires_at, password_reset_code_used_at,
@@ -118,7 +133,7 @@ class PortalRepository(BaseRepository):
             with self.conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT id, telegram_id, display_name, phone, email, city, neighborhood,
+                    SELECT id, telegram_id, telegram_username, display_name, phone, email, city, neighborhood,
                            is_verified, is_active, auth_channel, portal_password_hash,
                            email_verified, email_verify_code_created_at,
                            password_reset_code_hash, password_reset_code_expires_at, password_reset_code_used_at,
@@ -156,7 +171,7 @@ class PortalRepository(BaseRepository):
             with self.conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT id, telegram_id, display_name, phone, email, city, neighborhood,
+                    SELECT id, telegram_id, telegram_username, display_name, phone, email, city, neighborhood,
                            is_verified, is_active, auth_channel, portal_password_hash,
                            email_verified, email_verify_code_created_at,
                            password_reset_code_hash, password_reset_code_expires_at, password_reset_code_used_at,
