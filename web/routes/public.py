@@ -53,7 +53,20 @@ async def _render_contact_page(request: Request, provider_id: int) -> HTMLRespon
     if not provider:
         return RedirectResponse(url="/", status_code=302)
 
-    profile = _normalize_provider(provider)
+    await db_call(
+        db.log_analytics_event,
+        event_name="profile_view",
+        event_payload={
+            "provider_id": provider_id,
+            "path": request.url.path,
+        },
+    )
+    trust_stats = await db_call(db.get_provider_public_trust_stats, provider_id)
+    profile_payload = dict(provider)
+    if isinstance(trust_stats, dict):
+        profile_payload.update(trust_stats)
+
+    profile = _normalize_provider(profile_payload)
     recommendations = await db_call(
         db.get_recommendations,
         profile.get("city") or "Nairobi",

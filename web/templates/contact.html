@@ -162,6 +162,12 @@
                             </svg>
                             Verified Identity
                         </div>
+                        {% if provider.email_verified_badge %}
+                        <div
+                            class="flex items-center text-emerald-300 text-[10px] font-bold gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-400/30">
+                            Email Verified
+                        </div>
+                        {% endif %}
                     </div>
                     <h1 class="serif text-5xl md:text-8xl tracking-tighter leading-[0.9]">
                         {{ provider.display_name.split(' ')[0] }}{% if provider.age %}, {{ provider.age }}{% endif %}
@@ -174,6 +180,12 @@
                         </svg>
                         {{ provider.primary_location }} &bull; {{ provider.neighborhood or "Private Location" }}
                     </p>
+                    <div class="flex flex-wrap gap-2">
+                        <span
+                            class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">{{ provider.last_active_hint }}</span>
+                        <span
+                            class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">{{ provider.response_rate_label }}</span>
+                    </div>
                 </div>
 
                 {% if provider.rate_cards %}
@@ -264,7 +276,7 @@
                 <div class="flex flex-wrap gap-2 pt-1">
                     <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">Location: {{ location }}</span>
                     <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">{{ provider.availability_label or 'By booking' }}</span>
-                    <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">{{ provider.response_hint or 'Fast response' }}</span>
+                    <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">{{ provider.response_rate_label }}</span>
                 </div>
                 {% if provider.bio %}
                 <p class="text-gray-400 leading-relaxed font-light text-sm italic about-collapsed"

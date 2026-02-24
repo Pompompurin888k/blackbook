@@ -237,3 +237,150 @@ class AnalyticsRepository(BaseRepository):
             logger.error(f"Error getting provider analytics stats: {e}")
             return stats
 
+    def get_provider_public_trust_stats(self, provider_id: int) -> Dict:
+        """Builds public trust stats (views/contact conversion + last contact time)."""
+        stats = {
+            "views_30d": 0,
+            "contacts_30d": 0,
+            "response_rate_pct": None,
+            "last_contact_at": None,
+        }
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) AS count
+                    FROM analytics_events
+                    WHERE event_name = 'profile_view'
+                      AND (event_payload->>'provider_id') = %s
+                      AND created_at >= NOW() - INTERVAL '30 days'
+                    """,
+                    (str(provider_id),),
+                )
+                row = cur.fetchone()
+                stats["views_30d"] = int(row["count"]) if row and row.get("count") is not None else 0
+
+                cur.execute(
+                    """
+                    SELECT COUNT(*) AS count, MAX(created_at) AS last_contact_at
+                    FROM lead_analytics
+                    WHERE provider_id = %s
+                      AND created_at >= NOW() - INTERVAL '30 days'
+                    """,
+                    (provider_id,),
+                )
+                row = cur.fetchone()
+                if row:
+                    stats["contacts_30d"] = int(row["count"]) if row.get("count") is not None else 0
+                    stats["last_contact_at"] = row.get("last_contact_at")
+
+                views = int(stats["views_30d"] or 0)
+                contacts = int(stats["contacts_30d"] or 0)
+                if views > 0:
+                    conversion = int(round((contacts / views) * 100))
+                    stats["response_rate_pct"] = max(0, min(99, conversion))
+
+            return stats
+        except Exception as e:
+            logger.error(f"Error getting public trust stats for provider {provider_id}: {e}")
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
+            return stats
+
+    def get_portal_ops_metrics(self) -> Dict:
+        """Aggregates operational metrics for portal signups and activation funnel."""
+        metrics = {
+            "generated_at": datetime.utcnow(),
+            "registrations_total": 0,
+            "registrations_24h": 0,
+            "registrations_7d": 0,
+            "verifications_total": 0,
+            "verifications_7d": 0,
+            "onboarding_completed_total": 0,
+            "onboarding_completed_7d": 0,
+            "trial_activations_total": 0,
+            "trial_activations_7d": 0,
+            "live_providers_total": 0,
+            "live_providers_online": 0,
+            "pending_review_total": 0,
+        }
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        COUNT(*) AS registrations_total,
+                        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours') AS registrations_24h,
+                        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') AS registrations_7d,
+                        COUNT(*) FILTER (WHERE COALESCE(email_verified, FALSE) = TRUE) AS verifications_total,
+                        COUNT(*) FILTER (WHERE COALESCE(portal_onboarding_complete, FALSE) = TRUE) AS onboarding_completed_total,
+                        COUNT(*) FILTER (WHERE trial_started_at IS NOT NULL) AS trial_activations_total,
+                        COUNT(*) FILTER (WHERE COALESCE(is_active, FALSE) = TRUE) AS live_providers_total,
+                        COUNT(*) FILTER (WHERE COALESCE(is_active, FALSE) = TRUE AND COALESCE(is_online, FALSE) = TRUE) AS live_providers_online,
+                        COUNT(*) FILTER (WHERE COALESCE(account_state, 'pending_review') = 'pending_review') AS pending_review_total
+                    FROM providers
+                    WHERE COALESCE(auth_channel, 'telegram') = 'portal'
+                    """
+                )
+                row = cur.fetchone() or {}
+                for key in [
+                    "registrations_total",
+                    "registrations_24h",
+                    "registrations_7d",
+                    "verifications_total",
+                    "onboarding_completed_total",
+                    "trial_activations_total",
+                    "live_providers_total",
+                    "live_providers_online",
+                    "pending_review_total",
+                ]:
+                    metrics[key] = int(row.get(key) or 0)
+
+                cur.execute(
+                    """
+                    SELECT COUNT(DISTINCT pve.provider_id) AS verifications_7d
+                    FROM provider_verification_events pve
+                    JOIN providers p ON p.id = pve.provider_id
+                    WHERE pve.event_type = 'email_verified'
+                      AND pve.created_at >= NOW() - INTERVAL '7 days'
+                      AND COALESCE(p.auth_channel, 'telegram') = 'portal'
+                    """
+                )
+                row = cur.fetchone() or {}
+                metrics["verifications_7d"] = int(row.get("verifications_7d") or 0)
+
+                cur.execute(
+                    """
+                    SELECT COUNT(DISTINCT pve.provider_id) AS onboarding_completed_7d
+                    FROM provider_verification_events pve
+                    JOIN providers p ON p.id = pve.provider_id
+                    WHERE pve.event_type = 'profile_submitted'
+                      AND pve.created_at >= NOW() - INTERVAL '7 days'
+                      AND COALESCE(p.auth_channel, 'telegram') = 'portal'
+                    """
+                )
+                row = cur.fetchone() or {}
+                metrics["onboarding_completed_7d"] = int(row.get("onboarding_completed_7d") or 0)
+
+                cur.execute(
+                    """
+                    SELECT COUNT(*) AS trial_activations_7d
+                    FROM providers
+                    WHERE COALESCE(auth_channel, 'telegram') = 'portal'
+                      AND trial_started_at >= NOW() - INTERVAL '7 days'
+                    """
+                )
+                row = cur.fetchone() or {}
+                metrics["trial_activations_7d"] = int(row.get("trial_activations_7d") or 0)
+
+            return metrics
+        except Exception as e:
+            logger.error(f"Error getting portal ops metrics: {e}")
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
+            return metrics
+

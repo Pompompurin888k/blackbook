@@ -3,6 +3,7 @@ Provider Utilities — template payload normalization, photo URLs, fallback imag
 """
 import json
 import re
+from datetime import datetime
 from typing import Optional
 from urllib.parse import quote
 from urllib.parse import urlparse
@@ -124,6 +125,51 @@ def _build_short_profile_url(provider: dict) -> str:
     return f"/p/{int(provider_id)}"
 
 
+def _format_last_active_label(
+    last_active_at: Optional[datetime],
+    is_online: bool,
+    now: Optional[datetime] = None,
+) -> str:
+    """Formats a compact, human-readable last-active label."""
+    if is_online:
+        return "Online now"
+    if not isinstance(last_active_at, datetime):
+        return "Recently active"
+
+    reference_now = now
+    if reference_now is None:
+        if getattr(last_active_at, "tzinfo", None):
+            reference_now = datetime.now(last_active_at.tzinfo)
+        else:
+            reference_now = datetime.now()
+
+    delta_seconds = max(0, int((reference_now - last_active_at).total_seconds()))
+    minutes = delta_seconds // 60
+    if minutes < 1:
+        return "Active just now"
+    if minutes < 60:
+        return f"Active {minutes}m ago"
+    hours = minutes // 60
+    if hours < 24:
+        return f"Active {hours}h ago"
+    days = hours // 24
+    return f"Active {days}d ago"
+
+
+def _format_response_rate_label(response_rate_pct) -> str:
+    """Formats response-rate trust label for public profile badges."""
+    if response_rate_pct is None:
+        return "Response tracking"
+    try:
+        pct = int(round(float(response_rate_pct)))
+    except (TypeError, ValueError):
+        return "Response tracking"
+    pct = max(0, min(99, pct))
+    if pct == 0:
+        return "New profile"
+    return f"{pct}% response rate"
+
+
 def _normalize_provider(provider: dict) -> dict:
     """Builds a stable profile payload for the template."""
     profile = dict(provider)
@@ -144,7 +190,10 @@ def _normalize_provider(provider: dict) -> dict:
         if profile.get("is_online")
         else "Usually replies in under 1 hour"
     )
-    profile["last_active_hint"] = "Online now" if profile.get("is_online") else "Active today"
+    last_active_at = profile.get("updated_at") or profile.get("created_at")
+    profile["last_active_hint"] = _format_last_active_label(last_active_at, bool(profile.get("is_online")))
+    profile["email_verified_badge"] = bool(profile.get("email_verified"))
+    profile["response_rate_label"] = _format_response_rate_label(profile.get("response_rate_pct"))
     phone_digits = _sanitize_phone(profile.get("phone"))
     profile["phone_digits"] = phone_digits
 

@@ -147,6 +147,29 @@ Tune rate limits in `.env` (defaults are already set in `.env.example`):
 - `PORTAL_VERIFY_CONFIRM_RATE_LIMIT_ATTEMPTS`, `PORTAL_VERIFY_CONFIRM_RATE_WINDOW_SECONDS`
 - `PORTAL_PASSWORD_RESET_CONFIRM_LIMIT`, `PORTAL_PASSWORD_RESET_CONFIRM_WINDOW_SECONDS`
 
+## Admin Ops Metrics
+
+Token-protected dashboard and JSON endpoint:
+
+- HTML: `/admin/ops/metrics`
+- JSON: `/admin/ops/metrics.json`
+
+Set in `.env`:
+
+```bash
+ADMIN_METRICS_TOKEN=replace_with_strong_admin_metrics_token
+```
+
+Access examples:
+
+```bash
+# Browser
+https://innbucks.org/admin/ops/metrics?token=YOUR_TOKEN
+
+# CLI JSON
+curl -H "x-admin-token: YOUR_TOKEN" https://innbucks.org/admin/ops/metrics.json
+```
+
 ## Features
 - Provider registration/login with email verification
 - Password reset flow
