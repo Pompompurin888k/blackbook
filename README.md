@@ -21,6 +21,35 @@ docker compose up -d --build
 
 Web startup automatically applies SQL migrations from `web/migrations/`.
 
+## Local Dummy Portal Provider (Dev)
+
+Use this local-only account to test portal auth, onboarding-complete dashboard, and public profile flows.
+
+Login page:
+- `http://127.0.0.1:8080/provider`
+
+Credentials:
+- `email`: `dummy.provider.local@blackbook.test`
+- `password`: `DevDummy@123`
+
+Expected account state:
+- `account_state=approved`
+- `email_verified=true`
+- `phone_verified=true`
+- `portal_onboarding_complete=true`
+- `is_verified=true`
+- `is_active=true`
+- `is_online=true`
+
+Quick DB check:
+
+```bash
+docker compose exec db psql -U bb_operator -d blackbook_db -c "SELECT id, display_name, email, account_state, email_verified, phone_verified, portal_onboarding_complete, is_verified, is_active, is_online FROM providers WHERE LOWER(email)='dummy.provider.local@blackbook.test';"
+```
+
+Note:
+- This is for local development only. Do not reuse these credentials in staging/production.
+
 ## One-Command Deploy
 
 Run this on the server after you update code or `.env`:
