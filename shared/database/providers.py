@@ -216,7 +216,7 @@ class ProvidersRepository(BaseRepository):
                                gender, sexual_orientation, nationality, county,
                                incalls_from, outcalls_from, video_url,
                                rate_30min, rate_1hr, rate_2hr, rate_3hr, rate_overnight,
-                               email_verified, created_at, updated_at, profile_photos, telegram_username,
+                               email_verified, created_at, created_at AS updated_at, profile_photos, telegram_username,
                                subscription_tier, boost_until, is_premium_verified
                         FROM providers
                         WHERE id = %s AND is_verified = TRUE AND is_active = TRUE
