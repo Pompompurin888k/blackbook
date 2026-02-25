@@ -88,6 +88,27 @@ def _verify_password(password: str, stored_hash: str) -> bool:
     return hmac.compare_digest(existing, candidate)
 
 
+def _build_portal_login_failure_message(
+    login_failed_attempts: Optional[int],
+    max_attempts: int,
+) -> str:
+    """Returns a user-safe login failure message with remaining attempts when available."""
+    base_message = "Invalid email or password."
+    if login_failed_attempts is None:
+        return base_message
+    try:
+        attempts = int(login_failed_attempts)
+        limit = max(1, int(max_attempts))
+    except (TypeError, ValueError):
+        return base_message
+
+    remaining = max(0, limit - attempts)
+    if remaining <= 0:
+        return base_message
+    suffix = "attempt" if remaining == 1 else "attempts"
+    return f"{base_message} {remaining} {suffix} left before a temporary lock."
+
+
 def _portal_session_provider_id(request: Request) -> Optional[int]:
     """Gets provider ID from portal session cookie."""
     value = request.session.get("provider_portal_id")

@@ -29,6 +29,7 @@ from services.email_service import send_portal_password_reset_email, send_portal
 from services.redis_service import _rate_limit_key_suffix, _redis_consume_limit, _redis_reset_limit
 from utils.db_async import db_call
 from utils.auth import (
+    _build_portal_login_failure_message,
     _extract_client_ip,
     _hash_password,
     _normalize_portal_email,
@@ -260,6 +261,19 @@ async def provider_portal_login(request: Request):
         "active_tab": "login",
         "login_email": login_email,
     }
+    if login_email and not email:
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {**login_page_context, "error": "Enter a valid email address."},
+            status_code=400,
+        )
+    if not password:
+        return templates.TemplateResponse(
+            "provider_auth.html",
+            {**login_page_context, "error": "Enter your password."},
+            status_code=400,
+        )
+
     client_ip = _extract_client_ip(request)
     login_rate_key = (
         f"rl:provider_login:{_rate_limit_key_suffix(client_ip)}:"
@@ -314,7 +328,10 @@ async def provider_portal_login(request: Request):
             locked_text = locked_until.strftime("%H:%M") if hasattr(locked_until, "strftime") else "later"
             message = f"Too many failed logins. Try again after {locked_text}."
         else:
-            message = "Invalid email or password."
+            message = _build_portal_login_failure_message(
+                login_failed_attempts=failure.get("login_failed_attempts") if failure else None,
+                max_attempts=PORTAL_LOGIN_MAX_ATTEMPTS,
+            )
         return templates.TemplateResponse(
             "provider_auth.html",
             {**login_page_context, "error": message},

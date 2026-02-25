@@ -151,7 +151,7 @@
                         <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Email Address</label>
                         <div class="relative">
                             <i data-feather="mail" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"></i>
-                            <input name="email" type="email" required value="{{ login_email or '' }}"
+                            <input name="email" type="email" required value="{{ login_email or '' }}" autocomplete="email"
                                 class="field w-full rounded-xl py-3 pl-10 pr-3 text-sm"
                                 placeholder="you@example.com">
                         </div>
@@ -161,7 +161,7 @@
                         <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Password</label>
                         <div class="relative">
                             <i data-feather="lock" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"></i>
-                            <input name="password" type="password" required
+                            <input name="password" type="password" required autocomplete="current-password"
                                 class="field w-full rounded-xl py-3 pl-10 pr-3 text-sm"
                                 placeholder="Enter password">
                         </div>
@@ -199,19 +199,19 @@
 
                     <div>
                         <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Email Address</label>
-                        <input name="email" required type="email" value="{{ register_email or '' }}"
+                        <input name="email" required type="email" value="{{ register_email or '' }}" autocomplete="email"
                             class="field w-full rounded-xl px-3 py-3 text-sm" placeholder="you@example.com">
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Password</label>
-                            <input name="password" type="password" minlength="6" required
+                            <input name="password" type="password" minlength="6" required autocomplete="new-password"
                                 class="field w-full rounded-xl px-3 py-3 text-sm" placeholder="Create password">
                         </div>
                         <div>
                             <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Confirm Password</label>
-                            <input name="confirm_password" type="password" minlength="6" required
+                            <input name="confirm_password" type="password" minlength="6" required autocomplete="new-password"
                                 class="field w-full rounded-xl px-3 py-3 text-sm" placeholder="Repeat password">
                         </div>
                     </div>

@@ -34,9 +34,7 @@ from utils.onboarding import (
     _portal_set_onboarding_draft,
 )
 from utils.providers import _normalize_photo_sources
-
-# Shared upload handler currently lives in main.py.
-from main import _save_provider_upload
+from utils.uploads import _save_provider_upload
 
 from fastapi.templating import Jinja2Templates
 

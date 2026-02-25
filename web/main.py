@@ -1,7 +1,5 @@
 import logging
-import uuid
 import json
-from pathlib import Path
 import httpx
 from fastapi.concurrency import run_in_threadpool
 from fastapi import FastAPI, Request, Query
@@ -9,7 +7,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Resp
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from urllib.parse import quote
-from typing import Optional
 from starlette.middleware.sessions import SessionMiddleware
 from database import Database
 
@@ -52,7 +49,6 @@ from services.telegram_service import (
     send_telegram_notification,
     send_admin_alert,
 )
-from services.storage_service import upload_provider_photo
 
 # -- Utils --------------------------------------------------------------
 from utils.auth import (
@@ -91,6 +87,7 @@ from utils.onboarding import (
     _portal_compute_profile_strength,
     _portal_build_ranking_tips,
 )
+from utils.uploads import _save_provider_upload
 from payment_queue_utils import extract_callback_reference
 
 # -- App Setup ----------------------------------------------------------
@@ -111,41 +108,6 @@ templates = Jinja2Templates(directory="templates")
 
 # Database connection
 db = Database()
-
-
-# -- File Upload Helper -------------------------------------------------
-
-async def _save_provider_upload(provider_id: int, upload, prefix: str) -> Optional[str]:
-    """Saves portal-uploaded image under static/uploads and returns app-local URL."""
-    if not upload or not getattr(upload, "filename", None):
-        return None
-    ext = Path(upload.filename).suffix.lower()
-    if ext not in ALLOWED_UPLOAD_EXTENSIONS:
-        ext = ".jpg"
-    data = await upload.read()
-    if not data:
-        return None
-    if len(data) > PORTAL_MAX_UPLOAD_BYTES:
-        return None
-
-    uploaded_url = upload_provider_photo(
-        provider_id=provider_id,
-        data=data,
-        extension=ext,
-        prefix=prefix,
-        content_type=getattr(upload, "content_type", None),
-    )
-    if uploaded_url:
-        return uploaded_url
-
-    target_dir = Path("static/uploads/providers") / str(provider_id)
-    target_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"{prefix}_{uuid.uuid4().hex}{ext}"
-    target_path = target_dir / filename
-    with open(target_path, "wb") as handle:
-        handle.write(data)
-    relative_url = f"/static/uploads/providers/{provider_id}/{filename}"
-    return relative_url
 
 
 # ==================== ROUTES ====================

@@ -4,7 +4,6 @@ Imports shared constants and adds web-specific portal and cache settings.
 """
 import logging
 import os
-import secrets
 from collections import OrderedDict
 from ipaddress import ip_network
 from shared.config import *
@@ -33,8 +32,18 @@ def _is_insecure_secret(value: str) -> bool:
 
 
 APP_ENV = (os.getenv("APP_ENV") or os.getenv("ENVIRONMENT") or "development").strip().lower()
-SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").strip().lower() == "true"
 IS_PRODUCTION = APP_ENV in {"prod", "production", "staging"}
+
+_session_cookie_secure_raw = os.getenv("SESSION_COOKIE_SECURE")
+if _session_cookie_secure_raw is None:
+    SESSION_COOKIE_SECURE = IS_PRODUCTION
+else:
+    SESSION_COOKIE_SECURE = _session_cookie_secure_raw.strip().lower() == "true"
+if IS_PRODUCTION and not SESSION_COOKIE_SECURE:
+    logger.warning("SESSION_COOKIE_SECURE is false in production/staging; session cookies may be exposed over HTTP.")
+
+_DEV_PORTAL_SESSION_SECRET_FALLBACK = "dev-portal-session-secret-not-for-production"
+_DEV_PORTAL_CODE_PEPPER_FALLBACK = "dev-portal-code-pepper-not-for-production"
 
 PROVIDER_PORTAL_SESSION_SECRET = os.getenv("PROVIDER_PORTAL_SESSION_SECRET", "").strip()
 if _is_insecure_secret(PROVIDER_PORTAL_SESSION_SECRET):
@@ -42,9 +51,12 @@ if _is_insecure_secret(PROVIDER_PORTAL_SESSION_SECRET):
         raise RuntimeError(
             "PROVIDER_PORTAL_SESSION_SECRET must be a strong random secret in production."
         )
-    PROVIDER_PORTAL_SESSION_SECRET = secrets.token_urlsafe(48)
+    PROVIDER_PORTAL_SESSION_SECRET = os.getenv(
+        "PROVIDER_PORTAL_SESSION_SECRET_DEV_FALLBACK",
+        _DEV_PORTAL_SESSION_SECRET_FALLBACK,
+    ).strip() or _DEV_PORTAL_SESSION_SECRET_FALLBACK
     logger.warning(
-        "PROVIDER_PORTAL_SESSION_SECRET is missing or insecure; using an ephemeral development secret."
+        "PROVIDER_PORTAL_SESSION_SECRET is missing or insecure; using a deterministic development fallback."
     )
 
 # ==================== PORTAL SPECIFIC ====================
@@ -89,9 +101,12 @@ PORTAL_VERIFY_CODE_PEPPER = os.getenv("PORTAL_VERIFY_CODE_PEPPER", "").strip()
 if _is_insecure_secret(PORTAL_VERIFY_CODE_PEPPER):
     if IS_PRODUCTION:
         raise RuntimeError("PORTAL_VERIFY_CODE_PEPPER must be set to a strong random secret in production.")
-    PORTAL_VERIFY_CODE_PEPPER = secrets.token_urlsafe(48)
+    PORTAL_VERIFY_CODE_PEPPER = os.getenv(
+        "PORTAL_VERIFY_CODE_PEPPER_DEV_FALLBACK",
+        _DEV_PORTAL_CODE_PEPPER_FALLBACK,
+    ).strip() or _DEV_PORTAL_CODE_PEPPER_FALLBACK
     logger.warning(
-        "PORTAL_VERIFY_CODE_PEPPER is missing or insecure; using an ephemeral development pepper."
+        "PORTAL_VERIFY_CODE_PEPPER is missing or insecure; using a deterministic development fallback."
     )
 
 # SMTP / Email verification
