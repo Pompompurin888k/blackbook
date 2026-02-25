@@ -25,6 +25,12 @@ Web startup automatically applies SQL migrations from `web/migrations/`.
 
 Use this local-only account to test portal auth, onboarding-complete dashboard, and public profile flows.
 
+Create/reset this account:
+
+```bash
+docker compose exec web python scripts/seed_dummy_portal_provider.py
+```
+
 Login page:
 - `http://127.0.0.1:8080/provider`
 
