@@ -13,7 +13,7 @@ from typing import Optional
 from starlette.middleware.sessions import SessionMiddleware
 from database import Database
 
-# ── Config ──────────────────────────────────────────────────
+# -- Config -------------------------------------------------------------
 from config import (
     TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID, ADMIN_BOT_TOKEN,
     MEGAPAY_CALLBACK_SECRET, ENABLE_SEED_ENDPOINT,
@@ -38,7 +38,7 @@ from config import (
     PROVIDER_PORTAL_SESSION_SECRET, SESSION_COOKIE_SECURE,
 )
 
-# ── Services ────────────────────────────────────────────────
+# -- Services -----------------------------------------------------------
 from services.redis_service import (
     _rate_limit_key_suffix,
     _redis_consume_limit,
@@ -54,7 +54,7 @@ from services.telegram_service import (
 )
 from services.storage_service import upload_provider_photo
 
-# ── Utils ───────────────────────────────────────────────────
+# -- Utils --------------------------------------------------------------
 from utils.auth import (
     _sanitize_phone,
     _normalize_portal_phone,
@@ -93,7 +93,7 @@ from utils.onboarding import (
 )
 from payment_queue_utils import extract_callback_reference
 
-# ── App Setup ───────────────────────────────────────────────
+# -- App Setup ----------------------------------------------------------
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ templates = Jinja2Templates(directory="templates")
 db = Database()
 
 
-# ── File Upload Helper ──────────────────────────────────────
+# -- File Upload Helper -------------------------------------------------
 
 async def _save_provider_upload(provider_id: int, upload, prefix: str) -> Optional[str]:
     """Saves portal-uploaded image under static/uploads and returns app-local URL."""
@@ -146,63 +146,6 @@ async def _save_provider_upload(provider_id: int, upload, prefix: str) -> Option
         handle.write(data)
     relative_url = f"/static/uploads/providers/{provider_id}/{filename}"
     return relative_url
-
-
-# ── Photo Proxy ─────────────────────────────────────────────
-
-@app.get("/photo/{file_id}")
-async def get_photo(file_id: str):
-    """
-    Proxy endpoint to serve Telegram photos.
-    Fetches file path from Telegram API and streams the photo bytes.
-    Caches results to minimize API calls.
-    """
-    if not TELEGRAM_BOT_TOKEN:
-        logger.warning("⚠️ TELEGRAM_TOKEN not set, cannot fetch photo")
-        return RedirectResponse(
-            url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800",
-            status_code=302
-        )
-
-    try:
-        file_path = photo_url_cache.get(file_id)
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            if not file_path:
-                meta = await client.get(
-                    f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile",
-                    params={"file_id": file_id}
-                )
-                data = meta.json()
-                if not data.get("ok") or not data.get("result", {}).get("file_path"):
-                    logger.warning(f"⚠️ Failed to get file path for {file_id}: {data}")
-                    return RedirectResponse(
-                        url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800",
-                        status_code=302
-                    )
-                file_path = data["result"]["file_path"]
-                _cache_photo_path(file_id, file_path)
-
-            photo_response = await client.get(
-                f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
-            )
-            if photo_response.status_code != 200:
-                logger.warning(f"⚠️ Failed to fetch photo bytes for {file_id}: {photo_response.status_code}")
-                return RedirectResponse(
-                    url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800",
-                    status_code=302
-                )
-
-            return Response(
-                content=photo_response.content,
-                media_type=photo_response.headers.get("content-type", "image/jpeg"),
-                headers={"Cache-Control": "public, max-age=3600"},
-            )
-    except Exception as e:
-        logger.error(f"❌ Error fetching photo {file_id}: {e}")
-        return RedirectResponse(
-            url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800",
-            status_code=302
-        )
 
 
 # ==================== ROUTES ====================
