@@ -8,12 +8,12 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from config import (
-    CITIES,
     FREE_TRIAL_DAYS,
     NEIGHBORHOODS,
     ONBOARDING_STEP_META,
     ONBOARDING_TOTAL_STEPS,
     PORTAL_ACCOUNT_APPROVED,
+    PORTAL_CITY_COUNTY_OPTIONS,
     PORTAL_MAX_PROFILE_PHOTOS,
     PORTAL_MIN_PROFILE_PHOTOS,
     PORTAL_RECOMMENDED_PROFILE_PHOTOS,
@@ -24,6 +24,8 @@ from services.telegram_service import send_admin_alert
 from utils.auth import _normalize_portal_phone, _portal_account_state, _portal_session_provider_id, _to_int_or_none
 from utils.db_async import db_call
 from utils.onboarding import (
+    _canonical_city_name,
+    _canonical_neighborhood_names,
     _normalize_onboarding_step,
     _parse_csv_values,
     _portal_build_preview,
@@ -68,7 +70,7 @@ def _render_provider_onboarding_template(
             "step_meta": ONBOARDING_STEP_META.get(step, ONBOARDING_STEP_META[1]),
             "step_numbers": list(range(1, ONBOARDING_TOTAL_STEPS + 1)),
             "error": error,
-            "cities": CITIES,
+            "cities": PORTAL_CITY_COUNTY_OPTIONS,
             "neighborhood_map": NEIGHBORHOODS,
             "photo_urls": photo_urls,
             "max_photos": PORTAL_MAX_PROFILE_PHOTOS,
@@ -140,8 +142,10 @@ async def provider_portal_onboarding_submit(request: Request):
         draft["display_name"] = str(form.get("display_name", "")).strip()
         phone_input = str(form.get("phone", "")).strip()
         draft["phone"] = _normalize_portal_phone(phone_input) if phone_input else ""
-        draft["city"] = str(form.get("city", "")).strip()
-        draft["neighborhood"] = str(form.get("neighborhood", "")).strip()
+        raw_city = str(form.get("city", "")).strip()
+        draft["city"] = _canonical_city_name(raw_city, PORTAL_CITY_COUNTY_OPTIONS)
+        raw_neighborhood = str(form.get("neighborhood", "")).strip()
+        draft["neighborhood"] = _canonical_neighborhood_names(raw_neighborhood, draft["city"], NEIGHBORHOODS)
         draft["age"] = str(form.get("age", "")).strip()
         draft["height_cm"] = str(form.get("height_cm", "")).strip()
         draft["weight_kg"] = str(form.get("weight_kg", "")).strip()
@@ -159,13 +163,21 @@ async def provider_portal_onboarding_submit(request: Request):
                 step=step,
                 error="Add a valid phone number (e.g. 2547XXXXXXXX) for your Call button.",
             )
+        if action != "back" and raw_city and draft["city"] not in PORTAL_CITY_COUNTY_OPTIONS:
+            return _render_provider_onboarding_template(
+                request=request,
+                provider=provider,
+                draft=draft,
+                step=step,
+                error="Select a valid city/county from the suggestions list.",
+            )
         if action != "back" and (not draft["display_name"] or not draft["city"] or not draft["neighborhood"]):
             return _render_provider_onboarding_template(
                 request=request,
                 provider=provider,
                 draft=draft,
                 step=step,
-                error="Please set display name, city, and neighborhood before continuing.",
+                error="Please set display name, city, and at least one neighborhood before continuing.",
             )
 
     elif step == 2:

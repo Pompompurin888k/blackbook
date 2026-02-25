@@ -52,7 +52,12 @@ class ProvidersRepository(BaseRepository):
                             SELECT {cols}
                             FROM providers
                             WHERE is_verified = TRUE AND is_active = TRUE 
-                                  AND city = %s AND neighborhood = %s
+                                  AND city = %s
+                                  AND EXISTS (
+                                      SELECT 1
+                                      FROM regexp_split_to_table(COALESCE(neighborhood, ''), '\\s*,\\s*') AS hood
+                                      WHERE LOWER(hood) = LOWER(%s)
+                                  )
                             ORDER BY {order}
                         """, (city, neighborhood))
                     elif city and city.lower() != "all":
@@ -104,7 +109,12 @@ class ProvidersRepository(BaseRepository):
                             SELECT {cols}
                             FROM providers
                             WHERE is_verified = TRUE AND is_active = TRUE
-                                  AND city = %s AND neighborhood = %s
+                                  AND city = %s
+                                  AND EXISTS (
+                                      SELECT 1
+                                      FROM regexp_split_to_table(COALESCE(neighborhood, ''), '\\s*,\\s*') AS hood
+                                      WHERE LOWER(hood) = LOWER(%s)
+                                  )
                             ORDER BY {order}
                         """, (city, neighborhood))
                     elif city and city.lower() != "all":
@@ -522,7 +532,14 @@ class ProvidersRepository(BaseRepository):
                             created_at, profile_photos, subscription_tier, is_premium_verified,
                             (
                                 -- Same neighborhood bonus
-                                CASE WHEN neighborhood = %s THEN 10 ELSE 0 END +
+                                CASE WHEN EXISTS (
+                                    SELECT 1
+                                    FROM regexp_split_to_table(COALESCE(neighborhood, ''), '\\s*,\\s*') AS hood
+                                    WHERE hood <> ''
+                                      AND LOWER(hood) = ANY(
+                                          regexp_split_to_array(LOWER(COALESCE(%s, '')), '\\s*,\\s*')
+                                      )
+                                ) THEN 10 ELSE 0 END +
 
                                 -- Same city baseline
                                 CASE WHEN city = %s THEN 5 ELSE 0 END +

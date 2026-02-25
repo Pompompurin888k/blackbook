@@ -29,6 +29,78 @@ def _parse_csv_values(raw_text: str) -> list[str]:
     return [item.strip() for item in str(raw_text).split(",") if item.strip()]
 
 
+def _canonical_city_name(raw_city: str, available_cities: list[str]) -> str:
+    """Canonicalizes city input against configured cities (case-insensitive)."""
+    city_text = str(raw_city or "").strip()
+    if not city_text:
+        return ""
+
+    lookup: dict[str, str] = {}
+    for city in available_cities:
+        normalized = str(city or "").strip()
+        if not normalized:
+            continue
+        lookup[normalized.lower()] = normalized
+    return lookup.get(city_text.lower(), city_text)
+
+
+def _canonical_neighborhood_name(
+    raw_neighborhood: str,
+    city_name: str,
+    neighborhood_map: dict[str, list[str]],
+) -> str:
+    """Canonicalizes neighborhood against city-specific or global map entries."""
+    neighborhood_text = str(raw_neighborhood or "").strip()
+    if not neighborhood_text:
+        return ""
+
+    city_lookup: dict[str, str] = {}
+    city_text = str(city_name or "").strip().lower()
+    if city_text:
+        for mapped_city, mapped_neighborhoods in (neighborhood_map or {}).items():
+            normalized_city = str(mapped_city or "").strip()
+            if not normalized_city or normalized_city.lower() != city_text:
+                continue
+            for neighborhood in mapped_neighborhoods or []:
+                normalized_neighborhood = str(neighborhood or "").strip()
+                if not normalized_neighborhood:
+                    continue
+                city_lookup[normalized_neighborhood.lower()] = normalized_neighborhood
+            break
+
+    if city_lookup and neighborhood_text.lower() in city_lookup:
+        return city_lookup[neighborhood_text.lower()]
+
+    global_lookup: dict[str, str] = {}
+    for mapped_neighborhoods in (neighborhood_map or {}).values():
+        for neighborhood in mapped_neighborhoods or []:
+            normalized_neighborhood = str(neighborhood or "").strip()
+            if not normalized_neighborhood:
+                continue
+            global_lookup[normalized_neighborhood.lower()] = normalized_neighborhood
+    return global_lookup.get(neighborhood_text.lower(), neighborhood_text)
+
+
+def _canonical_neighborhood_names(
+    raw_neighborhoods: str,
+    city_name: str,
+    neighborhood_map: dict[str, list[str]],
+) -> str:
+    """Canonicalizes a comma-separated neighborhood list and removes duplicates."""
+    canonical_items: list[str] = []
+    seen: set[str] = set()
+    for token in _parse_csv_values(raw_neighborhoods):
+        canonical = _canonical_neighborhood_name(token, city_name, neighborhood_map).strip()
+        if not canonical:
+            continue
+        key = canonical.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        canonical_items.append(canonical)
+    return ", ".join(canonical_items)
+
+
 def _portal_onboarding_base_draft(provider: dict) -> dict:
     """Builds onboarding draft defaults from an existing provider profile."""
     return {

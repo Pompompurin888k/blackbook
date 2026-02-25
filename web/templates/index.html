@@ -1247,11 +1247,15 @@
                     </div>
 
                     <!-- Neighborhood Filter Tag Cloud -->
-                    {% set ns_hoods = namespace(hoods=[]) %}
+                    {% set ns_hoods = namespace(hoods=[], hood_keys=[]) %}
                     {% for provider in providers %}
-                    {% if provider.neighborhood and provider.neighborhood not in ns_hoods.hoods %}
-                    {% set ns_hoods.hoods = ns_hoods.hoods + [provider.neighborhood] %}
+                    {% for raw_hood in (provider.neighborhood or '').split(',') %}
+                    {% set hood = raw_hood.strip() %}
+                    {% if hood and hood|lower not in ns_hoods.hood_keys %}
+                    {% set ns_hoods.hoods = ns_hoods.hoods + [hood] %}
+                    {% set ns_hoods.hood_keys = ns_hoods.hood_keys + [hood|lower] %}
                     {% endif %}
+                    {% endfor %}
                     {% endfor %}
                     {% if ns_hoods.hoods|length > 1 %}
                     <div class="max-w-3xl mt-3 mb-0">
@@ -2346,7 +2350,13 @@
                     const matchesPremiumVerified = !quickFilters.premiumVerified || providerData.is_premium_verified === true;
                     const matchesWithPhotos = !quickFilters.withPhotos || providerData.has_photos === true;
                     const matchesOnline = !quickFilters.onlineNow || providerData.is_online === true;
-                    const matchesNeighborhood = !activeNeighborhood || (providerData.location || '').toLowerCase() === activeNeighborhood.toLowerCase();
+                    const locationTokens = String(providerData.location || "")
+                        .split(",")
+                        .map((token) => token.trim().toLowerCase())
+                        .filter((token) => token.length > 0);
+                    const matchesNeighborhood =
+                        !activeNeighborhood
+                        || locationTokens.includes(activeNeighborhood.toLowerCase());
                     const matches = matchesSearch && matchesNewArrivals && matchesPremiumVerified && matchesWithPhotos && matchesOnline && matchesNeighborhood;
 
                     if (matches) {

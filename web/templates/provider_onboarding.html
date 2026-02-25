@@ -72,21 +72,27 @@
                         <p class="mt-1.5 text-[11px] font-medium text-zinc-500">Used for the public "Call {{ draft.display_name or 'you' }}" button.</p>
                     </div>
                     <div>
-                        <label class="text-xs text-zinc-400">City</label>
-                        <select name="city" required
-                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
-                            <option value="">Select city</option>
-                            {% for city in cities %}
-                            <option value="{{ city }}" {% if draft.city==city %}selected{% endif %}>{{ city }}</option>
-                            {% endfor %}
-                        </select>
+                        <label class="text-xs text-zinc-400">City/County</label>
+                        <div class="relative mt-1">
+                            <input id="city-input" name="city" required value="{{ draft.city }}" autocomplete="off"
+                                class="w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
+                                placeholder="Start typing city or county">
+                            <div id="city-suggestions"
+                                class="absolute z-20 mt-1 hidden max-h-44 w-full overflow-y-auto rounded-xl border border-white/15 bg-zinc-950/95 p-1 shadow-xl backdrop-blur"></div>
+                        </div>
+                        <p class="mt-1 text-[11px] text-zinc-500">Type first letters, then tap your city/county from suggestions.</p>
                     </div>
                     <div>
-                        <label class="text-xs text-zinc-400">Neighborhood</label>
-                        <input name="neighborhood" required value="{{ draft.neighborhood }}"
-                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
-                            placeholder="Westlands / Kilimani / Roysambu">
-                        <p class="mt-1 text-[11px] text-zinc-500">Be specific. Clients search by neighborhood first.</p>
+                        <label class="text-xs text-zinc-400">Neighborhood(s)</label>
+                        <div class="relative mt-1">
+                            <input id="neighborhood-input" name="neighborhood" required value="{{ draft.neighborhood }}"
+                                autocomplete="off"
+                                class="w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
+                                placeholder="Start typing neighborhood, separate with commas">
+                            <div id="neighborhood-suggestions"
+                                class="absolute z-20 mt-1 hidden max-h-44 w-full overflow-y-auto rounded-xl border border-white/15 bg-zinc-950/95 p-1 shadow-xl backdrop-blur"></div>
+                        </div>
+                        <p class="mt-1 text-[11px] text-zinc-500">Type, tap a suggestion, then add more using commas.</p>
                     </div>
                     <div>
                         <label class="text-xs text-zinc-400">Age</label>
@@ -464,6 +470,186 @@
                 )
             )
             : [];
+        const cityInput = form ? form.querySelector('input[name="city"]') : null;
+        const citySuggestions = document.getElementById("city-suggestions");
+        const neighborhoodInput = form ? form.querySelector('input[name="neighborhood"]') : null;
+        const neighborhoodSuggestions = document.getElementById("neighborhood-suggestions");
+        const availableCities = {{ cities | tojson | safe }};
+        const neighborhoodMap = {{ neighborhood_map | tojson | safe }};
+        const normalizedNeighborhoodMap = Object.entries(neighborhoodMap || {}).reduce(
+            (accumulator, [city, values]) => {
+                const normalizedCity = String(city || "").trim().toLowerCase();
+                if (!normalizedCity) return accumulator;
+                const items = Array.isArray(values)
+                    ? values
+                        .map((value) => String(value || "").trim())
+                        .filter((value) => value.length > 0)
+                    : [];
+                if (!items.length) return accumulator;
+                accumulator[normalizedCity] = items;
+                return accumulator;
+            },
+            {}
+        );
+        const allNeighborhoods = Array.from(
+            new Set(
+                Object.values(normalizedNeighborhoodMap)
+                    .flat()
+                    .map((value) => String(value || "").trim())
+                    .filter((value) => value.length > 0)
+            )
+        );
+
+        function findCityPrefixMatches(query) {
+            const normalized = String(query || "").trim().toLowerCase();
+            if (!normalized) return [];
+            return availableCities
+                .filter((city) => String(city).toLowerCase().startsWith(normalized))
+                .slice(0, 8);
+        }
+
+        function hideCitySuggestions() {
+            if (!citySuggestions) return;
+            citySuggestions.classList.add("hidden");
+            citySuggestions.innerHTML = "";
+        }
+
+        function renderCitySuggestions(matches) {
+            if (!citySuggestions) return;
+            if (!matches.length) {
+                hideCitySuggestions();
+                return;
+            }
+            citySuggestions.innerHTML = "";
+            matches.forEach((city) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.textContent = city;
+                button.className =
+                    "w-full rounded-lg px-3 py-2 text-left text-sm text-zinc-200 hover:bg-white/10";
+                button.addEventListener("click", () => {
+                    if (!cityInput) return;
+                    cityInput.value = city;
+                    hideCitySuggestions();
+                    saveDraft();
+                });
+                citySuggestions.appendChild(button);
+            });
+            citySuggestions.classList.remove("hidden");
+        }
+
+        function canonicalizeCityInput() {
+            if (!cityInput) return;
+            const typed = String(cityInput.value || "").trim();
+            if (!typed) return;
+            const exact = availableCities.find(
+                (city) => String(city).toLowerCase() === typed.toLowerCase()
+            );
+            if (exact) {
+                cityInput.value = exact;
+            }
+        }
+
+        function getNeighborhoodPoolForSelectedCity() {
+            if (!cityInput) return [];
+            const selectedCity = String(cityInput.value || "").trim().toLowerCase();
+            if (!selectedCity) return [];
+            return normalizedNeighborhoodMap[selectedCity] || [];
+        }
+
+        function parseNeighborhoodState(rawValue) {
+            const raw = String(rawValue || "");
+            const parts = raw.split(",");
+            const endsWithComma = /,\s*$/.test(raw);
+            const committedParts = endsWithComma ? parts : parts.slice(0, -1);
+            const activePart = endsWithComma ? "" : (parts[parts.length - 1] || "");
+            const committed = committedParts
+                .map((token) => String(token || "").trim())
+                .filter((token) => token.length > 0);
+            const committedLookup = new Set(committed.map((token) => token.toLowerCase()));
+            return {
+                committed,
+                committedLookup,
+                activeQuery: String(activePart || "").trim().toLowerCase(),
+            };
+        }
+
+        function findNeighborhoodPrefixMatches(rawValue) {
+            const state = parseNeighborhoodState(rawValue);
+            if (!state.activeQuery) return [];
+            const cityPool = getNeighborhoodPoolForSelectedCity();
+            const activePool = cityPool.length ? cityPool : allNeighborhoods;
+            return activePool
+                .filter((neighborhood) => {
+                    const normalized = String(neighborhood || "").toLowerCase();
+                    return (
+                        normalized.startsWith(state.activeQuery)
+                        && !state.committedLookup.has(normalized)
+                    );
+                })
+                .slice(0, 8);
+        }
+
+        function hideNeighborhoodSuggestions() {
+            if (!neighborhoodSuggestions) return;
+            neighborhoodSuggestions.classList.add("hidden");
+            neighborhoodSuggestions.innerHTML = "";
+        }
+
+        function renderNeighborhoodSuggestions(matches) {
+            if (!neighborhoodSuggestions) return;
+            if (!matches.length) {
+                hideNeighborhoodSuggestions();
+                return;
+            }
+            neighborhoodSuggestions.innerHTML = "";
+            matches.forEach((neighborhood) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.textContent = neighborhood;
+                button.className =
+                    "w-full rounded-lg px-3 py-2 text-left text-sm text-zinc-200 hover:bg-white/10";
+                button.addEventListener("click", () => {
+                    if (!neighborhoodInput) return;
+                    const state = parseNeighborhoodState(neighborhoodInput.value);
+                    const nextTokens = [...state.committed, neighborhood];
+                    neighborhoodInput.value = `${nextTokens.join(", ")}, `;
+                    hideNeighborhoodSuggestions();
+                    saveDraft();
+                });
+                neighborhoodSuggestions.appendChild(button);
+            });
+            neighborhoodSuggestions.classList.remove("hidden");
+        }
+
+        function canonicalizeNeighborhoodInput() {
+            if (!neighborhoodInput) return;
+            const raw = String(neighborhoodInput.value || "").trim();
+            if (!raw) return;
+            const cityPool = getNeighborhoodPoolForSelectedCity();
+            const canonicalTokens = [];
+            const seen = new Set();
+            raw
+                .split(",")
+                .map((token) => String(token || "").trim())
+                .filter((token) => token.length > 0)
+                .forEach((token) => {
+                    const cityMatch = cityPool.find(
+                        (neighborhood) => String(neighborhood).toLowerCase() === token.toLowerCase()
+                    );
+                    const globalMatch = allNeighborhoods.find(
+                        (neighborhood) => String(neighborhood).toLowerCase() === token.toLowerCase()
+                    );
+                    const canonical = cityMatch || globalMatch || token;
+                    const key = canonical.toLowerCase();
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    canonicalTokens.push(canonical);
+                });
+            if (canonicalTokens.length) {
+                neighborhoodInput.value = canonicalTokens.join(", ");
+            }
+        }
 
         function restoreDraft() {
             if (!fields.length) return;
@@ -512,9 +698,72 @@
         }
 
         restoreDraft();
+        canonicalizeCityInput();
+        canonicalizeNeighborhoodInput();
         fields.forEach((field) => {
             field.addEventListener("input", saveDraft);
             field.addEventListener("change", saveDraft);
+        });
+
+        if (cityInput && citySuggestions) {
+            cityInput.addEventListener("input", () => {
+                const matches = findCityPrefixMatches(cityInput.value);
+                renderCitySuggestions(matches);
+                if (neighborhoodInput && neighborhoodSuggestions) {
+                    const neighborhoodMatches = findNeighborhoodPrefixMatches(neighborhoodInput.value);
+                    renderNeighborhoodSuggestions(neighborhoodMatches);
+                }
+            });
+            cityInput.addEventListener("focus", () => {
+                const matches = findCityPrefixMatches(cityInput.value);
+                renderCitySuggestions(matches);
+            });
+            cityInput.addEventListener("blur", () => {
+                canonicalizeCityInput();
+                canonicalizeNeighborhoodInput();
+                saveDraft();
+                window.setTimeout(hideCitySuggestions, 120);
+            });
+            cityInput.addEventListener("keydown", (event) => {
+                if (event.key === "Escape") {
+                    hideCitySuggestions();
+                }
+            });
+        }
+
+        if (neighborhoodInput && neighborhoodSuggestions) {
+            neighborhoodInput.addEventListener("input", () => {
+                const matches = findNeighborhoodPrefixMatches(neighborhoodInput.value);
+                renderNeighborhoodSuggestions(matches);
+            });
+            neighborhoodInput.addEventListener("focus", () => {
+                const matches = findNeighborhoodPrefixMatches(neighborhoodInput.value);
+                renderNeighborhoodSuggestions(matches);
+            });
+            neighborhoodInput.addEventListener("blur", () => {
+                canonicalizeNeighborhoodInput();
+                saveDraft();
+                window.setTimeout(hideNeighborhoodSuggestions, 120);
+            });
+            neighborhoodInput.addEventListener("keydown", (event) => {
+                if (event.key === "Escape") {
+                    hideNeighborhoodSuggestions();
+                }
+            });
+        }
+
+        document.addEventListener("click", (event) => {
+            if (cityInput && citySuggestions && !citySuggestions.contains(event.target) && event.target !== cityInput) {
+                hideCitySuggestions();
+            }
+            if (
+                neighborhoodInput &&
+                neighborhoodSuggestions &&
+                !neighborhoodSuggestions.contains(event.target) &&
+                event.target !== neighborhoodInput
+            ) {
+                hideNeighborhoodSuggestions();
+            }
         });
 
         const selectedInputs = [];

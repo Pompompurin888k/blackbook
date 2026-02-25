@@ -32,6 +32,17 @@ class TestProviderPublicUrls(unittest.TestCase):
         url = _build_public_profile_url({"id": 12, "display_name": "", "city": "", "neighborhood": ""})
         self.assertEqual(url, "/nairobi/nairobi/escorts/12/provider-12")
 
+    def test_uses_first_neighborhood_when_multiple_are_stored(self):
+        url = _build_public_profile_url(
+            {
+                "id": 21,
+                "display_name": "Nia",
+                "city": "Nairobi",
+                "neighborhood": "Westlands, Kilimani, Kileleshwa",
+            }
+        )
+        self.assertEqual(url, "/nairobi/westlands/escorts/21/nia")
+
     def test_builds_short_profile_url(self):
         self.assertEqual(_build_short_profile_url({"id": 55}), "/p/55")
 

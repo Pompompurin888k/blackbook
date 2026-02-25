@@ -112,7 +112,9 @@ def _build_public_profile_url(provider: dict) -> str:
 
     safe_id = int(provider_id)
     city = _slugify_segment(provider.get("city"), "nairobi")
-    neighborhood = _slugify_segment(provider.get("neighborhood") or provider.get("city"), city)
+    neighborhood_values = _to_string_list(provider.get("neighborhood"))
+    primary_neighborhood = neighborhood_values[0] if neighborhood_values else provider.get("city")
+    neighborhood = _slugify_segment(primary_neighborhood, city)
     name_slug = _slugify_segment(provider.get("display_name"), f"provider-{safe_id}")
     return f"/{city}/{neighborhood}/escorts/{safe_id}/{name_slug}"
 
