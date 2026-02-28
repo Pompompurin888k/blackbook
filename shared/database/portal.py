@@ -201,6 +201,46 @@ class PortalRepository(BaseRepository):
             logger.error(f"Error getting portal provider by email: {e}")
             return None
 
+    def get_portal_provider_by_username(self, username: str) -> Optional[Dict]:
+        """Gets a portal provider account by username for authentication."""
+        normalized_username = (username or "").strip().lower().lstrip("@")
+        if not normalized_username:
+            return None
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, telegram_id, telegram_username, display_name, phone, email, city, neighborhood,
+                           is_verified, is_active, auth_channel, portal_password_hash,
+                           email_verified, email_verify_code_created_at,
+                           password_reset_code_hash, password_reset_code_expires_at, password_reset_code_used_at,
+                           phone_verified, phone_verify_code, phone_verify_code_created_at,
+                           account_state, verification_code_hash, verification_code_expires_at,
+                           verification_code_used_at, approved_by_admin, approved_at,
+                           rejection_reason, login_failed_attempts, locked_until, last_login_attempt_at,
+                           portal_onboarding_complete, verification_photo_id,
+                           age, height_cm, weight_kg, build, services, bio, nearby_places,
+                           availability_type, languages, profile_photos,
+                           gender, sexual_orientation, nationality, county,
+                           incalls_from, outcalls_from, video_url,
+                           rate_30min, rate_1hr, rate_2hr, rate_3hr, rate_overnight,
+                           created_at, subscription_tier, expiry_date,
+                           boost_until, referral_credits,
+                           trial_used, trial_started_at
+                    FROM providers
+                    WHERE LOWER(COALESCE(telegram_username, '')) = %s
+                      AND COALESCE(auth_channel, 'telegram') = 'portal'
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """,
+                    (normalized_username,),
+                )
+                return cur.fetchone()
+        except Exception as e:
+            logger.error(f"Error getting portal provider by username: {e}")
+            return None
+
+
     def register_portal_login_failure(self, provider_id: int, max_attempts: int, lock_minutes: int) -> Optional[Dict]:
         """Increments failed login attempts and applies lockout when threshold is reached."""
         try:

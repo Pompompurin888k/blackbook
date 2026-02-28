@@ -151,13 +151,13 @@
                 <form method="post" action="/provider/login" class="space-y-4">
                     <div>
                         <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Email
-                            Address</label>
+                            or Username</label>
                         <div class="relative">
-                            <i data-feather="mail"
+                            <i data-feather="user"
                                 class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"></i>
-                            <input name="email" type="email" required value="{{ login_email or '' }}"
-                                autocomplete="email" class="field w-full rounded-xl py-3 pl-10 pr-3 text-sm"
-                                placeholder="you@example.com">
+                            <input name="email" type="text" required value="{{ login_email or '' }}"
+                                autocomplete="username" class="field w-full rounded-xl py-3 pl-10 pr-3 text-sm"
+                                placeholder="you@example.com or your_username">
                         </div>
                     </div>
 

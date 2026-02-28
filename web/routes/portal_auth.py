@@ -253,18 +253,21 @@ async def provider_portal_register(request: Request):
 async def provider_portal_login(request: Request):
     """Logs in an existing portal provider account."""
     form = await request.form()
-    login_email = str(form.get("email", "")).strip()
-    email = _normalize_portal_email(login_email)
+    login_identifier = str(form.get("email", "")).strip()  # field accepts email or username
     password = str(form.get("password", ""))
+    # Determine whether input looks like an email or a username
+    is_email_input = "@" in login_identifier
+    email = _normalize_portal_email(login_identifier) if is_email_input else ""
+    username = login_identifier if not is_email_input else ""
     login_page_context = {
         **_provider_auth_base_context(request),
         "active_tab": "login",
-        "login_email": login_email,
+        "login_email": login_identifier,
     }
-    if login_email and not email:
+    if is_email_input and login_identifier and not email:
         return templates.TemplateResponse(
             "provider_auth.html",
-            {**login_page_context, "error": "Enter a valid email address."},
+            {**login_page_context, "error": "Enter a valid email address or username."},
             status_code=400,
         )
     if not password:
@@ -275,9 +278,10 @@ async def provider_portal_login(request: Request):
         )
 
     client_ip = _extract_client_ip(request)
+    rate_key_suffix = _rate_limit_key_suffix(email or username or 'unknown')
     login_rate_key = (
         f"rl:provider_login:{_rate_limit_key_suffix(client_ip)}:"
-        f"{_rate_limit_key_suffix(email or 'unknown')}"
+        f"{rate_key_suffix}"
     )
     allowed_attempt, _ = _redis_consume_limit(
         key=login_rate_key,
@@ -292,11 +296,17 @@ async def provider_portal_login(request: Request):
             status_code=429,
         )
 
-    provider = await db_call(db.get_portal_provider_by_email, email) if email else None
+    # Look up by email first, then fall back to username
+    if email:
+        provider = await db_call(db.get_portal_provider_by_email, email)
+    elif username:
+        provider = await db_call(db.get_portal_provider_by_username, username)
+    else:
+        provider = None
     if not provider:
         return templates.TemplateResponse(
             "provider_auth.html",
-            {**login_page_context, "error": "Invalid email or password."},
+            {**login_page_context, "error": "Invalid email/username or password."},
             status_code=401,
         )
 
