@@ -605,7 +605,7 @@
         // Save Profile Logic
         const saveIcon = document.getElementById("saveIcon");
         const storageKey = "bb-saved-profiles";
-        const currentProfile = { id: {{ provider.id }}, name: { { provider.display_name | tojson | safe } }, location: { { provider.primary_location | tojson | safe } } };
+        const currentProfile = { id: {{ provider.id }}, name: {{ provider.display_name | tojson | safe }}, location: {{ provider.primary_location | tojson | safe }} };
 
         function readSaved() {
             try { return JSON.parse(localStorage.getItem(storageKey) || "[]"); }
