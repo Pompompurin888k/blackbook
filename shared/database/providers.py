@@ -88,7 +88,7 @@ class ProvidersRepository(BaseRepository):
 
             cols = """id, display_name, city, neighborhood, is_online,
                       age, height_cm, weight_kg, build, services, bio, created_at, profile_photos,
-                      subscription_tier, boost_until, is_premium_verified"""
+                      subscription_tier, boost_until, is_premium_verified, story_photo, story_created_at"""
 
             order = """
                 CASE WHEN boost_until > NOW() THEN 0 ELSE 1 END,
@@ -227,7 +227,7 @@ class ProvidersRepository(BaseRepository):
                                incalls_from, outcalls_from, video_url,
                                rate_30min, rate_1hr, rate_2hr, rate_3hr, rate_overnight,
                                email_verified, created_at, created_at AS updated_at, profile_photos, telegram_username,
-                               subscription_tier, boost_until, is_premium_verified
+                               subscription_tier, boost_until, is_premium_verified, story_photo, story_created_at
                         FROM providers
                         WHERE id = %s AND is_verified = TRUE AND is_active = TRUE
                     """, (provider_id,))

@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Form, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -19,6 +19,8 @@ from config import (
     PACKAGE_PRICES,
     PORTAL_ACCOUNT_APPROVED,
     VALID_PACKAGE_DAYS,
+    ONBOARDING_MAX_FILE_SIZE_MB,
+    ONBOARDING_ALLOWED_EXTENSIONS,
 )
 from database import Database
 from services.metapay import initiate_stk_push
@@ -27,6 +29,7 @@ from services.telegram_service import send_admin_alert
 from utils.auth import _portal_account_state, _portal_session_provider_id, _sanitize_phone
 from utils.db_async import db_call
 from utils.providers import _to_string_list
+from utils.uploads import _save_provider_upload
 
 router = APIRouter()
 db = Database()
@@ -391,3 +394,65 @@ async def provider_claim_referral_reward(
         return _portal_redirect("/provider/referrals", notice=f"Reward claimed: +{reward.get('reward_days', 0)} days.")
 
     return _portal_redirect("/provider/referrals", error="Invalid reward choice.")
+
+@router.post("/provider/story/upload")
+async def provider_story_upload(
+    request: Request,
+    file: UploadFile = File(...)
+):
+    """Uploads a new 24-hour story photo."""
+    provider, redirect = await _get_provider_or_redirect(request)
+    if redirect:
+        return redirect
+
+    tg_id = int(provider.get("telegram_id") or 0)
+    
+    # Validate file size
+    file.file.seek(0, 2)
+    file_size_mb = file.file.tell() / (1024 * 1024)
+    file.file.seek(0)
+    if file_size_mb > ONBOARDING_MAX_FILE_SIZE_MB:
+        return _portal_redirect("/provider/dashboard", error=f"File too large. Max {ONBOARDING_MAX_FILE_SIZE_MB}MB.")
+
+    # Validate file extension
+    ext = file.filename.split(".")[-1].lower() if file.filename else ""
+    if f".{ext}" not in ONBOARDING_ALLOWED_EXTENSIONS:
+        return _portal_redirect("/provider/dashboard", error="Invalid file format.")
+
+    try:
+        # Save photo using existing upload utility
+        photo_url = await _save_provider_upload(file.file, file.filename)
+        if not photo_url:
+            return _portal_redirect("/provider/dashboard", error="Could not save story photo. Please try again.")
+            
+        # Update database with new photo and timestamp
+        success = await db_call(db.update_provider_story, tg_id, photo_url)
+        if not success:
+            return _portal_redirect("/provider/dashboard", error="Failed to save story to database.")
+            
+        from services.redis_service import _invalidate_provider_listing_cache
+        _invalidate_provider_listing_cache()
+        return _portal_redirect("/provider/dashboard", notice="Story uploaded successfully! It will disappear in 24 hours.")
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error uploading story: {e}")
+        return _portal_redirect("/provider/dashboard", error="An error occurred while uploading. Please try again.")
+
+@router.post("/provider/story/delete")
+async def provider_story_delete(request: Request):
+    """Deletes the current active story."""
+    provider, redirect = await _get_provider_or_redirect(request)
+    if redirect:
+        return redirect
+
+    tg_id = int(provider.get("telegram_id") or 0)
+    
+    success = await db_call(db.update_provider_story, tg_id, None)
+    if not success:
+        return _portal_redirect("/provider/dashboard", error="Failed to delete story.")
+        
+    from services.redis_service import _invalidate_provider_listing_cache
+    _invalidate_provider_listing_cache()
+    return _portal_redirect("/provider/dashboard", notice="Story deleted successfully.")

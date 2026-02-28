@@ -1188,8 +1188,11 @@
                             {% endif %}
                             {% endif %}
 
-                            <button type="button"
+                            <button type="button" {% if provider.story_photo %}
+                                onclick="openStoryModal('{{ provider.story_photo }}', `{{ provider.display_name.split(' ')[0] }}`, '{{ provider.short_profile_url or ('/p/' ~ provider.id) }}')"
+                                {% else %}
                                 onclick="window.location.href='{{ provider.short_profile_url or ('/p/' ~ provider.id) }}'"
+                                {% endif %}
                                 class="flex-shrink-0 flex flex-col items-center gap-2 w-[5.5rem] group cursor-pointer focus:outline-none active:scale-95 transition-transform">
 
                                 <!-- Massive Avatar Ring -->
@@ -1813,6 +1816,57 @@
                 </svg>
             </button>
             <img id="zoom-image" src="" alt="Full size" onclick="event.stopPropagation()">
+        </div>
+
+        <!-- 24h Story Modal -->
+        <div id="story-modal" class="image-zoom-modal z-[100]" style="display: none;" onclick="closeStoryModal()">
+            <!-- Loading Indicator -->
+            <div id="story-loader" class="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                <span class="w-8 h-8 rounded-full border-4 border-white/20 border-t-white animate-spin"></span>
+            </div>
+
+            <div class="absolute inset-0 bg-black/90 backdrop-blur-xl"></div>
+
+            <div class="relative w-full h-full max-w-lg mx-auto flex flex-col pointer-events-none">
+                <!-- Progress Bar -->
+                <div class="px-2 pt-2 pb-4 flex gap-1 z-20 w-full pointer-events-auto">
+                    <div class="h-1 bg-white/20 rounded-full flex-1 overflow-hidden">
+                        <div id="story-progress" class="h-full bg-white w-0 transition-[width] ease-linear"></div>
+                    </div>
+                </div>
+
+                <!-- Header -->
+                <div class="px-4 pb-4 flex items-center justify-between z-20 pointer-events-auto">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full border-2 border-[#D4AF37] overflow-hidden bg-zinc-900 pointer-events-auto cursor-pointer"
+                            id="story-avatar-container">
+                            <img id="story-avatar" src="" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <p id="story-name" class="text-white font-bold text-sm tracking-wide"></p>
+                            <p class="text-xs text-white/60">24h Story</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <!-- We will add the URL to this button dynamically -->
+                        <button id="story-view-profile-btn"
+                            class="text-xs font-bold uppercase tracking-widest text-[#D4AF37] hover:text-white transition-colors bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-md">View
+                            Profile</button>
+                        <button onclick="closeStoryModal()" class="text-white hover:text-gray-300">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Image -->
+                <div class="flex-1 relative w-full overflow-hidden pointer-events-auto" onclick="closeStoryModal()">
+                    <img id="story-image" src=""
+                        class="absolute inset-0 w-full h-full object-contain opacity-0 transition-opacity duration-300 pointer-events-none">
+                </div>
+            </div>
         </div>
 
         <!-- Share Menu Bottom Sheet -->
