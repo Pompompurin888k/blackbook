@@ -81,6 +81,10 @@ async def provider_portal_auth(
             if state == PORTAL_ACCOUNT_APPROVED and provider.get("email_verified") is True:
                 return RedirectResponse(url="/provider/dashboard", status_code=302)
             return RedirectResponse(url=f"/provider/verify-email?status={state}", status_code=302)
+    normalized_error = (error or "").strip()
+    if normalized_error.lower() == "session expired":
+        error = None
+        success = success or "Please log in to continue."
     selected_tab = tab if tab in {"login", "register"} else "login"
     base_context = _provider_auth_base_context(request)
     return templates.TemplateResponse(

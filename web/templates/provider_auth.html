@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Provider Portal | Ace Girls</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/feather-icons"></script>
     {% if captcha_enabled and turnstile_site_key %}
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     {% endif %}
@@ -97,7 +96,7 @@
 </head>
 
 <body class="min-h-screen">
-    <main class="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-4 py-8 sm:px-6">
+    <main class="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-8 sm:px-6">
         <header class="mb-8 flex items-center justify-between gap-3">
             <a href="/" class="flex items-center gap-3">
                 <div class="h-10 w-10 rounded-xl bg-gold text-black grid place-items-center font-extrabold">B</div>
@@ -108,15 +107,63 @@
             </a>
             <a href="/"
                 class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-widest text-gray-200 hover:bg-white/10">
-                <i data-feather="arrow-left" class="h-3.5 w-3.5"></i> Home
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 18l-6-6 6-6"></path>
+                </svg>
+                Home
             </a>
         </header>
 
-        <section class="mb-6 rounded-3xl border border-white/10 bg-black/30 px-5 py-5">
-            <h1 class="font-serif text-3xl leading-tight text-white sm:text-4xl">Professional Access</h1>
-            <p class="mt-2 max-w-2xl text-sm text-gray-300">Manage your profile with a quick login or create a new
-                account. You only need username, visible name, email, and password.</p>
+        <section class="mb-8 rounded-3xl border border-white/10 bg-black/35 px-5 py-6">
+            <p class="text-[11px] uppercase tracking-[0.3em] text-gold/80">Provider Access</p>
+            <h1 class="mt-2 font-serif text-3xl leading-tight text-white sm:text-4xl">Welcome to the Elite Collection.</h1>
+            <p class="mt-3 max-w-2xl text-sm text-gray-300">Launch your verified profile in minutes. Mobile-first, discreet, and built for premium clients.</p>
         </section>
+
+        <section class="mb-8 rounded-3xl border border-gold/60 bg-black/30 px-5 py-5">
+            <p class="text-[11px] uppercase tracking-[0.3em] text-gold/90">7-Day Free</p>
+            <p class="mt-2 text-lg font-semibold text-white">Your First 7 Days are on Us.</p>
+        </section>
+
+        <section class="mb-10 grid gap-4 md:grid-cols-3">
+            <div class="glass rounded-2xl p-4">
+                <div class="mb-3 h-10 w-10 rounded-xl bg-white/10 grid place-items-center text-gold">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 3l7 4v5c0 5-3.5 9-7 9s-7-4-7-9V7l7-4z"></path>
+                        <path d="M9 12l2 2 4-4"></path>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-white">Safety</p>
+                <p class="mt-1 text-xs text-gray-300">Live SOS timers.</p>
+            </div>
+            <div class="glass rounded-2xl p-4">
+                <div class="mb-3 h-10 w-10 rounded-xl bg-white/10 grid place-items-center text-gold">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <path d="M4 4l16 16"></path>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-white">Blacklist</p>
+                <p class="mt-1 text-xs text-gray-300">We block the “bad guys.”</p>
+            </div>
+            <div class="glass rounded-2xl p-4">
+                <div class="mb-3 h-10 w-10 rounded-xl bg-white/10 grid place-items-center text-blue">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-1 14l-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4-7 7z"></path>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-white">Verified</p>
+                <p class="mt-1 text-xs text-gray-300">Blue ticks only.</p>
+            </div>
+        </section>
+
+        <div class="mb-10">
+            <button type="button"
+                onclick="switchAuthTab('register'); document.getElementById('auth-section').scrollIntoView({behavior:'smooth', block:'start'});"
+                class="w-full rounded-2xl bg-gold px-5 py-4 text-sm font-extrabold uppercase tracking-[0.18em] text-black hover:bg-[#f2d57c]">
+                Start Registration
+            </button>
+        </div>
 
         {% if error %}
         <div class="mb-4 rounded-2xl border border-rose-400/35 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
@@ -130,7 +177,7 @@
         </div>
         {% endif %}
 
-        <section class="glass mx-auto w-full rounded-3xl p-5 sm:p-7">
+        <section id="auth-section" class="glass mx-auto w-full rounded-3xl p-5 sm:p-7">
             <div class="mb-6 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-black/30 p-1.5">
                 <button type="button" id="loginTab" onclick="switchAuthTab('login')"
                     class="rounded-xl border px-3 py-2.5 text-xs font-bold uppercase tracking-[0.15em] transition-all">
@@ -286,7 +333,6 @@
             registerPanel.classList.add('hidden');
         }
 
-        feather.replace();
         const initialTab = "{{ active_tab | default('login') }}";
         switchAuthTab(initialTab === 'register' ? 'register' : 'login');
     </script>
