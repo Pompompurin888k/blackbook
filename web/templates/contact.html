@@ -93,16 +93,8 @@
     </style>
 </head>
 
-<body class="antialiased opacity-0 transition-opacity duration-300 pointer-events-none" id="main-body"
-    style="animation: initial-fade-in 0.3s ease-out forwards;">
+<body class="antialiased" id="main-body">
     <style>
-        @keyframes initial-fade-in {
-            to {
-                opacity: 1;
-                pointer-events: auto;
-            }
-        }
-
         #global-loader {
             position: fixed;
             inset: 0;
@@ -514,21 +506,19 @@
 
     <script>
         // --- Navigation Loaders ---
-        window.addEventListener('pageshow', (event) => {
+        function hideLoader() {
             const loader = document.getElementById('global-loader');
             if (loader) {
                 loader.classList.add('hidden-loader');
-                setTimeout(() => loader.style.display = 'none', 500);
+                setTimeout(() => { loader.style.display = 'none'; }, 500);
             }
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const loader = document.getElementById('global-loader');
-            if (loader) {
-                loader.classList.add('hidden-loader');
-                setTimeout(() => loader.style.display = 'none', 500);
-            }
-        });
+        }
+        // Hide on DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', hideLoader);
+        // Hide on back/forward cache restore
+        window.addEventListener('pageshow', hideLoader);
+        // Emergency fallback — always hide after 1.5s no matter what
+        setTimeout(hideLoader, 1500);
 
         function handleBackNavigation() {
             const loader = document.getElementById('global-loader');
@@ -615,7 +605,7 @@
         // Save Profile Logic
         const saveIcon = document.getElementById("saveIcon");
         const storageKey = "bb-saved-profiles";
-        const currentProfile = { id: {{ provider.id }}, name: {{ provider.display_name | tojson | safe }}, location: {{ provider.primary_location | tojson | safe }} };
+        const currentProfile = { id: {{ provider.id }}, name: { { provider.display_name | tojson | safe } }, location: { { provider.primary_location | tojson | safe } } };
 
         function readSaved() {
             try { return JSON.parse(localStorage.getItem(storageKey) || "[]"); }
