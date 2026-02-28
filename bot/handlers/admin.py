@@ -125,7 +125,7 @@ async def partner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         verified_line = f"✔️ *Verified Assets:* {verified}\n"
     
     report = (
-        "📊 *BLACKBOOK OPERATIONAL OVERVIEW*\n"
+        "📊 *ACE GIRLS OPERATIONAL OVERVIEW*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"👥 *Network Size:* {total} Providers\n"
         f"{verified_line}"
@@ -220,7 +220,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"{message}\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "_— Blackbook Team_"
+        "_— Ace Girls Team_"
     )
     
     for provider_id in provider_ids:

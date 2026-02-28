@@ -142,7 +142,7 @@ def format_profile_text(provider: dict) -> str:
 def format_welcome_message() -> str:
     """Returns the full welcome message for new users."""
     return (
-        "👑 *WELCOME TO BLACKBOOK*\n"
+        "👑 *WELCOME TO ACE GIRLS*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "Your exclusive command center for managing your premium presence on Kenya's most discreet directory.\n\n"
         "📜 *Quick Start Guide:*\n\n"
@@ -150,7 +150,7 @@ def format_welcome_message() -> str:
         "2️⃣ */complete_profile* — Add photos & details\n"
         "3️⃣ */verify* — Get verified (required)\n"
         "4️⃣ */topup* — Go live on innbucks.org\n\n"
-        "💎 *Why Blackbook?*\n"
+        "💎 *Why Ace Girls?*\n"
         "• Verified profiles only\n"
         "• Premium clientele\n"
         "• Built-in safety tools\n"
@@ -201,7 +201,7 @@ def format_main_menu_header(provider: dict) -> str:
     time_left = expiry.strftime('%Y-%m-%d') if expiry else "No subscription"
     
     return (
-        "🎩 *BLACKBOOK COMMAND CENTER*\n"
+        "🎩 *ACE GIRLS COMMAND CENTER*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"📱 *Status:* {badges['status']}\n"
         f"🛡️ *Trust:* {badges['verified']}\n"

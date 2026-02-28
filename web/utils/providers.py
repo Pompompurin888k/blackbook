@@ -245,7 +245,7 @@ def _telegram_contact_redirect(provider: dict, is_stealth: bool) -> RedirectResp
     if is_stealth:
         message = "Hi, is this a good time to talk?"
     else:
-        message = f"Hi {name}, I found you on Blackbook. Are you available?"
+        message = f"Hi {name}, I found you on Ace Girls. Are you available?"
 
     if username:
         return RedirectResponse(url=f"https://t.me/{username}?text={quote(message)}", status_code=302)

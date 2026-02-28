@@ -1,6 +1,6 @@
 ﻿{% extends "provider_base.html" %}
 
-{% block title %}Profile Setup | Blackbook Provider Portal{% endblock %}
+{% block title %}Profile Setup | Ace Girls Provider Portal{% endblock %}
 
 {% block content %}
 <div class="space-y-6" data-required-photos="{{ min_photos }}" data-recommended-photos="{{ recommended_photos }}"
@@ -65,11 +65,13 @@
                             Example: Sasha Luxe.</p>
                     </div>
                     <div class="md:col-span-2">
-                        <label class="text-xs font-bold uppercase tracking-widest text-zinc-400">Phone (for Call button)</label>
+                        <label class="text-xs font-bold uppercase tracking-widest text-zinc-400">Phone (for Call
+                            button)</label>
                         <input name="phone" required value="{{ draft.phone }}"
                             class="mt-1.5 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm text-white focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors"
                             placeholder="2547XXXXXXXX">
-                        <p class="mt-1.5 text-[11px] font-medium text-zinc-500">Used for the public "Call {{ draft.display_name or 'you' }}" button.</p>
+                        <p class="mt-1.5 text-[11px] font-medium text-zinc-500">Used for the public "Call {{
+                            draft.display_name or 'you' }}" button.</p>
                     </div>
                     <div>
                         <label class="text-xs text-zinc-400">City/County</label>
@@ -78,9 +80,11 @@
                                 class="w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
                                 placeholder="Start typing city or county">
                             <div id="city-suggestions"
-                                class="absolute z-20 mt-1 hidden max-h-44 w-full overflow-y-auto rounded-xl border border-white/15 bg-zinc-950/95 p-1 shadow-xl backdrop-blur"></div>
+                                class="absolute z-20 mt-1 hidden max-h-44 w-full overflow-y-auto rounded-xl border border-white/15 bg-zinc-950/95 p-1 shadow-xl backdrop-blur">
+                            </div>
                         </div>
-                        <p class="mt-1 text-[11px] text-zinc-500">Type first letters, then tap your city/county from suggestions.</p>
+                        <p class="mt-1 text-[11px] text-zinc-500">Type first letters, then tap your city/county from
+                            suggestions.</p>
                     </div>
                     <div>
                         <label class="text-xs text-zinc-400">Neighborhood(s)</label>
@@ -90,9 +94,11 @@
                                 class="w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
                                 placeholder="Start typing neighborhood, separate with commas">
                             <div id="neighborhood-suggestions"
-                                class="absolute z-20 mt-1 hidden max-h-44 w-full overflow-y-auto rounded-xl border border-white/15 bg-zinc-950/95 p-1 shadow-xl backdrop-blur"></div>
+                                class="absolute z-20 mt-1 hidden max-h-44 w-full overflow-y-auto rounded-xl border border-white/15 bg-zinc-950/95 p-1 shadow-xl backdrop-blur">
+                            </div>
                         </div>
-                        <p class="mt-1 text-[11px] text-zinc-500">Type, tap a suggestion, then add more using commas.</p>
+                        <p class="mt-1 text-[11px] text-zinc-500">Type, tap a suggestion, then add more using commas.
+                        </p>
                     </div>
                     <div>
                         <label class="text-xs text-zinc-400">Age</label>
@@ -247,8 +253,7 @@
                     <div class="grid grid-cols-3 gap-2">
                         {% for photo in photo_urls %}
                         <div class="relative group aspect-square rounded-xl overflow-hidden bg-black/40">
-                            <img src="{{ photo }}"
-                                class="h-24 w-full rounded-xl border border-white/10 object-cover"
+                            <img src="{{ photo }}" class="h-24 w-full rounded-xl border border-white/10 object-cover"
                                 onerror="this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400';">
                             <div
                                 class="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity p-2">
@@ -295,11 +300,13 @@
                     </p>
 
                     <div>
-                        <label class="text-xs font-bold uppercase tracking-widest text-zinc-400">Profile Video URL (Optional)</label>
+                        <label class="text-xs font-bold uppercase tracking-widest text-zinc-400">Profile Video URL
+                            (Optional)</label>
                         <input name="video_url" type="url" value="{{ draft.video_url }}"
                             class="mt-1.5 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm text-white focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors"
                             placeholder="https://...">
-                        <p class="mt-1.5 text-[11px] font-medium text-zinc-500">Add a direct video link to display on your public profile.</p>
+                        <p class="mt-1.5 text-[11px] font-medium text-zinc-500">Add a direct video link to display on
+                            your public profile.</p>
                     </div>
 
                     <div
@@ -474,379 +481,380 @@
         const citySuggestions = document.getElementById("city-suggestions");
         const neighborhoodInput = form ? form.querySelector('input[name="neighborhood"]') : null;
         const neighborhoodSuggestions = document.getElementById("neighborhood-suggestions");
-        const availableCities = {{ cities | tojson | safe }};
-        const neighborhoodMap = {{ neighborhood_map | tojson | safe }};
-        const normalizedNeighborhoodMap = Object.entries(neighborhoodMap || {}).reduce(
-            (accumulator, [city, values]) => {
-                const normalizedCity = String(city || "").trim().toLowerCase();
-                if (!normalizedCity) return accumulator;
-                const items = Array.isArray(values)
-                    ? values
-                        .map((value) => String(value || "").trim())
-                        .filter((value) => value.length > 0)
-                    : [];
-                if (!items.length) return accumulator;
-                accumulator[normalizedCity] = items;
-                return accumulator;
-            },
-            {}
-        );
-        const allNeighborhoods = Array.from(
-            new Set(
-                Object.values(normalizedNeighborhoodMap)
-                    .flat()
+        const availableCities = {{ cities | tojson | safe
+    }};
+    const neighborhoodMap = {{ neighborhood_map | tojson | safe }};
+    const normalizedNeighborhoodMap = Object.entries(neighborhoodMap || {}).reduce(
+        (accumulator, [city, values]) => {
+            const normalizedCity = String(city || "").trim().toLowerCase();
+            if (!normalizedCity) return accumulator;
+            const items = Array.isArray(values)
+                ? values
                     .map((value) => String(value || "").trim())
                     .filter((value) => value.length > 0)
-            )
+                : [];
+            if (!items.length) return accumulator;
+            accumulator[normalizedCity] = items;
+            return accumulator;
+        },
+        {}
+    );
+    const allNeighborhoods = Array.from(
+        new Set(
+            Object.values(normalizedNeighborhoodMap)
+                .flat()
+                .map((value) => String(value || "").trim())
+                .filter((value) => value.length > 0)
+        )
+    );
+
+    function findCityPrefixMatches(query) {
+        const normalized = String(query || "").trim().toLowerCase();
+        if (!normalized) return [];
+        return availableCities
+            .filter((city) => String(city).toLowerCase().startsWith(normalized))
+            .slice(0, 8);
+    }
+
+    function hideCitySuggestions() {
+        if (!citySuggestions) return;
+        citySuggestions.classList.add("hidden");
+        citySuggestions.innerHTML = "";
+    }
+
+    function renderCitySuggestions(matches) {
+        if (!citySuggestions) return;
+        if (!matches.length) {
+            hideCitySuggestions();
+            return;
+        }
+        citySuggestions.innerHTML = "";
+        matches.forEach((city) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = city;
+            button.className =
+                "w-full rounded-lg px-3 py-2 text-left text-sm text-zinc-200 hover:bg-white/10";
+            button.addEventListener("click", () => {
+                if (!cityInput) return;
+                cityInput.value = city;
+                hideCitySuggestions();
+                saveDraft();
+            });
+            citySuggestions.appendChild(button);
+        });
+        citySuggestions.classList.remove("hidden");
+    }
+
+    function canonicalizeCityInput() {
+        if (!cityInput) return;
+        const typed = String(cityInput.value || "").trim();
+        if (!typed) return;
+        const exact = availableCities.find(
+            (city) => String(city).toLowerCase() === typed.toLowerCase()
         );
-
-        function findCityPrefixMatches(query) {
-            const normalized = String(query || "").trim().toLowerCase();
-            if (!normalized) return [];
-            return availableCities
-                .filter((city) => String(city).toLowerCase().startsWith(normalized))
-                .slice(0, 8);
+        if (exact) {
+            cityInput.value = exact;
         }
+    }
 
-        function hideCitySuggestions() {
-            if (!citySuggestions) return;
-            citySuggestions.classList.add("hidden");
-            citySuggestions.innerHTML = "";
+    function getNeighborhoodPoolForSelectedCity() {
+        if (!cityInput) return [];
+        const selectedCity = String(cityInput.value || "").trim().toLowerCase();
+        if (!selectedCity) return [];
+        return normalizedNeighborhoodMap[selectedCity] || [];
+    }
+
+    function parseNeighborhoodState(rawValue) {
+        const raw = String(rawValue || "");
+        const parts = raw.split(",");
+        const endsWithComma = /,\s*$/.test(raw);
+        const committedParts = endsWithComma ? parts : parts.slice(0, -1);
+        const activePart = endsWithComma ? "" : (parts[parts.length - 1] || "");
+        const committed = committedParts
+            .map((token) => String(token || "").trim())
+            .filter((token) => token.length > 0);
+        const committedLookup = new Set(committed.map((token) => token.toLowerCase()));
+        return {
+            committed,
+            committedLookup,
+            activeQuery: String(activePart || "").trim().toLowerCase(),
+        };
+    }
+
+    function findNeighborhoodPrefixMatches(rawValue) {
+        const state = parseNeighborhoodState(rawValue);
+        if (!state.activeQuery) return [];
+        const cityPool = getNeighborhoodPoolForSelectedCity();
+        const activePool = cityPool.length ? cityPool : allNeighborhoods;
+        return activePool
+            .filter((neighborhood) => {
+                const normalized = String(neighborhood || "").toLowerCase();
+                return (
+                    normalized.startsWith(state.activeQuery)
+                    && !state.committedLookup.has(normalized)
+                );
+            })
+            .slice(0, 8);
+    }
+
+    function hideNeighborhoodSuggestions() {
+        if (!neighborhoodSuggestions) return;
+        neighborhoodSuggestions.classList.add("hidden");
+        neighborhoodSuggestions.innerHTML = "";
+    }
+
+    function renderNeighborhoodSuggestions(matches) {
+        if (!neighborhoodSuggestions) return;
+        if (!matches.length) {
+            hideNeighborhoodSuggestions();
+            return;
         }
-
-        function renderCitySuggestions(matches) {
-            if (!citySuggestions) return;
-            if (!matches.length) {
-                hideCitySuggestions();
-                return;
-            }
-            citySuggestions.innerHTML = "";
-            matches.forEach((city) => {
-                const button = document.createElement("button");
-                button.type = "button";
-                button.textContent = city;
-                button.className =
-                    "w-full rounded-lg px-3 py-2 text-left text-sm text-zinc-200 hover:bg-white/10";
-                button.addEventListener("click", () => {
-                    if (!cityInput) return;
-                    cityInput.value = city;
-                    hideCitySuggestions();
-                    saveDraft();
-                });
-                citySuggestions.appendChild(button);
-            });
-            citySuggestions.classList.remove("hidden");
-        }
-
-        function canonicalizeCityInput() {
-            if (!cityInput) return;
-            const typed = String(cityInput.value || "").trim();
-            if (!typed) return;
-            const exact = availableCities.find(
-                (city) => String(city).toLowerCase() === typed.toLowerCase()
-            );
-            if (exact) {
-                cityInput.value = exact;
-            }
-        }
-
-        function getNeighborhoodPoolForSelectedCity() {
-            if (!cityInput) return [];
-            const selectedCity = String(cityInput.value || "").trim().toLowerCase();
-            if (!selectedCity) return [];
-            return normalizedNeighborhoodMap[selectedCity] || [];
-        }
-
-        function parseNeighborhoodState(rawValue) {
-            const raw = String(rawValue || "");
-            const parts = raw.split(",");
-            const endsWithComma = /,\s*$/.test(raw);
-            const committedParts = endsWithComma ? parts : parts.slice(0, -1);
-            const activePart = endsWithComma ? "" : (parts[parts.length - 1] || "");
-            const committed = committedParts
-                .map((token) => String(token || "").trim())
-                .filter((token) => token.length > 0);
-            const committedLookup = new Set(committed.map((token) => token.toLowerCase()));
-            return {
-                committed,
-                committedLookup,
-                activeQuery: String(activePart || "").trim().toLowerCase(),
-            };
-        }
-
-        function findNeighborhoodPrefixMatches(rawValue) {
-            const state = parseNeighborhoodState(rawValue);
-            if (!state.activeQuery) return [];
-            const cityPool = getNeighborhoodPoolForSelectedCity();
-            const activePool = cityPool.length ? cityPool : allNeighborhoods;
-            return activePool
-                .filter((neighborhood) => {
-                    const normalized = String(neighborhood || "").toLowerCase();
-                    return (
-                        normalized.startsWith(state.activeQuery)
-                        && !state.committedLookup.has(normalized)
-                    );
-                })
-                .slice(0, 8);
-        }
-
-        function hideNeighborhoodSuggestions() {
-            if (!neighborhoodSuggestions) return;
-            neighborhoodSuggestions.classList.add("hidden");
-            neighborhoodSuggestions.innerHTML = "";
-        }
-
-        function renderNeighborhoodSuggestions(matches) {
-            if (!neighborhoodSuggestions) return;
-            if (!matches.length) {
+        neighborhoodSuggestions.innerHTML = "";
+        matches.forEach((neighborhood) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = neighborhood;
+            button.className =
+                "w-full rounded-lg px-3 py-2 text-left text-sm text-zinc-200 hover:bg-white/10";
+            button.addEventListener("click", () => {
+                if (!neighborhoodInput) return;
+                const state = parseNeighborhoodState(neighborhoodInput.value);
+                const nextTokens = [...state.committed, neighborhood];
+                neighborhoodInput.value = `${nextTokens.join(", ")}, `;
                 hideNeighborhoodSuggestions();
-                return;
-            }
-            neighborhoodSuggestions.innerHTML = "";
-            matches.forEach((neighborhood) => {
-                const button = document.createElement("button");
-                button.type = "button";
-                button.textContent = neighborhood;
-                button.className =
-                    "w-full rounded-lg px-3 py-2 text-left text-sm text-zinc-200 hover:bg-white/10";
-                button.addEventListener("click", () => {
-                    if (!neighborhoodInput) return;
-                    const state = parseNeighborhoodState(neighborhoodInput.value);
-                    const nextTokens = [...state.committed, neighborhood];
-                    neighborhoodInput.value = `${nextTokens.join(", ")}, `;
-                    hideNeighborhoodSuggestions();
-                    saveDraft();
-                });
-                neighborhoodSuggestions.appendChild(button);
+                saveDraft();
             });
-            neighborhoodSuggestions.classList.remove("hidden");
-        }
+            neighborhoodSuggestions.appendChild(button);
+        });
+        neighborhoodSuggestions.classList.remove("hidden");
+    }
 
-        function canonicalizeNeighborhoodInput() {
-            if (!neighborhoodInput) return;
-            const raw = String(neighborhoodInput.value || "").trim();
+    function canonicalizeNeighborhoodInput() {
+        if (!neighborhoodInput) return;
+        const raw = String(neighborhoodInput.value || "").trim();
+        if (!raw) return;
+        const cityPool = getNeighborhoodPoolForSelectedCity();
+        const canonicalTokens = [];
+        const seen = new Set();
+        raw
+            .split(",")
+            .map((token) => String(token || "").trim())
+            .filter((token) => token.length > 0)
+            .forEach((token) => {
+                const cityMatch = cityPool.find(
+                    (neighborhood) => String(neighborhood).toLowerCase() === token.toLowerCase()
+                );
+                const globalMatch = allNeighborhoods.find(
+                    (neighborhood) => String(neighborhood).toLowerCase() === token.toLowerCase()
+                );
+                const canonical = cityMatch || globalMatch || token;
+                const key = canonical.toLowerCase();
+                if (seen.has(key)) return;
+                seen.add(key);
+                canonicalTokens.push(canonical);
+            });
+        if (canonicalTokens.length) {
+            neighborhoodInput.value = canonicalTokens.join(", ");
+        }
+    }
+
+    function restoreDraft() {
+        if (!fields.length) return;
+        try {
+            const raw = localStorage.getItem(storageKey);
             if (!raw) return;
-            const cityPool = getNeighborhoodPoolForSelectedCity();
-            const canonicalTokens = [];
-            const seen = new Set();
-            raw
-                .split(",")
-                .map((token) => String(token || "").trim())
-                .filter((token) => token.length > 0)
-                .forEach((token) => {
-                    const cityMatch = cityPool.find(
-                        (neighborhood) => String(neighborhood).toLowerCase() === token.toLowerCase()
-                    );
-                    const globalMatch = allNeighborhoods.find(
-                        (neighborhood) => String(neighborhood).toLowerCase() === token.toLowerCase()
-                    );
-                    const canonical = cityMatch || globalMatch || token;
-                    const key = canonical.toLowerCase();
-                    if (seen.has(key)) return;
-                    seen.add(key);
-                    canonicalTokens.push(canonical);
-                });
-            if (canonicalTokens.length) {
-                neighborhoodInput.value = canonicalTokens.join(", ");
-            }
+            const saved = JSON.parse(raw);
+            fields.forEach((field) => {
+                const name = field.getAttribute("name");
+                if (!name || !(name in saved)) return;
+                if (String(field.value || "").trim()) return;
+                field.value = saved[name];
+            });
+        } catch (error) {
+            console.warn("Failed to restore onboarding draft", error);
         }
+    }
 
-        function restoreDraft() {
-            if (!fields.length) return;
-            try {
-                const raw = localStorage.getItem(storageKey);
-                if (!raw) return;
-                const saved = JSON.parse(raw);
-                fields.forEach((field) => {
-                    const name = field.getAttribute("name");
-                    if (!name || !(name in saved)) return;
-                    if (String(field.value || "").trim()) return;
-                    field.value = saved[name];
-                });
-            } catch (error) {
-                console.warn("Failed to restore onboarding draft", error);
-            }
+    function saveDraft() {
+        if (!fields.length) return;
+        try {
+            const payload = {};
+            fields.forEach((field) => {
+                const name = field.getAttribute("name");
+                if (!name) return;
+                payload[name] = field.value;
+            });
+            localStorage.setItem(storageKey, JSON.stringify(payload));
+        } catch (error) {
+            console.warn("Failed to save onboarding draft", error);
         }
+    }
 
-        function saveDraft() {
-            if (!fields.length) return;
-            try {
-                const payload = {};
-                fields.forEach((field) => {
-                    const name = field.getAttribute("name");
-                    if (!name) return;
-                    payload[name] = field.value;
-                });
-                localStorage.setItem(storageKey, JSON.stringify(payload));
-            } catch (error) {
-                console.warn("Failed to save onboarding draft", error);
-            }
-        }
-
-        function clearAllDrafts() {
-            if (!providerId) return;
-            try {
-                for (let i = localStorage.length - 1; i >= 0; i -= 1) {
-                    const key = localStorage.key(i);
-                    if (key && key.startsWith(storagePrefix)) {
-                        localStorage.removeItem(key);
-                    }
+    function clearAllDrafts() {
+        if (!providerId) return;
+        try {
+            for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(storagePrefix)) {
+                    localStorage.removeItem(key);
                 }
-            } catch (error) {
-                console.warn("Failed to clear onboarding drafts", error);
             }
+        } catch (error) {
+            console.warn("Failed to clear onboarding drafts", error);
         }
+    }
 
-        restoreDraft();
-        canonicalizeCityInput();
-        canonicalizeNeighborhoodInput();
-        fields.forEach((field) => {
-            field.addEventListener("input", saveDraft);
-            field.addEventListener("change", saveDraft);
+    restoreDraft();
+    canonicalizeCityInput();
+    canonicalizeNeighborhoodInput();
+    fields.forEach((field) => {
+        field.addEventListener("input", saveDraft);
+        field.addEventListener("change", saveDraft);
+    });
+
+    if (cityInput && citySuggestions) {
+        cityInput.addEventListener("input", () => {
+            const matches = findCityPrefixMatches(cityInput.value);
+            renderCitySuggestions(matches);
+            if (neighborhoodInput && neighborhoodSuggestions) {
+                const neighborhoodMatches = findNeighborhoodPrefixMatches(neighborhoodInput.value);
+                renderNeighborhoodSuggestions(neighborhoodMatches);
+            }
         });
-
-        if (cityInput && citySuggestions) {
-            cityInput.addEventListener("input", () => {
-                const matches = findCityPrefixMatches(cityInput.value);
-                renderCitySuggestions(matches);
-                if (neighborhoodInput && neighborhoodSuggestions) {
-                    const neighborhoodMatches = findNeighborhoodPrefixMatches(neighborhoodInput.value);
-                    renderNeighborhoodSuggestions(neighborhoodMatches);
-                }
-            });
-            cityInput.addEventListener("focus", () => {
-                const matches = findCityPrefixMatches(cityInput.value);
-                renderCitySuggestions(matches);
-            });
-            cityInput.addEventListener("blur", () => {
-                canonicalizeCityInput();
-                canonicalizeNeighborhoodInput();
-                saveDraft();
-                window.setTimeout(hideCitySuggestions, 120);
-            });
-            cityInput.addEventListener("keydown", (event) => {
-                if (event.key === "Escape") {
-                    hideCitySuggestions();
-                }
-            });
-        }
-
-        if (neighborhoodInput && neighborhoodSuggestions) {
-            neighborhoodInput.addEventListener("input", () => {
-                const matches = findNeighborhoodPrefixMatches(neighborhoodInput.value);
-                renderNeighborhoodSuggestions(matches);
-            });
-            neighborhoodInput.addEventListener("focus", () => {
-                const matches = findNeighborhoodPrefixMatches(neighborhoodInput.value);
-                renderNeighborhoodSuggestions(matches);
-            });
-            neighborhoodInput.addEventListener("blur", () => {
-                canonicalizeNeighborhoodInput();
-                saveDraft();
-                window.setTimeout(hideNeighborhoodSuggestions, 120);
-            });
-            neighborhoodInput.addEventListener("keydown", (event) => {
-                if (event.key === "Escape") {
-                    hideNeighborhoodSuggestions();
-                }
-            });
-        }
-
-        document.addEventListener("click", (event) => {
-            if (cityInput && citySuggestions && !citySuggestions.contains(event.target) && event.target !== cityInput) {
+        cityInput.addEventListener("focus", () => {
+            const matches = findCityPrefixMatches(cityInput.value);
+            renderCitySuggestions(matches);
+        });
+        cityInput.addEventListener("blur", () => {
+            canonicalizeCityInput();
+            canonicalizeNeighborhoodInput();
+            saveDraft();
+            window.setTimeout(hideCitySuggestions, 120);
+        });
+        cityInput.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
                 hideCitySuggestions();
             }
-            if (
-                neighborhoodInput &&
-                neighborhoodSuggestions &&
-                !neighborhoodSuggestions.contains(event.target) &&
-                event.target !== neighborhoodInput
-            ) {
+        });
+    }
+
+    if (neighborhoodInput && neighborhoodSuggestions) {
+        neighborhoodInput.addEventListener("input", () => {
+            const matches = findNeighborhoodPrefixMatches(neighborhoodInput.value);
+            renderNeighborhoodSuggestions(matches);
+        });
+        neighborhoodInput.addEventListener("focus", () => {
+            const matches = findNeighborhoodPrefixMatches(neighborhoodInput.value);
+            renderNeighborhoodSuggestions(matches);
+        });
+        neighborhoodInput.addEventListener("blur", () => {
+            canonicalizeNeighborhoodInput();
+            saveDraft();
+            window.setTimeout(hideNeighborhoodSuggestions, 120);
+        });
+        neighborhoodInput.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
                 hideNeighborhoodSuggestions();
             }
         });
+    }
 
-        const selectedInputs = [];
-        if (slots.length) {
-            slots.forEach((slot) => {
-                const inputId = slot.getAttribute("data-target");
-                const input = document.getElementById(inputId);
-                const preview = slot.querySelector(".photo-preview");
-                const placeholder = slot.querySelector(".photo-placeholder");
-                if (!input) return;
-
-                slot.addEventListener("click", () => input.click());
-                input.addEventListener("change", () => {
-                    const file = input.files && input.files[0];
-                    if (!file) return;
-                    const objectUrl = URL.createObjectURL(file);
-                    preview.src = objectUrl;
-                    preview.classList.remove("hidden");
-                    placeholder.classList.add("hidden");
-                    if (!selectedInputs.includes(input)) {
-                        selectedInputs.push(input);
-                    }
-                    updateStatus();
-                });
-            });
+    document.addEventListener("click", (event) => {
+        if (cityInput && citySuggestions && !citySuggestions.contains(event.target) && event.target !== cityInput) {
+            hideCitySuggestions();
         }
+        if (
+            neighborhoodInput &&
+            neighborhoodSuggestions &&
+            !neighborhoodSuggestions.contains(event.target) &&
+            event.target !== neighborhoodInput
+        ) {
+            hideNeighborhoodSuggestions();
+        }
+    });
 
-        function updateStatus() {
-            if (!slots.length) return;
-            const selectedCount = selectedInputs.filter((input) => input.files && input.files.length > 0).length;
-            const total = existingPhotos + selectedCount;
-            const needed = Math.max(requiredPhotos - total, 0);
-            if (!statusEl) return;
-            if (needed === 0) {
-                if (total >= recommendedPhotos) {
-                    statusEl.textContent = `Excellent. You have ${total} photo(s), ready to submit with strong visibility.`;
-                } else {
-                    const moreForRecommended = Math.max(recommendedPhotos - total, 0);
-                    statusEl.textContent = `Great. You can submit now. Add ${moreForRecommended} more photo(s) to reach the recommended ${recommendedPhotos}.`;
+    const selectedInputs = [];
+    if (slots.length) {
+        slots.forEach((slot) => {
+            const inputId = slot.getAttribute("data-target");
+            const input = document.getElementById(inputId);
+            const preview = slot.querySelector(".photo-preview");
+            const placeholder = slot.querySelector(".photo-placeholder");
+            if (!input) return;
+
+            slot.addEventListener("click", () => input.click());
+            input.addEventListener("change", () => {
+                const file = input.files && input.files[0];
+                if (!file) return;
+                const objectUrl = URL.createObjectURL(file);
+                preview.src = objectUrl;
+                preview.classList.remove("hidden");
+                placeholder.classList.add("hidden");
+                if (!selectedInputs.includes(input)) {
+                    selectedInputs.push(input);
                 }
-                statusEl.className = "mt-2 text-xs text-emerald-200";
+                updateStatus();
+            });
+        });
+    }
+
+    function updateStatus() {
+        if (!slots.length) return;
+        const selectedCount = selectedInputs.filter((input) => input.files && input.files.length > 0).length;
+        const total = existingPhotos + selectedCount;
+        const needed = Math.max(requiredPhotos - total, 0);
+        if (!statusEl) return;
+        if (needed === 0) {
+            if (total >= recommendedPhotos) {
+                statusEl.textContent = `Excellent. You have ${total} photo(s), ready to submit with strong visibility.`;
             } else {
-                statusEl.textContent = `You currently have ${total} photo(s). Add ${needed} more photo(s) to submit.`;
-                statusEl.className = "mt-2 text-xs text-amber-200";
+                const moreForRecommended = Math.max(recommendedPhotos - total, 0);
+                statusEl.textContent = `Great. You can submit now. Add ${moreForRecommended} more photo(s) to reach the recommended ${recommendedPhotos}.`;
             }
+            statusEl.className = "mt-2 text-xs text-emerald-200";
+        } else {
+            statusEl.textContent = `You currently have ${total} photo(s). Add ${needed} more photo(s) to submit.`;
+            statusEl.className = "mt-2 text-xs text-amber-200";
         }
+    }
 
-        if (slots.length) {
-            updateStatus();
-        }
+    if (slots.length) {
+        updateStatus();
+    }
 
-        if (form) {
-            form.addEventListener("submit", (event) => {
-                saveDraft();
-                const submitter = event.submitter;
-                if (!submitter) return;
+    if (form) {
+        form.addEventListener("submit", (event) => {
+            saveDraft();
+            const submitter = event.submitter;
+            if (!submitter) return;
 
-                if (submitButton && submitter.value === "submit") {
-                    const selectedCount = selectedInputs.filter((input) => input.files && input.files.length > 0).length;
-                    const total = existingPhotos + selectedCount;
-                    if (total < requiredPhotos) {
-                        event.preventDefault();
-                        if (errorEl) {
-                            errorEl.textContent = `Please upload at least ${requiredPhotos} photos before submitting.`;
-                            errorEl.classList.remove("hidden");
-                        }
-                        return;
-                    }
+            if (submitButton && submitter.value === "submit") {
+                const selectedCount = selectedInputs.filter((input) => input.files && input.files.length > 0).length;
+                const total = existingPhotos + selectedCount;
+                if (total < requiredPhotos) {
+                    event.preventDefault();
                     if (errorEl) {
-                        errorEl.classList.add("hidden");
+                        errorEl.textContent = `Please upload at least ${requiredPhotos} photos before submitting.`;
+                        errorEl.classList.remove("hidden");
                     }
-                    clearAllDrafts();
+                    return;
                 }
-            });
-        }
+                if (errorEl) {
+                    errorEl.classList.add("hidden");
+                }
+                clearAllDrafts();
+            }
+        });
+    }
 
-        const toast = document.getElementById("saved-toast");
-        if (toast) {
-            window.setTimeout(() => {
-                toast.classList.add("opacity-0", "transition", "duration-500");
-                window.setTimeout(() => toast.remove(), 550);
-            }, 1800);
-        }
-    })();
+    const toast = document.getElementById("saved-toast");
+    if (toast) {
+        window.setTimeout(() => {
+            toast.classList.add("opacity-0", "transition", "duration-500");
+            window.setTimeout(() => toast.remove(), 550);
+        }, 1800);
+    }
+    }) ();
 </script>
 {% endblock %}

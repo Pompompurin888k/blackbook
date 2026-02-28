@@ -254,7 +254,7 @@ async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     elif text == "📋 Rules":
         await update.message.reply_text(
-            "📋 *Blackbook Rules & Guidelines*\n"
+            "📋 *Ace Girls Rules & Guidelines*\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "✅ *Allowed:*\n"
             "• Professional, verified providers only\n"
@@ -265,7 +265,7 @@ async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             "• Unprofessional behavior\n"
             "• Harassment of clients\n\n"
             "⚠️ Violations result in immediate ban.\n\n"
-            "📜 By using Blackbook, you agree to maintain professionalism and discretion.",
+            "📜 By using Ace Girls, you agree to maintain professionalism and discretion.",
             parse_mode="Markdown",
             reply_markup=get_persistent_main_menu()
         )

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Provider Portal | Blackbook</title>
+    <title>Provider Portal | Ace Girls</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/feather-icons"></script>
     {% if captcha_enabled and turnstile_site_key %}
@@ -26,7 +26,8 @@
             }
         }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
     <style>
         :root {
@@ -101,7 +102,7 @@
             <a href="/" class="flex items-center gap-3">
                 <div class="h-10 w-10 rounded-xl bg-gold text-black grid place-items-center font-extrabold">B</div>
                 <div>
-                    <p class="font-extrabold tracking-tight text-white">Blackbook</p>
+                    <p class="font-extrabold tracking-tight text-white">Ace Girls</p>
                     <p class="text-[10px] uppercase tracking-[0.2em] text-gold/90">Provider Portal</p>
                 </div>
             </a>
@@ -113,7 +114,8 @@
 
         <section class="mb-6 rounded-3xl border border-white/10 bg-black/30 px-5 py-5">
             <h1 class="font-serif text-3xl leading-tight text-white sm:text-4xl">Professional Access</h1>
-            <p class="mt-2 max-w-2xl text-sm text-gray-300">Manage your profile with a quick login or create a new account. You only need username, visible name, email, and password.</p>
+            <p class="mt-2 max-w-2xl text-sm text-gray-300">Manage your profile with a quick login or create a new
+                account. You only need username, visible name, email, and password.</p>
         </section>
 
         {% if error %}
@@ -148,25 +150,29 @@
 
                 <form method="post" action="/provider/login" class="space-y-4">
                     <div>
-                        <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Email Address</label>
+                        <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Email
+                            Address</label>
                         <div class="relative">
-                            <i data-feather="mail" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"></i>
-                            <input name="email" type="email" required value="{{ login_email or '' }}" autocomplete="email"
-                                class="field w-full rounded-xl py-3 pl-10 pr-3 text-sm"
+                            <i data-feather="mail"
+                                class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"></i>
+                            <input name="email" type="email" required value="{{ login_email or '' }}"
+                                autocomplete="email" class="field w-full rounded-xl py-3 pl-10 pr-3 text-sm"
                                 placeholder="you@example.com">
                         </div>
                     </div>
 
                     <div>
-                        <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Password</label>
+                        <label
+                            class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Password</label>
                         <div class="relative">
-                            <i data-feather="lock" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"></i>
+                            <i data-feather="lock"
+                                class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"></i>
                             <input name="password" type="password" required autocomplete="current-password"
-                                class="field w-full rounded-xl py-3 pl-10 pr-3 text-sm"
-                                placeholder="Enter password">
+                                class="field w-full rounded-xl py-3 pl-10 pr-3 text-sm" placeholder="Enter password">
                         </div>
                         <div class="mt-2 text-right">
-                            <a href="/provider/password-reset" class="text-xs font-semibold text-gold hover:text-[#f2d57c]">Forgot password?</a>
+                            <a href="/provider/password-reset"
+                                class="text-xs font-semibold text-gold hover:text-[#f2d57c]">Forgot password?</a>
                         </div>
                     </div>
 
@@ -185,34 +191,44 @@
 
                 <form method="post" action="/provider/register" class="space-y-4">
                     <div>
-                        <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Username</label>
-                        <input name="username" required minlength="3" maxlength="32" value="{{ register_username or '' }}"
-                            class="field w-full rounded-xl px-3 py-3 text-sm" placeholder="your_username">
+                        <label
+                            class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Username</label>
+                        <input name="username" required minlength="3" maxlength="32"
+                            value="{{ register_username or '' }}" class="field w-full rounded-xl px-3 py-3 text-sm"
+                            placeholder="your_username">
                         <p class="mt-1 text-xs text-gray-400">Letters, numbers, and underscores only.</p>
                     </div>
 
                     <div>
-                        <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Visible Name</label>
+                        <label
+                            class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Visible
+                            Name</label>
                         <input name="display_name" required minlength="2" value="{{ register_display_name or '' }}"
                             class="field w-full rounded-xl px-3 py-3 text-sm" placeholder="Name shown on website">
                     </div>
 
                     <div>
-                        <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Email Address</label>
-                        <input name="email" required type="email" value="{{ register_email or '' }}" autocomplete="email"
-                            class="field w-full rounded-xl px-3 py-3 text-sm" placeholder="you@example.com">
+                        <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Email
+                            Address</label>
+                        <input name="email" required type="email" value="{{ register_email or '' }}"
+                            autocomplete="email" class="field w-full rounded-xl px-3 py-3 text-sm"
+                            placeholder="you@example.com">
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
-                            <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Password</label>
+                            <label
+                                class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Password</label>
                             <input name="password" type="password" minlength="6" required autocomplete="new-password"
                                 class="field w-full rounded-xl px-3 py-3 text-sm" placeholder="Create password">
                         </div>
                         <div>
-                            <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Confirm Password</label>
-                            <input name="confirm_password" type="password" minlength="6" required autocomplete="new-password"
-                                class="field w-full rounded-xl px-3 py-3 text-sm" placeholder="Repeat password">
+                            <label
+                                class="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Confirm
+                                Password</label>
+                            <input name="confirm_password" type="password" minlength="6" required
+                                autocomplete="new-password" class="field w-full rounded-xl px-3 py-3 text-sm"
+                                placeholder="Repeat password">
                         </div>
                     </div>
                     {% if captcha_enabled and turnstile_site_key %}
@@ -234,7 +250,7 @@
         </section>
 
         <footer class="mt-8 text-center text-xs text-gray-500">
-            <p>&copy; 2026 Blackbook. All rights reserved.</p>
+            <p>&copy; 2026 Ace Girls. All rights reserved.</p>
         </footer>
     </main>
 

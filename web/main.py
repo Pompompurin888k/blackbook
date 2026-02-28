@@ -94,7 +94,7 @@ from payment_queue_utils import extract_callback_reference
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Blackbook Directory", docs_url=None, redoc_url=None)
+app = FastAPI(title="Ace Girls Directory", docs_url=None, redoc_url=None)
 app.add_middleware(
     SessionMiddleware,
     secret_key=PROVIDER_PORTAL_SESSION_SECRET,

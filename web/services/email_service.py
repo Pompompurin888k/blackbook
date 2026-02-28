@@ -77,14 +77,14 @@ async def send_portal_verification_email(
         return False
 
     safe_name = (display_name or "there").strip() or "there"
-    subject = "Verify your Blackbook provider account"
+    subject = "Verify your Ace Girls provider account"
     body = (
         f"Hi {safe_name},\n\n"
-        "Your Blackbook provider verification code is:\n\n"
+        "Your Ace Girls provider verification code is:\n\n"
         f"{code}\n\n"
         f"This code expires in {ttl_minutes} minutes.\n"
         "If you did not request this, you can ignore this email.\n\n"
-        "Blackbook"
+        "Ace Girls"
     )
 
     try:
@@ -118,14 +118,14 @@ async def send_portal_password_reset_email(
         return False
 
     safe_name = (display_name or "there").strip() or "there"
-    subject = "Reset your Blackbook provider password"
+    subject = "Reset your Ace Girls provider password"
     body = (
         f"Hi {safe_name},\n\n"
-        "Your Blackbook password reset code is:\n\n"
+        "Your Ace Girls password reset code is:\n\n"
         f"{code}\n\n"
         f"This code expires in {ttl_minutes} minutes.\n"
         "If you did not request this, you can ignore this email.\n\n"
-        "Blackbook"
+        "Ace Girls"
     )
 
     try:

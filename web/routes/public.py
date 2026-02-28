@@ -294,7 +294,7 @@ async def connect_provider(
             "Please let me know your availability for a consultation."
         )
     else:
-        message = f"Hi {name}, I saw your profile on Blackbook. Are you available?"
+        message = f"Hi {name}, I saw your profile on Ace Girls. Are you available?"
 
     if phone_digits:
         wa_url = f"https://wa.me/{phone_digits}?text={quote(message)}"

@@ -115,7 +115,7 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME", "").strip()
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
 SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", "").strip()
-SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "Blackbook").strip() or "Blackbook"
+SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "Ace Girls").strip() or "Ace Girls"
 PORTAL_CAPTCHA_ENABLED = os.getenv("PORTAL_CAPTCHA_ENABLED", "false").strip().lower() == "true"
 PORTAL_TURNSTILE_SITE_KEY = os.getenv("PORTAL_TURNSTILE_SITE_KEY", "").strip()
 PORTAL_TURNSTILE_SECRET_KEY = os.getenv("PORTAL_TURNSTILE_SECRET_KEY", "").strip()

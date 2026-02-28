@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BLACKBOOK | Nairobi Concierge Directory</title>
+    <title>ACE GIRLS | Nairobi Concierge Directory</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -1028,7 +1028,7 @@
             </h2>
             <h1
                 class="serif text-4xl sm:text-6xl md:text-8xl lg:text-[7rem] mb-6 tracking-[0.14em] whitespace-normal sm:whitespace-nowrap gold-gradient-text glow-text leading-tight">
-                BLACKBOOK
+                ACE GIRLS
             </h1>
             <p class="text-gray-300 max-w-xl mx-auto font-light leading-relaxed mb-12 text-sm md:text-base opacity-80">
                 An elite concierge network for the modern gentleman.
@@ -1057,7 +1057,7 @@
         <!-- Navigation -->
         <nav class="sticky top-0 z-40 glass nav-shell p-3 md:p-5 flex justify-between items-center px-4 md:px-12">
             <h1 class="serif text-base md:text-xl gold-text tracking-widest cursor-pointer" onclick="location.reload()">
-                BLACKBOOK</h1>
+                ACE GIRLS</h1>
             <div class="flex items-center gap-2 md:gap-4">
                 <!-- PRO-LEVEL PANIC BUTTON (Stealth Mode) -->
                 <button id="panic-btn" onclick="triggerPanic()"
@@ -1135,7 +1135,8 @@
                             {% endif %}
                             {% endif %}
 
-                            <button type="button" onclick="window.location.href='{{ provider.short_profile_url or ('/p/' ~ provider.id) }}'"
+                            <button type="button"
+                                onclick="window.location.href='{{ provider.short_profile_url or ('/p/' ~ provider.id) }}'"
                                 class="flex-shrink-0 flex flex-col items-center gap-2 w-[5.5rem] group cursor-pointer focus:outline-none active:scale-95 transition-transform">
 
                                 <!-- Massive Avatar Ring -->
@@ -1843,7 +1844,7 @@
     <script>
         // ========== THEME TOGGLE ==========
         function initTheme() {
-            const savedTheme = localStorage.getItem('blackbook-theme') || 'dark';
+            const savedTheme = localStorage.getItem('acegirls-theme') || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
             updateThemeIcon(savedTheme);
         }
@@ -1852,7 +1853,7 @@
             const current = document.documentElement.getAttribute('data-theme') || 'dark';
             const newTheme = current === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('blackbook-theme', newTheme);
+            localStorage.setItem('acegirls-theme', newTheme);
             updateThemeIcon(newTheme);
         }
 
@@ -2399,7 +2400,7 @@
 
         function openFavoritesSheet() {
             const list = document.getElementById('favorites-list');
-            const favorites = JSON.parse(localStorage.getItem('blackbook-favorites') || '[]');
+            const favorites = JSON.parse(localStorage.getItem('acegirls-favorites') || '[]');
             if (!favorites.length) {
                 list.innerHTML = '<p class="text-sm text-gray-400 p-3">No favorites yet.</p>';
             } else {
@@ -2766,13 +2767,13 @@
             }
 
             // Save back to localStorage
-            localStorage.setItem('blackbook-favorites', JSON.stringify(favorites));
+            localStorage.setItem('acegirls-favorites', JSON.stringify(favorites));
         }
 
         function checkFavoriteStatus() {
             const providerName = document.getElementById('view-name').innerText;
             const favoriteBtn = document.getElementById('favorite-btn');
-            const favorites = JSON.parse(localStorage.getItem('blackbook-favorites') || '[]');
+            const favorites = JSON.parse(localStorage.getItem('acegirls-favorites') || '[]');
 
             if (favorites.some(f => f.name === providerName)) {
                 favoriteBtn.classList.add('favorite-active');

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{{ provider.display_name }} | BLACKBOOK Private Suite</title>
+    <title>{{ provider.display_name }} | ACE GIRLS Private Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
         href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600;800&display=swap"
@@ -104,7 +104,7 @@
             </svg>
         </button>
         <div class="text-center">
-            <h1 class="serif text-xl gold-text tracking-[0.3em]">BLACKBOOK</h1>
+            <h1 class="serif text-xl gold-text tracking-[0.3em]">ACE GIRLS</h1>
         </div>
         <a href="https://www.linkedin.com" class="glass p-3 rounded-full hover:bg-white/10 transition-all">
             <span class="text-[10px] uppercase font-black tracking-widest text-red-400">Exit</span>
@@ -182,9 +182,11 @@
                     </p>
                     <div class="flex flex-wrap gap-2">
                         <span
-                            class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">{{ provider.last_active_hint }}</span>
+                            class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">{{
+                            provider.last_active_hint }}</span>
                         <span
-                            class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">{{ provider.response_rate_label }}</span>
+                            class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">{{
+                            provider.response_rate_label }}</span>
                     </div>
                 </div>
 
@@ -225,7 +227,8 @@
                         <span class="text-sm font-semibold text-white">{{ gender }}</span>
                     </div>
                     <div class="flex items-center justify-between border-b border-white/5 pb-2">
-                        <span class="text-xs uppercase tracking-[0.16em] text-gray-400 font-semibold">Sexual Orientation</span>
+                        <span class="text-xs uppercase tracking-[0.16em] text-gray-400 font-semibold">Sexual
+                            Orientation</span>
                         <span class="text-sm font-semibold text-white">{{ orientation }}</span>
                     </div>
                     <div class="flex items-center justify-between border-b border-white/5 pb-2">
@@ -249,12 +252,16 @@
                         <span class="text-sm font-semibold text-white">{{ location }}</span>
                     </div>
                     <div class="flex items-center justify-between border-b border-white/5 pb-2">
-                        <span class="text-xs uppercase tracking-[0.16em] text-gray-400 font-semibold">Incalls per hour from</span>
-                        <span class="text-sm font-semibold text-white">{% if incalls_from == 'ASK' %}ASK{% else %}{{ incalls_from }}{% endif %}</span>
+                        <span class="text-xs uppercase tracking-[0.16em] text-gray-400 font-semibold">Incalls per hour
+                            from</span>
+                        <span class="text-sm font-semibold text-white">{% if incalls_from == 'ASK' %}ASK{% else %}{{
+                            incalls_from }}{% endif %}</span>
                     </div>
                     <div class="flex items-center justify-between border-b border-white/5 pb-2 md:col-span-2">
-                        <span class="text-xs uppercase tracking-[0.16em] text-gray-400 font-semibold">Outcalls per hour from</span>
-                        <span class="text-sm font-semibold text-white">{% if outcalls_from == 'ASK' %}ASK{% else %}{{ outcalls_from }}{% endif %}</span>
+                        <span class="text-xs uppercase tracking-[0.16em] text-gray-400 font-semibold">Outcalls per hour
+                            from</span>
+                        <span class="text-sm font-semibold text-white">{% if outcalls_from == 'ASK' %}ASK{% else %}{{
+                            outcalls_from }}{% endif %}</span>
                     </div>
                 </div>
 
@@ -268,15 +275,24 @@
             <div class="mt-16 glass rounded-3xl p-6 border border-white/10 space-y-5">
                 <h3 class="serif text-xl gold-text tracking-[0.2em] uppercase">More about {{ first_name }}</h3>
                 <p class="text-gray-300 leading-relaxed font-light text-base">
-                    This is {{ first_name }}, she is a hot {{ provider.age or 'ASK' }} years old {{ nationality }} escort in {{ location }}.
+                    This is {{ first_name }}, she is a hot {{ provider.age or 'ASK' }} years old {{ nationality }}
+                    escort in {{ location }}.
                     She offers the best {{ services_text }}.
-                    To communicate with {{ first_name }} you can contact her through her number {{ contact_number }} to arrange a meetup.
-                    So if you are looking for a nice {{ top_service }} or just {{ second_service }} service then {{ first_name }} is your ideal escort.
+                    To communicate with {{ first_name }} you can contact her through her number {{ contact_number }} to
+                    arrange a meetup.
+                    So if you are looking for a nice {{ top_service }} or just {{ second_service }} service then {{
+                    first_name }} is your ideal escort.
                 </p>
                 <div class="flex flex-wrap gap-2 pt-1">
-                    <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">Location: {{ location }}</span>
-                    <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">{{ provider.availability_label or 'By booking' }}</span>
-                    <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">{{ provider.response_rate_label }}</span>
+                    <span
+                        class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">Location:
+                        {{ location }}</span>
+                    <span
+                        class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">{{
+                        provider.availability_label or 'By booking' }}</span>
+                    <span
+                        class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-[0.14em] text-gray-300">{{
+                        provider.response_rate_label }}</span>
                 </div>
                 {% if provider.bio %}
                 <p class="text-gray-400 leading-relaxed font-light text-sm italic about-collapsed"
@@ -358,7 +374,8 @@
 
             <div class="flex overflow-x-auto gap-4 no-scrollbar pb-4 md:grid md:grid-cols-3">
                 {% for rec in recommendations %}
-                <div onclick="window.location.href='{{ rec.short_profile_url or ('/p/' ~ rec.id) }}'" class="min-w-[220px] group cursor-pointer">
+                <div onclick="window.location.href='{{ rec.short_profile_url or ('/p/' ~ rec.id) }}'"
+                    class="min-w-[220px] group cursor-pointer">
                     <div class="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 border border-white/5">
                         <img src="{{ rec.photo_url }}"
                             class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-all">
@@ -373,7 +390,8 @@
                         {% endif %}
                     </div>
                     <h4 class="serif text-lg">{{ rec.display_name.split(' ')[0] }}, {{ rec.age or '??' }}</h4>
-                    <p class="text-[10px] text-gray-500 uppercase tracking-widest">{{ rec.primary_location }} &bull; Premium
+                    <p class="text-[10px] text-gray-500 uppercase tracking-widest">{{ rec.primary_location }} &bull;
+                        Premium
                         VIP</p>
                 </div>
                 {% endfor %}
@@ -383,7 +401,8 @@
 
         <!-- PROFESSIONAL FOOTER -->
         <section class="px-8 mt-12 mb-6 border-t border-white/10 pt-8">
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.14em] text-gray-400">
+            <div
+                class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.14em] text-gray-400">
                 <a href="/privacy" class="hover:text-white transition-colors">Privacy</a>
                 <span class="text-white/20">&bull;</span>
                 <a href="/terms" class="hover:text-white transition-colors">Terms</a>
@@ -393,21 +412,24 @@
                 <a href="/provider" class="hover:text-white transition-colors">For Providers</a>
             </div>
             <p class="mt-3 text-xs text-gray-500">
-                &copy; 2026 BLACKBOOK. Confidential introductions and private concierge connections.
+                &copy; 2026 ACE GIRLS. Confidential introductions and private concierge connections.
             </p>
         </section>
     </main>
 
     <!-- FIXED CONVERSION ACTIONS -->
     <div class="fixed bottom-3 left-1/2 -translate-x-1/2 z-[60] w-[min(92vw,560px)]">
-        <div class="rounded-2xl border border-white/10 bg-black/75 backdrop-blur-xl px-3 py-2 shadow-[0_20px_45px_rgba(0,0,0,0.45)]">
+        <div
+            class="rounded-2xl border border-white/10 bg-black/75 backdrop-blur-xl px-3 py-2 shadow-[0_20px_45px_rgba(0,0,0,0.45)]">
             <div class="flex items-center gap-2">
                 <!-- Compact Call CTA -->
                 <a href="{{ provider.call_url }}"
                     class="flex-1 h-14 rounded-xl flex items-center justify-between px-4 transition-all active:scale-[0.98] bg-gradient-to-b from-[#5BEA72] to-[#22C55E] text-black border border-[#6CFF92] shadow-[0_10px_24px_rgba(34,197,94,0.32)] hover:brightness-105">
                     <div class="flex flex-col leading-none">
-                        <span class="text-[8px] uppercase tracking-[0.14em] text-black/70 font-bold mb-1">Call Now</span>
-                        <h3 class="text-sm md:text-base font-black tracking-tight">Call {{ provider.display_name.split(' ')[0] if provider.display_name else 'Provider' }}</h3>
+                        <span class="text-[8px] uppercase tracking-[0.14em] text-black/70 font-bold mb-1">Call
+                            Now</span>
+                        <h3 class="text-sm md:text-base font-black tracking-tight">Call {{ provider.display_name.split('
+                            ')[0] if provider.display_name else 'Provider' }}</h3>
                     </div>
                     <img src="/static/icons/call.png" class="w-6 h-6 object-contain">
                 </a>
@@ -415,8 +437,8 @@
                 <!-- Compact Save Button -->
                 <button type="button" onclick="toggleSave()"
                     class="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center transition-all active:scale-95 hover:bg-white/10 group">
-                    <svg class="w-5 h-5 text-white/50 group-hover:text-white/70 transition-colors" id="saveIcon" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 text-white/50 group-hover:text-white/70 transition-colors" id="saveIcon"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                             d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                     </svg>
@@ -533,4 +555,3 @@
 </body>
 
 </html>
-
