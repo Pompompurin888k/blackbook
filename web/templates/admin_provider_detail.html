@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Provider Detail | Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spectral:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #e6e6e6;
+            --surface: rgba(15, 15, 18, 0.92);
+        }
+        body {
+            font-family: "Space Grotesk", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(900px 520px at 15% -10%, rgba(245, 183, 76, 0.15), transparent 60%),
+                #0a0a0c;
+            min-height: 100vh;
+        }
+        .serif {
+            font-family: "Spectral", serif;
+        }
+        .glass {
+            background: var(--surface);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <main class="max-w-5xl mx-auto px-6 py-10 space-y-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs uppercase tracking-[0.2em] text-amber-300">Provider Detail</p>
+                <h1 class="serif text-3xl text-white">{{ provider.display_name or "Unnamed" }}</h1>
+                <p class="text-sm text-zinc-400">TG ID: {{ provider.telegram_id }} · Internal ID: {{ provider.id }}</p>
+            </div>
+            <a class="text-xs uppercase tracking-[0.2em] text-amber-200 hover:text-white"
+                href="/admin?token={{ token }}">Back to Admin</a>
+        </div>
+
+        <section class="glass rounded-2xl p-6 space-y-4">
+            <h2 class="serif text-2xl text-white">Account Status</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div>
+                    <p class="text-zinc-400">Auth Channel</p>
+                    <p class="text-white">{{ provider.auth_channel or "telegram" }}</p>
+                </div>
+                <div>
+                    <p class="text-zinc-400">Account State</p>
+                    <p class="text-white">{{ provider.account_state or "approved" }}</p>
+                </div>
+                <div>
+                    <p class="text-zinc-400">Verified</p>
+                    <p class="text-white">{{ "Yes" if provider.is_verified else "No" }}</p>
+                </div>
+                <div>
+                    <p class="text-zinc-400">Active Listing</p>
+                    <p class="text-white">{{ "Listed" if provider.is_active else "Unlisted" }}</p>
+                </div>
+                <div>
+                    <p class="text-zinc-400">Email Verified</p>
+                    <p class="text-white">{{ "Yes" if provider.email_verified else "No" }}</p>
+                </div>
+                <div>
+                    <p class="text-zinc-400">Phone Verified</p>
+                    <p class="text-white">{{ "Yes" if provider.phone_verified else "No" }}</p>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-3 pt-2">
+                <form method="post" action="/admin/actions/active?token={{ token }}">
+                    <input type="hidden" name="token" value="{{ token }}">
+                    <input type="hidden" name="telegram_id" value="{{ provider.telegram_id }}">
+                    <input type="hidden" name="is_active" value="{{ 'false' if provider.is_active else 'true' }}">
+                    <button class="px-4 py-2 rounded-lg text-xs uppercase tracking-widest {% if provider.is_active %}bg-amber-500/20 text-amber-200{% else %}bg-emerald-500/20 text-emerald-200{% endif %}">
+                        {{ "Unlist" if provider.is_active else "Relist" }}
+                    </button>
+                </form>
+                <form method="post" action="/admin/actions/verify?token={{ token }}" class="flex items-center gap-2">
+                    <input type="hidden" name="token" value="{{ token }}">
+                    <input type="hidden" name="telegram_id" value="{{ provider.telegram_id }}">
+                    <input type="hidden" name="decision" value="approve">
+                    <button class="px-4 py-2 rounded-lg text-xs uppercase tracking-widest bg-emerald-500/20 text-emerald-200">Approve</button>
+                </form>
+                <form method="post" action="/admin/actions/verify?token={{ token }}" class="flex items-center gap-2">
+                    <input type="hidden" name="token" value="{{ token }}">
+                    <input type="hidden" name="telegram_id" value="{{ provider.telegram_id }}">
+                    <input type="hidden" name="decision" value="reject">
+                    <input type="text" name="reason" placeholder="Reject reason"
+                        class="px-2 py-2 rounded-lg bg-black/40 border border-white/10 text-xs text-white">
+                    <button class="px-4 py-2 rounded-lg text-xs uppercase tracking-widest bg-rose-500/20 text-rose-200">Reject</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="glass rounded-2xl p-6 space-y-4">
+            <h2 class="serif text-2xl text-white">Profile Data</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                    <p class="text-zinc-400">Phone</p>
+                    <p class="text-white">{{ provider.phone or "—" }}</p>
+                </div>
+                <div>
+                    <p class="text-zinc-400">Email</p>
+                    <p class="text-white">{{ provider.email or "—" }}</p>
+                </div>
+                <div>
+                    <p class="text-zinc-400">City / Neighborhood</p>
+                    <p class="text-white">{{ provider.city or "—" }} · {{ provider.neighborhood or "—" }}</p>
+                </div>
+                <div>
+                    <p class="text-zinc-400">Availability</p>
+                    <p class="text-white">{{ provider.availability_type or "—" }}</p>
+                </div>
+                <div>
+                    <p class="text-zinc-400">Services</p>
+                    <p class="text-white">{{ provider.services or "—" }}</p>
+                </div>
+                <div>
+                    <p class="text-zinc-400">Bio</p>
+                    <p class="text-white">{{ provider.bio or "—" }}</p>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

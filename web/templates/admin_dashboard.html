@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Console | Ace Girls</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spectral:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #e6e6e6;
+            --ink-muted: #a1a1aa;
+            --surface: rgba(15, 15, 18, 0.9);
+            --surface-soft: rgba(24, 24, 29, 0.7);
+            --accent: #f5b74c;
+        }
+        body {
+            font-family: "Space Grotesk", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(900px 520px at 10% -10%, rgba(245, 183, 76, 0.15), transparent 60%),
+                radial-gradient(700px 480px at 90% 0%, rgba(88, 147, 255, 0.18), transparent 55%),
+                #0a0a0c;
+            min-height: 100vh;
+        }
+        .serif {
+            font-family: "Spectral", serif;
+        }
+        .glass {
+            background: var(--surface);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+        }
+        .glass-soft {
+            background: var(--surface-soft);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(16px);
+        }
+        .badge {
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <header class="px-6 py-8 max-w-6xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <p class="badge text-[10px] text-amber-300">Admin Console</p>
+                <h1 class="serif text-3xl md:text-4xl text-white">Operations Dashboard</h1>
+                <p class="text-sm text-zinc-400 mt-2">Manage portal approvals, listings, and provider status.</p>
+            </div>
+            <div class="glass-soft rounded-xl px-4 py-3 text-xs text-zinc-300">
+                <p class="uppercase tracking-[0.2em] text-zinc-500">Token Mode</p>
+                <p class="mt-1 text-amber-200">Access via token query param</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-6 pb-16 space-y-10">
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="glass rounded-2xl p-5">
+                <p class="text-xs text-zinc-400 uppercase tracking-[0.2em]">Pending Reviews</p>
+                <p class="text-3xl font-semibold text-amber-200 mt-3">{{ pending_count }}</p>
+            </div>
+            <div class="glass rounded-2xl p-5">
+                <p class="text-xs text-zinc-400 uppercase tracking-[0.2em]">Provider Filter</p>
+                <p class="text-lg text-white mt-3 capitalize">{{ status_filter }}</p>
+            </div>
+            <div class="glass rounded-2xl p-5">
+                <p class="text-xs text-zinc-400 uppercase tracking-[0.2em]">Providers Listed</p>
+                <p class="text-3xl font-semibold text-emerald-300 mt-3">{{ providers | length }}</p>
+            </div>
+        </section>
+
+        <section class="glass rounded-2xl p-6">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+                <div>
+                    <h2 class="serif text-2xl text-white">Pending Portal Reviews</h2>
+                    <p class="text-sm text-zinc-400">Accounts waiting for manual approval.</p>
+                </div>
+                <a class="text-xs uppercase tracking-[0.2em] text-amber-300 hover:text-white"
+                    href="/admin/ops/metrics?token={{ token }}">View Metrics</a>
+            </div>
+            {% if pending_accounts %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="text-xs text-zinc-500 uppercase tracking-widest">
+                        <tr>
+                            <th class="pb-3">Name</th>
+                            <th class="pb-3">Contact</th>
+                            <th class="pb-3">Location</th>
+                            <th class="pb-3">Pending</th>
+                            <th class="pb-3">Status</th>
+                            <th class="pb-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5">
+                        {% for account in pending_accounts %}
+                        <tr class="text-zinc-200">
+                            <td class="py-4">
+                                <div class="font-semibold text-white">{{ account.display_name or "Unnamed" }}</div>
+                                <div class="text-xs text-zinc-500">TG ID: {{ account.telegram_id }}</div>
+                            </td>
+                            <td class="py-4">
+                                <div>{{ account.phone or "—" }}</div>
+                            </td>
+                            <td class="py-4">
+                                <div>{{ account.city or "—" }}</div>
+                                <div class="text-xs text-zinc-500">{{ account.neighborhood or "" }}</div>
+                            </td>
+                            <td class="py-4">
+                                <div class="text-amber-200">{{ account.pending_minutes or 0 }} mins</div>
+                                <div class="text-xs text-zinc-500">Created {{ account.created_at }}</div>
+                            </td>
+                            <td class="py-4">
+                                <div class="text-xs text-zinc-400">Onboarding: {{ "Yes" if account.portal_onboarding_complete else "No" }}</div>
+                                <div class="text-xs text-zinc-400">Phone: {{ "Verified" if account.phone_verified else "Pending" }}</div>
+                            </td>
+                            <td class="py-4 space-y-2">
+                                <form method="post" action="/admin/actions/verify?token={{ token }}" class="flex items-center gap-2">
+                                    <input type="hidden" name="token" value="{{ token }}">
+                                    <input type="hidden" name="telegram_id" value="{{ account.telegram_id }}">
+                                    <input type="hidden" name="decision" value="approve">
+                                    <button class="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-200 text-xs uppercase tracking-wider">
+                                        Approve
+                                    </button>
+                                </form>
+                                <form method="post" action="/admin/actions/verify?token={{ token }}" class="flex items-center gap-2">
+                                    <input type="hidden" name="token" value="{{ token }}">
+                                    <input type="hidden" name="telegram_id" value="{{ account.telegram_id }}">
+                                    <input type="hidden" name="decision" value="reject">
+                                    <input type="text" name="reason" placeholder="Reject reason"
+                                        class="px-2 py-1 rounded-lg bg-black/40 border border-white/10 text-xs text-white w-32">
+                                    <button class="px-3 py-1.5 rounded-lg bg-rose-500/20 text-rose-200 text-xs uppercase tracking-wider">
+                                        Reject
+                                    </button>
+                                </form>
+                                <a class="text-xs text-amber-300 hover:text-white"
+                                    href="/admin/providers/{{ account.telegram_id }}?token={{ token }}">View</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-sm text-zinc-400">No pending portal accounts right now.</div>
+            {% endif %}
+        </section>
+
+        <section class="glass rounded-2xl p-6">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+                <div>
+                    <h2 class="serif text-2xl text-white">Providers</h2>
+                    <p class="text-sm text-zinc-400">Toggle listing status and review profile data.</p>
+                </div>
+                <div class="flex flex-wrap gap-2 text-xs uppercase tracking-widest">
+                    {% for option in ["all", "active", "inactive", "verified", "unverified"] %}
+                    <a href="/admin?token={{ token }}&status={{ option }}"
+                        class="px-3 py-1.5 rounded-full border {% if status_filter == option %}border-amber-300 text-amber-200{% else %}border-white/10 text-zinc-400 hover:text-white{% endif %}">
+                        {{ option }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% if providers %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="text-xs text-zinc-500 uppercase tracking-widest">
+                        <tr>
+                            <th class="pb-3">Name</th>
+                            <th class="pb-3">City</th>
+                            <th class="pb-3">Verified</th>
+                            <th class="pb-3">Active</th>
+                            <th class="pb-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5">
+                        {% for provider in providers %}
+                        <tr class="text-zinc-200">
+                            <td class="py-4">
+                                <div class="font-semibold text-white">{{ provider.display_name or "Unnamed" }}</div>
+                                <div class="text-xs text-zinc-500">TG ID: {{ provider.telegram_id }}</div>
+                            </td>
+                            <td class="py-4">{{ provider.city or "—" }}</td>
+                            <td class="py-4">{{ "Yes" if provider.is_verified else "No" }}</td>
+                            <td class="py-4">{{ "Listed" if provider.is_active else "Unlisted" }}</td>
+                            <td class="py-4 space-y-2">
+                                <form method="post" action="/admin/actions/active?token={{ token }}" class="inline-flex items-center gap-2">
+                                    <input type="hidden" name="token" value="{{ token }}">
+                                    <input type="hidden" name="telegram_id" value="{{ provider.telegram_id }}">
+                                    <input type="hidden" name="is_active" value="{{ 'false' if provider.is_active else 'true' }}">
+                                    <button class="px-3 py-1.5 rounded-lg {% if provider.is_active %}bg-amber-500/20 text-amber-200{% else %}bg-emerald-500/20 text-emerald-200{% endif %} text-xs uppercase tracking-wider">
+                                        {{ "Unlist" if provider.is_active else "Relist" }}
+                                    </button>
+                                </form>
+                                <a class="text-xs text-amber-300 hover:text-white"
+                                    href="/admin/providers/{{ provider.telegram_id }}?token={{ token }}">View</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-sm text-zinc-400">No providers found for this filter.</div>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>
