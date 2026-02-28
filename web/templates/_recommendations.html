@@ -16,8 +16,11 @@
         ] %}
         {% set img_url = images[(provider.id) % 8] %}
         {% set profile_url = provider.short_profile_url if provider.short_profile_url and provider.short_profile_url != '/' else ('/p/' ~ provider.id) %}
+        {% set return_url = request.url.path ~ (('?' ~ request.url.query) if request.url.query else '') %}
+        {% set separator = '?' if '?' not in profile_url else '&' %}
+        {% set profile_link = profile_url ~ separator ~ 'from=' ~ (return_url | urlencode) %}
         <a class="group relative block no-underline aspect-[3/4] bg-zinc-900/90 rounded-2xl overflow-hidden cursor-pointer border border-white/10 hover:border-[#D4AF37]/70 transition-all duration-300 card-hover-lift active:scale-[0.985] shadow-[0_8px_24px_rgba(0,0,0,0.32)]"
-            href="{{ profile_url }}" data-provider='{{ {
+            href="{{ profile_link }}" data-provider='{{ {
                 "id": provider.id,
                 "name": provider.display_name,
                 "city": provider.city,

@@ -2202,6 +2202,11 @@
 
         // Initial Page Load Animation
         window.addEventListener('DOMContentLoaded', () => {
+            try {
+                sessionStorage.setItem('bb_last_list_url', window.location.pathname + window.location.search);
+            } catch (_) {
+                // Ignore storage failures (private mode, etc.)
+            }
             if (skipLanding) {
                 // Skip landing page - go directly to directory
                 document.getElementById('landing-page').classList.add('hidden-page');

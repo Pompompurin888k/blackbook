@@ -31,8 +31,11 @@
 {% set is_new_arrival = ((now() - provider.created_at).days <= 14) %} {% endif %} <!-- Provider Card -->
     {% set profile_url = provider.short_profile_url if provider.short_profile_url and provider.short_profile_url != '/'
     else ('/p/' ~ provider.id) %}
+    {% set return_url = request.url.path ~ (('?' ~ request.url.query) if request.url.query else '') %}
+    {% set separator = '?' if '?' not in profile_url else '&' %}
+    {% set profile_link = profile_url ~ separator ~ 'from=' ~ (return_url | urlencode) %}
     <a class="group block cursor-pointer no-underline animate-fade-in-up delay-{{ (loop.index0 % 5) * 100 }} card-hover-lift active:scale-[0.985]"
-        onclick="(function(e){var el=document.getElementById('global-loader');if(el){el.style.display='flex';void el.offsetWidth;el.classList.remove('hidden-loader');}setTimeout(function(){window.location.href='{{ profile_url }}';},60);e.preventDefault();})(event)"
+        onclick="(function(e){var el=document.getElementById('global-loader');if(el){el.style.display='flex';void el.offsetWidth;el.classList.remove('hidden-loader');}setTimeout(function(){window.location.href='{{ profile_link }}';},60);e.preventDefault();})(event)"
         data-provider='{{ {
         "id": provider.id,
         "name": provider.display_name,
@@ -58,7 +61,7 @@
         "is_boosted": (provider.boost_until and provider.boost_until > now()) | default(false, true),
         "is_premium_verified": provider.is_premium_verified or false,
         "short_profile_url": profile_url
-    } | tojson | safe }}' href="{{ profile_url }}" aria-label="View profile for {{ provider.display_name }}">
+    } | tojson | safe }}' href="{{ profile_link }}" aria-label="View profile for {{ provider.display_name }}">
         <div
             class="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/10 bg-zinc-900/90 shadow-[0_8px_28px_rgba(0,0,0,0.35)] transition-all duration-300 group-hover:border-[#D4AF37]/70 group-hover:shadow-[0_20px_40px_rgba(212,175,55,0.22)] after:absolute after:inset-0 after:z-30 after:pointer-events-none after:bg-gradient-to-r after:from-transparent after:via-white/10 after:to-transparent after:-translate-x-[150%] group-hover:after:translate-x-[150%] after:transition-transform after:duration-[1.5s] after:ease-in-out {% if provider.is_online or is_new_arrival %} p-[2.5px] {% endif %}">
 

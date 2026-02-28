@@ -521,8 +521,29 @@
                 setTimeout(() => { loader.style.display = 'none'; }, 500);
             }
         }
+        function storeReturnUrl() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const from = params.get('from');
+                if (from) {
+                    sessionStorage.setItem('bb_last_list_url', from);
+                    return;
+                }
+                if (document.referrer && document.referrer.includes(window.location.host)) {
+                    const ref = new URL(document.referrer);
+                    if (ref.pathname !== window.location.pathname) {
+                        sessionStorage.setItem('bb_last_list_url', ref.pathname + ref.search);
+                    }
+                }
+            } catch (_) {
+                // Ignore storage failures (private mode, etc.)
+            }
+        }
         // Hide on DOMContentLoaded
-        document.addEventListener('DOMContentLoaded', hideLoader);
+        document.addEventListener('DOMContentLoaded', () => {
+            storeReturnUrl();
+            hideLoader();
+        });
         // Hide on full load (fallback)
         window.addEventListener('load', hideLoader);
         // Hide on back/forward cache restore
@@ -539,7 +560,16 @@
                 loader.classList.remove('hidden-loader');
             }
             setTimeout(() => {
-                // If there's a history back we take it, but ensure we don't get stuck
+                try {
+                    const lastList = sessionStorage.getItem('bb_last_list_url');
+                    const current = window.location.pathname + window.location.search;
+                    if (lastList && lastList !== current) {
+                        window.location.href = lastList;
+                        return;
+                    }
+                } catch (_) {
+                    // Ignore storage failures
+                }
                 if (document.referrer && document.referrer.includes(window.location.host)) {
                     history.back();
                 } else {
