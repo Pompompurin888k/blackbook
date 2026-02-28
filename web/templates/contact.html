@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -503,7 +503,7 @@
     <!-- Lightbox (Zoom) -->
     <div id="lightbox" class="hidden fixed inset-0 z-50 bg-black/95 items-center justify-center p-4">
         <button type="button" class="absolute top-8 right-6 text-white text-xs uppercase tracking-[0.16em] font-black"
-            onclick="closeLightbox()">âœ• Close</button>
+            onclick="closeLightbox()">✕ Close</button>
         <button type="button" class="absolute left-2 top-1/2 -translate-y-1/2 text-white/80 text-4xl p-6"
             onclick="stepLightbox(-1)">&lsaquo;</button>
         <img id="lightboxImg" src="" alt="Zoomed photo"
@@ -615,7 +615,7 @@
         // Save Profile Logic
         const saveIcon = document.getElementById("saveIcon");
         const storageKey = "bb-saved-profiles";
-        const currentProfile = { id: {{ provider.id }}, name: { { provider.display_name | tojson | safe } }, location: { { provider.primary_location | tojson | safe } } };
+        const currentProfile = { id: {{ provider.id }}, name: {{ provider.display_name | tojson | safe }}, location: {{ provider.primary_location | tojson | safe }} };
 
         function readSaved() {
             try { return JSON.parse(localStorage.getItem(storageKey) || "[]"); }
