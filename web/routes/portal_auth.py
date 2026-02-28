@@ -85,7 +85,7 @@ async def provider_portal_auth(
     if normalized_error.lower() == "session expired":
         error = None
         success = success or "Please log in to continue."
-    selected_tab = tab if tab in {"login", "register"} else "login"
+    selected_tab = tab if tab in {"login", "register"} else "register"
     base_context = _provider_auth_base_context(request)
     return templates.TemplateResponse(
         "provider_auth.html",
