@@ -53,6 +53,7 @@ def _render_provider_onboarding_template(
     step: int,
     error: Optional[str] = None,
     show_saved_toast: bool = False,
+    mode: str = "onboarding",
 ):
     """Renders the multi-step portal onboarding screen."""
     photo_urls = _normalize_photo_sources(provider.get("profile_photos"))[:PORTAL_MAX_PROFILE_PHOTOS]
@@ -81,6 +82,7 @@ def _render_provider_onboarding_template(
             "profile_strength": profile_strength,
             "ranking_tips": ranking_tips,
             "show_saved_toast": show_saved_toast,
+            "mode": mode,
         },
     )
 
@@ -108,6 +110,9 @@ async def provider_portal_onboarding(
     current_step = _normalize_onboarding_step(step)
     draft = _portal_get_onboarding_draft(request, provider)
     _portal_set_onboarding_draft(request, draft)
+    
+    mode = "edit" if provider.get("portal_onboarding_complete") else "onboarding"
+
     return _render_provider_onboarding_template(
         request=request,
         provider=provider,
@@ -115,6 +120,7 @@ async def provider_portal_onboarding(
         step=current_step,
         error=error,
         show_saved_toast=bool(saved),
+        mode=mode,
     )
 
 
@@ -134,11 +140,16 @@ async def provider_portal_onboarding_submit(request: Request):
         return RedirectResponse(url=f"/provider/verify-email?status={_portal_account_state(provider)}", status_code=302)
 
     form = await request.form()
+    mode = str(form.get("mode", "onboarding")).strip().lower()
     step = _normalize_onboarding_step(form.get("step"))
     action = str(form.get("action", "next")).strip().lower()
     draft = _portal_get_onboarding_draft(request, provider)
 
-    if step == 1:
+    if action == "cancel":
+        _portal_clear_onboarding_draft(request)
+        return RedirectResponse(url="/provider/dashboard", status_code=303)
+
+    if step == 1 or mode == "edit":
         draft["display_name"] = str(form.get("display_name", "")).strip()
         phone_input = str(form.get("phone", "")).strip()
         draft["phone"] = _normalize_portal_phone(phone_input) if phone_input else ""
@@ -171,30 +182,32 @@ async def provider_portal_onboarding_submit(request: Request):
                 step=step,
                 error="Select a valid city/county from the suggestions list.",
             )
-        if action != "back" and (not draft["display_name"] or not draft["city"] or not draft["neighborhood"]):
+        if action != "back" and mode != "edit" and (not draft["display_name"] or not draft["city"] or not draft["neighborhood"]):
             return _render_provider_onboarding_template(
                 request=request,
                 provider=provider,
                 draft=draft,
                 step=step,
                 error="Please set display name, city, and at least one neighborhood before continuing.",
+                mode=mode,
             )
 
-    elif step == 2:
+    if step == 2 or mode == "edit":
         draft["bio"] = str(form.get("bio", "")).strip()
         draft["nearby_places"] = str(form.get("nearby_places", "")).strip()
         draft["availability_type"] = str(form.get("availability_type", "")).strip()
         _portal_set_onboarding_draft(request, draft)
-        if action != "back" and len(draft["bio"]) < 20:
+        if action != "back" and mode != "edit" and len(draft["bio"]) < 20:
             return _render_provider_onboarding_template(
                 request=request,
                 provider=provider,
                 draft=draft,
                 step=step,
                 error="Please write a richer bio (at least 20 characters).",
+                mode=mode,
             )
 
-    elif step == 3:
+    if step == 3 or mode == "edit":
         draft["services_text"] = str(form.get("services_text", "")).strip()
         draft["languages_text"] = str(form.get("languages_text", "")).strip()
         draft["rate_30min"] = str(form.get("rate_30min", "")).strip()
@@ -205,23 +218,24 @@ async def provider_portal_onboarding_submit(request: Request):
         draft["incalls_from"] = str(form.get("incalls_from", "")).strip()
         draft["outcalls_from"] = str(form.get("outcalls_from", "")).strip()
         _portal_set_onboarding_draft(request, draft)
-        if action != "back" and not _parse_csv_values(draft["services_text"]):
+        if action != "back" and mode != "edit" and not _parse_csv_values(draft["services_text"]):
             return _render_provider_onboarding_template(
                 request=request,
                 provider=provider,
                 draft=draft,
                 step=step,
                 error="Please add at least one service before continuing.",
+                mode=mode,
             )
 
-    elif step == ONBOARDING_TOTAL_STEPS:
+    if step == ONBOARDING_TOTAL_STEPS or mode == "edit":
         draft["video_url"] = str(form.get("video_url", "")).strip()
         _portal_set_onboarding_draft(request, draft)
 
     if action == "back":
         return RedirectResponse(url=f"/provider/onboarding?step={max(1, step - 1)}&saved=1", status_code=303)
 
-    if step < ONBOARDING_TOTAL_STEPS:
+    if mode != "edit" and step < ONBOARDING_TOTAL_STEPS:
         return RedirectResponse(url=f"/provider/onboarding?step={step + 1}&saved=1", status_code=303)
 
     existing_photo_urls = _normalize_photo_sources(provider.get("profile_photos"))
@@ -238,8 +252,9 @@ async def provider_portal_onboarding_submit(request: Request):
             request=request,
             provider=provider,
             draft=draft,
-            step=ONBOARDING_TOTAL_STEPS,
-            error=f"Please upload at least {PORTAL_MIN_PROFILE_PHOTOS} profile photos before submitting.",
+            step=step if mode == "edit" else ONBOARDING_TOTAL_STEPS,
+            error=f"Please upload at least {PORTAL_MIN_PROFILE_PHOTOS} profile photos to continue.",
+            mode=mode,
         )
 
     display_name = draft.get("display_name") or provider.get("display_name")
@@ -249,14 +264,44 @@ async def provider_portal_onboarding_submit(request: Request):
             request=request,
             provider=provider,
             draft=draft,
-            step=1,
+            step=step,
             error="Add a valid phone number (e.g. 2547XXXXXXXX) for your Call button.",
+            mode=mode,
         )
     city = draft.get("city", "")
     neighborhood = draft.get("neighborhood", "")
     bio = draft.get("bio", "")
     services = _parse_csv_values(draft.get("services_text", ""))
     languages = _parse_csv_values(draft.get("languages_text", ""))
+
+    if mode == "edit":
+        if not draft["display_name"] or not draft["city"] or not draft["neighborhood"]:
+            return _render_provider_onboarding_template(
+                request=request,
+                provider=provider,
+                draft=draft,
+                step=step,
+                error="Please set display name, city, and at least one neighborhood.",
+                mode=mode,
+            )
+        if len(draft.get("bio", "")) < 20:
+            return _render_provider_onboarding_template(
+                request=request,
+                provider=provider,
+                draft=draft,
+                step=step,
+                error="Please write a richer bio (at least 20 characters).",
+                mode=mode,
+            )
+        if not _parse_csv_values(draft["services_text"]):
+            return _render_provider_onboarding_template(
+                request=request,
+                provider=provider,
+                draft=draft,
+                step=step,
+                error="Please add at least one service.",
+                mode=mode,
+            )
 
     update_data = {
         "display_name": display_name,
@@ -301,8 +346,9 @@ async def provider_portal_onboarding_submit(request: Request):
             request=request,
             provider=provider,
             draft=draft,
-            step=ONBOARDING_TOTAL_STEPS,
+            step=step if mode == "edit" else ONBOARDING_TOTAL_STEPS,
             error="Could not save your profile right now. Please try again.",
+            mode=mode,
         )
 
     tg_id = int(provider.get("telegram_id") or 0)

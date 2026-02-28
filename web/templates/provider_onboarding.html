@@ -17,11 +17,15 @@
             <div class="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none"></div>
             <div class="relative z-10">
                 <p class="text-[11px] uppercase tracking-[0.2em] text-zinc-400 font-bold flex items-center gap-2">
-                    <i data-feather="sliders" class="w-3.5 h-3.5"></i> Provider Setup Wizard
+                    <i data-feather="sliders" class="w-3.5 h-3.5"></i> {% if mode == 'edit' %}Edit Profile{% else
+                    %}Provider Setup Wizard{% endif %}
                 </p>
-                <h1 class="mt-2 text-2xl font-extrabold text-white tracking-tight">{{ step_meta.title }}</h1>
-                <p class="mt-2 text-sm text-zinc-300">{{ step_meta.subtitle }}</p>
+                <h1 class="mt-2 text-2xl font-extrabold text-white tracking-tight">{% if mode == 'edit' %}Manage Your
+                    Profile{% else %}{{ step_meta.title }}{% endif %}</h1>
+                <p class="mt-2 text-sm text-zinc-300">{% if mode == 'edit' %}Keep your details fresh to attract more
+                    high-quality clients.{% else %}{{ step_meta.subtitle }}{% endif %}</p>
 
+                {% if mode != 'edit' %}
                 <div class="mt-4 space-y-2">
                     <div class="flex items-center justify-between text-xs text-zinc-400">
                         <span>Step {{ step }} of {{ total_steps }}</span>
@@ -40,11 +44,14 @@
                         {% endfor %}
                     </div>
                 </div>
+                {% endif %}
+            </div>
         </section>
 
         <div class="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <form method="post" action="/provider/onboarding" enctype="multipart/form-data" class="space-y-5">
                 <input type="hidden" name="step" value="{{ step }}">
+                <input type="hidden" name="mode" value="{{ mode }}">
 
                 {% if error %}
                 <section
@@ -54,8 +61,13 @@
                 </section>
                 {% endif %}
 
-                {% if step == 1 %}
+                {% if step == 1 or mode == 'edit' %}
                 <section class="glass-panel rounded-3xl p-5 md:p-6 grid gap-4 md:grid-cols-2">
+                    {% if mode == 'edit' %}
+                    <div class="md:col-span-2 mb-2">
+                        <h2 class="text-lg font-bold text-white border-b border-white/10 pb-2">Basic Info</h2>
+                    </div>
+                    {% endif %}
                     <div class="md:col-span-2">
                         <label class="text-xs font-bold uppercase tracking-widest text-zinc-400">Display Name</label>
                         <input name="display_name" required value="{{ draft.display_name }}"
@@ -153,8 +165,16 @@
                             placeholder="58">
                     </div>
                 </section>
-                {% elif step == 2 %}
+                {% endif %}
+
+                {% if step == 2 or mode == 'edit' %}
                 <section class="glass-panel rounded-3xl p-5 md:p-6 space-y-4">
+                    {% if mode == 'edit' %}
+                    <div class="mb-2">
+                        <h2 class="text-lg font-bold text-white border-b border-white/10 pb-2">Biography & Availability
+                        </h2>
+                    </div>
+                    {% endif %}
                     <div>
                         <label class="text-xs font-bold uppercase tracking-widest text-zinc-400">Bio</label>
                         <textarea name="bio" rows="5"
@@ -178,8 +198,15 @@
                             10:00-22:00.</p>
                     </div>
                 </section>
-                {% elif step == 3 %}
+                {% endif %}
+
+                {% if step == 3 or mode == 'edit' %}
                 <section class="glass-panel rounded-3xl p-5 md:p-6 grid gap-4 md:grid-cols-2">
+                    {% if mode == 'edit' %}
+                    <div class="md:col-span-2 mb-2">
+                        <h2 class="text-lg font-bold text-white border-b border-white/10 pb-2">Services & Rates</h2>
+                    </div>
+                    {% endif %}
                     <div class="md:col-span-2">
                         <label class="text-xs font-bold uppercase tracking-widest text-zinc-400">Services (comma
                             separated)</label>
@@ -236,8 +263,15 @@
                             placeholder="ASK">
                     </div>
                 </section>
-                {% else %}
+                {% endif %}
+
+                {% if step == total_steps or mode == 'edit' %}
                 <section class="glass-panel rounded-3xl p-5 md:p-6 space-y-4">
+                    {% if mode == 'edit' %}
+                    <div class="mb-2">
+                        <h2 class="text-lg font-bold text-white border-b border-white/10 pb-2">Media Gallery</h2>
+                    </div>
+                    {% endif %}
                     <div>
                         <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300">Upload Photos</h2>
                         <p class="mt-1.5 text-xs text-zinc-400">
@@ -322,6 +356,13 @@
                 {% endif %}
 
                 <div class="flex items-center justify-between gap-3 pt-2">
+                    {% if mode == 'edit' %}
+                    <button name="action" value="cancel"
+                        class="rounded-xl border border-white/10 bg-black/20 px-6 py-2.5 text-sm font-bold text-zinc-300 hover:bg-white/5 transition-colors">Cancel</button>
+                    <button name="action" value="submit"
+                        class="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-shadow">Save
+                        Changes</button>
+                    {% else %}
                     {% if step > 1 %}
                     <button name="action" value="back"
                         class="rounded-xl border border-white/10 bg-black/20 px-6 py-2.5 text-sm font-bold text-zinc-300 hover:bg-white/5 transition-colors">Back</button>
@@ -336,6 +377,7 @@
                         <button name="action" value="submit"
                             class="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-shadow">Submit
                             Profile</button>
+                        {% endif %}
                         {% endif %}
                 </div>
             </form>
@@ -432,7 +474,7 @@
                     </div>
                 </section>
 
-                {% if step == total_steps %}
+                {% if step == total_steps and mode != 'edit' %}
                 <section class="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-50">
                     <p class="text-xs uppercase tracking-widest text-amber-200">Ranking Tips</p>
                     <ul class="mt-2 space-y-2">
