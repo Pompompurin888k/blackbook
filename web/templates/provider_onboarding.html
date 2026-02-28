@@ -204,7 +204,7 @@
                 <section class="glass-panel rounded-3xl p-5 md:p-6 grid gap-4 md:grid-cols-2">
                     {% if mode == 'edit' %}
                     <div class="md:col-span-2 mb-2">
-                        <h2 class="text-lg font-bold text-white border-b border-white/10 pb-2">Services & Rates</h2>
+                        <h2 class="text-lg font-bold text-white border-b border-white/10 pb-2">Services & Languages</h2>
                     </div>
                     {% endif %}
                     <div class="md:col-span-2">
@@ -224,43 +224,6 @@
                             placeholder="English, Swahili, French">
                         <p class="mt-1.5 text-[11px] font-medium text-zinc-500">At least 2 languages helps you rank for
                             more clients.</p>
-                    </div>
-                    <div>
-                        <label class="text-xs text-zinc-400">30 min (KES)</label>
-                        <input name="rate_30min" type="number" value="{{ draft.rate_30min }}"
-                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs text-zinc-400">1 hour (KES)</label>
-                        <input name="rate_1hr" type="number" value="{{ draft.rate_1hr }}"
-                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs text-zinc-400">2 hours (KES)</label>
-                        <input name="rate_2hr" type="number" value="{{ draft.rate_2hr }}"
-                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs text-zinc-400">3 hours (KES)</label>
-                        <input name="rate_3hr" type="number" value="{{ draft.rate_3hr }}"
-                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="text-xs text-zinc-400">Overnight (KES)</label>
-                        <input name="rate_overnight" type="number" value="{{ draft.rate_overnight }}"
-                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs text-zinc-400">Incalls per hour from (KES)</label>
-                        <input name="incalls_from" type="number" min="0" value="{{ draft.incalls_from }}"
-                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
-                            placeholder="ASK">
-                    </div>
-                    <div>
-                        <label class="text-xs text-zinc-400">Outcalls per hour from (KES)</label>
-                        <input name="outcalls_from" type="number" min="0" value="{{ draft.outcalls_from }}"
-                            class="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm"
-                            placeholder="ASK">
                     </div>
                 </section>
                 {% endif %}
@@ -420,18 +383,6 @@
                             {% endif %}
                         </div>
 
-                        <div>
-                            <p class="text-xs uppercase tracking-widest text-zinc-400">Rates</p>
-                            {% if preview.rates %}
-                            <ul class="mt-1 space-y-1 text-zinc-200">
-                                {% for line in preview.rates %}
-                                <li>{{ line }}</li>
-                                {% endfor %}
-                            </ul>
-                            {% else %}
-                            <p class="mt-1 text-zinc-500">No rates yet</p>
-                            {% endif %}
-                        </div>
                     </div>
                 </section>
 

@@ -182,7 +182,7 @@ async def provider_portal_onboarding_submit(request: Request):
                 step=step,
                 error="Select a valid city/county from the suggestions list.",
             )
-        if action != "back" and mode != "edit" and (not draft["display_name"] or not draft["city"] or not draft["neighborhood"]):
+        if action != "back" and (not draft["display_name"] or not draft["city"] or not draft["neighborhood"]):
             return _render_provider_onboarding_template(
                 request=request,
                 provider=provider,
@@ -210,13 +210,6 @@ async def provider_portal_onboarding_submit(request: Request):
     if step == 3 or mode == "edit":
         draft["services_text"] = str(form.get("services_text", "")).strip()
         draft["languages_text"] = str(form.get("languages_text", "")).strip()
-        draft["rate_30min"] = str(form.get("rate_30min", "")).strip()
-        draft["rate_1hr"] = str(form.get("rate_1hr", "")).strip()
-        draft["rate_2hr"] = str(form.get("rate_2hr", "")).strip()
-        draft["rate_3hr"] = str(form.get("rate_3hr", "")).strip()
-        draft["rate_overnight"] = str(form.get("rate_overnight", "")).strip()
-        draft["incalls_from"] = str(form.get("incalls_from", "")).strip()
-        draft["outcalls_from"] = str(form.get("outcalls_from", "")).strip()
         _portal_set_onboarding_draft(request, draft)
         if action != "back" and mode != "edit" and not _parse_csv_values(draft["services_text"]):
             return _render_provider_onboarding_template(
@@ -302,6 +295,15 @@ async def provider_portal_onboarding_submit(request: Request):
                 error="Please add at least one service.",
                 mode=mode,
             )
+    if not display_name or not city or not neighborhood:
+        return _render_provider_onboarding_template(
+            request=request,
+            provider=provider,
+            draft=draft,
+            step=step,
+            error="Please set display name, city, and at least one neighborhood.",
+            mode=mode,
+        )
 
     update_data = {
         "display_name": display_name,
@@ -322,14 +324,7 @@ async def provider_portal_onboarding_submit(request: Request):
         "availability_type": draft.get("availability_type", ""),
         "languages": languages,
         "profile_photos": existing_photo_urls,
-        "incalls_from": _to_int_or_none(draft.get("incalls_from")),
-        "outcalls_from": _to_int_or_none(draft.get("outcalls_from")),
         "video_url": draft.get("video_url", ""),
-        "rate_30min": _to_int_or_none(draft.get("rate_30min")),
-        "rate_1hr": _to_int_or_none(draft.get("rate_1hr")),
-        "rate_2hr": _to_int_or_none(draft.get("rate_2hr")),
-        "rate_3hr": _to_int_or_none(draft.get("rate_3hr")),
-        "rate_overnight": _to_int_or_none(draft.get("rate_overnight")),
         "is_online": False,
         "portal_onboarding_complete": bool(
             display_name

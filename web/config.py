@@ -202,8 +202,8 @@ ONBOARDING_STEP_META = {
         "subtitle": "Write a strong bio and your availability details.",
     },
     3: {
-        "title": "Step 3: Services and Rates",
-        "subtitle": "Add services, languages, and your pricing.",
+        "title": "Step 3: Services and Languages",
+        "subtitle": "Add services and the languages you speak.",
     },
     4: {
         "title": "Step 4: Photos and Final Preview",

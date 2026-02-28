@@ -9,7 +9,6 @@ from config import (
     ONBOARDING_TOTAL_STEPS,
     PORTAL_RECOMMENDED_PROFILE_PHOTOS,
 )
-from utils.auth import _to_int_or_none
 from utils.providers import _to_string_list
 
 
@@ -121,14 +120,7 @@ def _portal_onboarding_base_draft(provider: dict) -> dict:
         "availability_type": str(provider.get("availability_type") or "").strip(),
         "services_text": ", ".join(_to_string_list(provider.get("services"))),
         "languages_text": ", ".join(_to_string_list(provider.get("languages"))),
-        "incalls_from": str(provider.get("incalls_from") or "").strip(),
-        "outcalls_from": str(provider.get("outcalls_from") or "").strip(),
         "video_url": str(provider.get("video_url") or "").strip(),
-        "rate_30min": str(provider.get("rate_30min") or "").strip(),
-        "rate_1hr": str(provider.get("rate_1hr") or "").strip(),
-        "rate_2hr": str(provider.get("rate_2hr") or "").strip(),
-        "rate_3hr": str(provider.get("rate_3hr") or "").strip(),
-        "rate_overnight": str(provider.get("rate_overnight") or "").strip(),
     }
 
 
@@ -155,19 +147,6 @@ def _portal_clear_onboarding_draft(request: Request) -> None:
 
 def _portal_build_preview(draft: dict, photo_urls: list[str]) -> dict:
     """Builds compact preview values shown on each onboarding step."""
-    rate_chunks = []
-    rate_labels = {
-        "rate_30min": "30m",
-        "rate_1hr": "1h",
-        "rate_2hr": "2h",
-        "rate_3hr": "3h",
-        "rate_overnight": "Overnight",
-    }
-    for key, label in rate_labels.items():
-        amount = _to_int_or_none(draft.get(key))
-        if amount is not None:
-            rate_chunks.append(f"{label}: KES {amount:,}")
-
     return {
         "name": draft.get("display_name") or "Your stage name",
         "location": ", ".join(
@@ -188,7 +167,6 @@ def _portal_build_preview(draft: dict, photo_urls: list[str]) -> dict:
         "bio": draft.get("bio") or "Your bio will appear here.",
         "services": _parse_csv_values(draft.get("services_text", "")),
         "languages": _parse_csv_values(draft.get("languages_text", "")),
-        "rates": rate_chunks,
         "photo_count": len(photo_urls),
     }
 
@@ -200,11 +178,6 @@ def _portal_compute_profile_strength(
     """Builds a 0-100 quality score with focused missing-item guidance."""
     services_count = len(_parse_csv_values(draft.get("services_text", "")))
     languages_count = len(_parse_csv_values(draft.get("languages_text", "")))
-    rates_count = sum(
-        1
-        for key in ["rate_30min", "rate_1hr", "rate_2hr", "rate_3hr", "rate_overnight"]
-        if _to_int_or_none(draft.get(key)) is not None
-    )
     bio_len = len((draft.get("bio") or "").strip())
 
     checks = [
@@ -241,7 +214,6 @@ def _portal_compute_profile_strength(
         ),
         (10, services_count >= 3, "List at least 3 services"),
         (8, languages_count >= 2, "Add at least 2 languages"),
-        (10, rates_count >= 3, "Set at least 3 rate options"),
         (
             12,
             photo_count >= PORTAL_RECOMMENDED_PROFILE_PHOTOS,
@@ -279,11 +251,6 @@ def _portal_build_ranking_tips(draft: dict, photo_count: int) -> list[dict]:
     """Builds lightweight ranking guidance for the final review step."""
     services_count = len(_parse_csv_values(draft.get("services_text", "")))
     languages_count = len(_parse_csv_values(draft.get("languages_text", "")))
-    rates_count = sum(
-        1
-        for key in ["rate_30min", "rate_1hr", "rate_2hr", "rate_3hr", "rate_overnight"]
-        if _to_int_or_none(draft.get(key)) is not None
-    )
     bio_len = len((draft.get("bio") or "").strip())
 
     tips = [
@@ -293,7 +260,6 @@ def _portal_build_ranking_tips(draft: dict, photo_count: int) -> list[dict]:
         },
         {"title": "Write a bio with personality (80+ chars)", "done": bio_len >= 80},
         {"title": "List at least 3 services", "done": services_count >= 3},
-        {"title": "Set at least 3 rates", "done": rates_count >= 3},
         {"title": "Add at least 2 languages", "done": languages_count >= 2},
         {
             "title": "Add nearby landmark + availability for trust",
