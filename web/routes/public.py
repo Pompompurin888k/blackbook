@@ -48,6 +48,18 @@ async def _redirect_to_short_profile(provider_id: int) -> RedirectResponse:
     return RedirectResponse(url=_build_short_profile_url(provider), status_code=302)
 
 
+@router.get("/terms", response_class=HTMLResponse)
+async def serve_terms(request: Request):
+    """Serves the Terms of Service page."""
+    return templates.TemplateResponse("terms.html", {"request": request})
+
+
+@router.get("/privacy", response_class=HTMLResponse)
+async def serve_privacy(request: Request):
+    """Serves the Privacy Policy page."""
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+
 async def _render_contact_page(request: Request, provider_id: int) -> HTMLResponse | RedirectResponse:
     provider = await db_call(db.get_provider_by_id, provider_id)
     if not provider:

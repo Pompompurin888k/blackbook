@@ -6,35 +6,140 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Privacy Policy | ACE GIRLS</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@400;500;700&display=swap"
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gold: '#D4AF37',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap"
         rel="stylesheet">
     <style>
         body {
-            font-family: 'Inter', sans-serif;
-            background: #050505;
+            background-color: #000;
             color: #fff;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
 
-        .serif {
-            font-family: 'Cinzel', serif;
+        .gold-text {
+            background: linear-gradient(to right, #D4AF37, #F3E5AB, #D4AF37);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .page-shell {
+            background: radial-gradient(circle at top, rgba(212, 175, 55, 0.05) 0%, transparent 60%);
         }
     </style>
 </head>
 
-<body>
-    <main class="max-w-3xl mx-auto px-6 py-12">
-        <a href="/" class="text-xs uppercase tracking-[0.14em] text-gray-400 hover:text-white">Back</a>
-        <h1 class="serif text-3xl md:text-4xl text-[#D4AF37] mt-4">Privacy Policy</h1>
-        <p class="text-sm text-gray-400 mt-2">Last updated: February 22, 2026</p>
+<body class="page-shell min-h-screen pb-20 md:pb-0">
 
-        <section class="mt-8 space-y-5 text-gray-300 leading-relaxed">
-            <p>We collect only the minimum data required to operate the directory, prevent abuse, and improve service
-                quality.</p>
-            <p>Contact actions may be logged for analytics, fraud prevention, and platform safety.</p>
-            <p>Personal data is handled with strict confidentiality and is not sold to third parties.</p>
-            <p>By using the platform, you agree to this privacy policy and applicable local laws.</p>
-        </section>
+    <!-- Navigation -->
+    <nav
+        class="sticky top-0 z-40 bg-black/80 backdrop-blur-xl border-b border-white/10 p-4 md:p-6 flex justify-between items-center px-6 md:px-12">
+        <a href="/"
+            class="serif text-lg md:text-xl gold-text tracking-[0.2em] uppercase font-bold hover:opacity-80 transition-opacity">
+            ACE GIRLS
+        </a>
+        <a href="/"
+            class="text-xs uppercase tracking-widest text-zinc-400 hover:text-gold transition-colors font-semibold">
+            Return to Collection
+        </a>
+    </nav>
+
+    <!-- Content -->
+    <main class="max-w-4xl mx-auto px-6 py-12 md:py-20">
+        <div class="mb-12">
+            <h1 class="serif text-3xl md:text-5xl font-bold mb-4">Privacy Policy & OpSec</h1>
+            <p class="text-sm text-zinc-500 uppercase tracking-widest">Last Updated: February 2026</p>
+        </div>
+
+        <div class="space-y-10 text-zinc-300 leading-relaxed font-light text-sm md:text-base">
+
+            <section>
+                <h2 class="text-xl font-bold text-white mb-4 tracking-wide">1. Zero-Knowledge Architecture</h2>
+                <div class="p-5 rounded-xl bg-teal-900/10 border border-teal-500/30 mb-4">
+                    <p class="font-semibold text-teal-300 uppercase tracking-wider text-xs mb-2">Our Commitment to
+                        Anonymity</p>
+                    <p class="text-teal-100/80">We operate on a strict Need-To-Know basis. The system does not request,
+                        enforce, or store legal real names. All data is linked to an encrypted internal System ID.</p>
+                </div>
+                <p>We believe privacy is a fundamental human right. AceGirlsKE is built on a "Zero-Knowledge" storage
+                    principle. We only collect the absolute minimum data required to facilitate the technological
+                    operation of the platform and to ensure basic community safety.</p>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-bold text-white mb-4 tracking-wide">2. Ephemeral Data & Verification</h2>
+                <p>To maintain a high-trust environment, we mandate identity matching verification for advertisers.
+                    However, we do not archive these materials.</p>
+                <ul class="list-disc pl-5 mt-4 space-y-2 text-zinc-400">
+                    <li>Verification photos and videos are strictly used for initial identity matching to prevent
+                        catfishing and impersonation.</li>
+                    <li><strong>Once an account is approved, the verification media is treated as Ephemeral Data and is
+                            permanently purged from our servers within 24 hours.</strong> We do not keep historical
+                        records of verification materials.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-bold text-white mb-4 tracking-wide">3. No Tracking, No Selling</h2>
+                <p>We are not a data broker. We do not use intrusive tracking cookies, tracking pixels, or
+                    fingerprinting logic to follow your activity across the internet.</p>
+                <ul class="list-disc pl-5 mt-4 space-y-2 text-zinc-400">
+                    <li>We <strong>do not</strong> sell, rent, or trade your data, phone numbers, or analytics to third
+                        parties.</li>
+                    <li>Any analytics collected are exclusively for internal performance optimization and combating spam
+                        or Distributed Denial of Service (DDoS) attacks.</li>
+                    <li>We use strictly functional cookies required to maintain login sessions and security states.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-bold text-white mb-4 tracking-wide">4. The Right to Erasure (Data Deletion)</h2>
+                <p>You have absolute control over your footprint on this platform. In compliance with modern Data
+                    Protection Acts, including the Kenya Data Protection Act (2019):</p>
+                <p class="mt-4">Any independent contractor listed on the platform can exercise their Right to Erasure at
+                    any moment. By using the <code
+                        class="bg-white/10 px-2 py-0.5 rounded text-gold font-mono text-sm">/delete_account</code>
+                    command in our Telegram bot or clicking "Delete Account" via the portal interface, your profile,
+                    photos, and associated identifier records will be instantly and irreversibly wiped from the active
+                    database.</p>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-bold text-white mb-4 tracking-wide">5. Data Jurisdiction</h2>
+                <p>To ensure maximum operational security and resistance to unwarranted censorship or localized data
+                    breaches, our primary servers and databases are hosted in privacy-respecting offshore jurisdictions.
+                    We utilize end-to-end encryption for sensitive intra-server communications.</p>
+            </section>
+
+        </div>
     </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 bg-black py-10 text-center mt-12">
+        <p class="text-xs text-zinc-600 uppercase tracking-[0.2em] mb-4">AceGirlsKE &copy; 2026. All Rights Reserved.
+        </p>
+        <div class="flex justify-center gap-6 text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">
+            <a href="/privacy" class="hover:text-gold transition-colors">Privacy Policy</a>
+            <a href="/terms" class="hover:text-gold transition-colors">Terms of Service</a>
+        </div>
+    </footer>
+
 </body>
 
 </html>
