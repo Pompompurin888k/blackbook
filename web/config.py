@@ -263,3 +263,7 @@ KENYA_COUNTIES = [
     "West Pokot",
 ]
 PORTAL_CITY_COUNTY_OPTIONS = KENYA_COUNTIES
+
+# ==================== FILE UPLOADS ====================
+ONBOARDING_MAX_FILE_SIZE_MB = int(os.getenv("ONBOARDING_MAX_FILE_SIZE_MB", "5"))
+ONBOARDING_ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
