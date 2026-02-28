@@ -29,6 +29,7 @@
 {% set is_new_arrival = false %}
 {% if provider.created_at %}
 {% set is_new_arrival = ((now() - provider.created_at).days <= 14) %} {% endif %} <!-- Provider Card -->
+{% set profile_url = provider.short_profile_url if provider.short_profile_url and provider.short_profile_url != '/' else ('/p/' ~ provider.id) %}
     <a class="group block cursor-pointer no-underline animate-fade-in-up delay-{{ (loop.index0 % 5) * 100 }} card-hover-lift active:scale-[0.985]"
         data-provider='{{ {
         "id": provider.id,
@@ -54,9 +55,9 @@
         "tier": provider.subscription_tier or "none",
         "is_boosted": (provider.boost_until and provider.boost_until > now()) | default(false, true),
         "is_premium_verified": provider.is_premium_verified or false,
-        "short_profile_url": provider.short_profile_url or ('/p/' ~ provider.id)
+        "short_profile_url": profile_url
     } | tojson | safe }}'
-        href="{{ provider.short_profile_url or ('/p/' ~ provider.id) }}"
+        href="{{ profile_url }}"
         aria-label="View profile for {{ provider.display_name }}">
         <div
             class="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/10 bg-zinc-900/90 shadow-[0_8px_28px_rgba(0,0,0,0.35)] transition-all duration-300 group-hover:border-[#D4AF37]/70 group-hover:shadow-[0_20px_40px_rgba(212,175,55,0.22)] after:absolute after:inset-0 after:z-30 after:pointer-events-none after:bg-gradient-to-r after:from-transparent after:via-white/10 after:to-transparent after:-translate-x-[150%] group-hover:after:translate-x-[150%] after:transition-transform after:duration-[1.5s] after:ease-in-out {% if provider.is_online or is_new_arrival %} p-[2.5px] {% endif %}">
