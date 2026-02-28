@@ -103,7 +103,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            opacity: 1;
             transition: opacity 0.5s ease;
+            animation: loader-fade 0.5s ease 0.9s forwards;
         }
 
         #global-loader.hidden-loader {
@@ -118,6 +120,13 @@
             height: 40px;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes loader-fade {
+            to {
+                opacity: 0;
+                pointer-events: none;
+            }
         }
 
         @keyframes spin {
@@ -515,6 +524,8 @@
         }
         // Hide on DOMContentLoaded
         document.addEventListener('DOMContentLoaded', hideLoader);
+        // Hide on full load (fallback)
+        window.addEventListener('load', hideLoader);
         // Hide on back/forward cache restore
         window.addEventListener('pageshow', hideLoader);
         // Emergency fallback — always hide after 1.5s no matter what
