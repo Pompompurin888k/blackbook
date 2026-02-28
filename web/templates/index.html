@@ -1018,7 +1018,49 @@
     </style>
 </head>
 
-<body class="overflow-x-hidden antialiased">
+<body class="overflow-x-hidden antialiased opacity-0 transition-opacity duration-300 pointer-events-none" id="main-body"
+    style="animation: initial-fade-in 0.3s ease-out forwards;">
+
+    <style>
+        @keyframes initial-fade-in {
+            to {
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
+
+        #global-loader {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background-color: var(--black);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+
+        #global-loader.hidden-loader {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #global-loader .spinner {
+            border: 2px solid rgba(255, 255, 255, 0.05);
+            border-top-color: var(--gold);
+        }
+    </style>
+
+    <div id="global-loader">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        // Synchronously check if we should skip the landing page to prevent any flashes
+        const searchParms = new URLSearchParams(window.location.search);
+        const shouldSkipLanding = searchParms.has('city') || searchParms.has('neighborhood') || sessionStorage.getItem('enteredCollection') === '1';
+        window._skipLandingStr = shouldSkipLanding; // save for domContentLoaded events
+    </script>
 
     <!-- 1. LANDING PAGE (GATEKEEPER) -->
     <section id="landing-page"
@@ -1027,12 +1069,14 @@
             <h2 class="serif text-xs tracking-[0.55em] gold-text mb-6 uppercase opacity-90">Nairobi • Eldoret • Mombasa
             </h2>
             <h1
-                class="serif text-4xl sm:text-6xl md:text-8xl lg:text-[7rem] mb-6 tracking-[0.14em] whitespace-normal sm:whitespace-nowrap gold-gradient-text glow-text leading-tight">
+                class="serif text-3xl sm:text-4xl md:text-8xl lg:text-[7rem] mb-4 md:mb-6 tracking-[0.14em] whitespace-normal sm:whitespace-nowrap gold-gradient-text glow-text leading-tight">
                 ACE GIRLS
             </h1>
-            <p class="text-gray-300 max-w-xl mx-auto font-light leading-relaxed mb-12 text-sm md:text-base opacity-80">
+            <p
+                class="text-gray-300 max-w-xl mx-auto font-light leading-relaxed mb-8 md:mb-12 text-xs md:text-base opacity-80">
                 An elite concierge network for the modern gentleman.
-                <span class="block mt-1 font-medium text-white/90 tracking-widest text-[11px] uppercase mt-4">Verified
+                <span
+                    class="block mt-1 font-medium text-white/90 tracking-widest text-[9px] md:text-[11px] uppercase mt-2 md:mt-4">Verified
                     identities. Unmatched discretion.</span>
             </p>
             <button onclick="sessionStorage.setItem('enteredCollection', '1'); navigateTo('directory')"
@@ -1045,6 +1089,15 @@
     <!-- 2. DIRECTORY PAGE -->
     <section id="directory-page"
         class="page hidden-page min-h-screen bg-black page-shell relative overflow-hidden pb-20 md:pb-0">
+
+        <script>
+            // Apply skip logic immediately while DOM parses
+            if (window._skipLandingStr) {
+                document.getElementById('landing-page').style.display = 'none';
+                document.getElementById('landing-page').classList.add('hidden-page');
+                document.getElementById('directory-page').classList.remove('hidden-page');
+            }
+        </script>
 
         <!-- Pull to Refresh Indicator -->
         <div id="ptr-indicator"
@@ -1185,10 +1238,10 @@
                 <div class="px-5 md:px-12 pt-4 pb-6 md:pb-8">
                     <div class="flex items-center justify-between flex-wrap gap-3 mb-5">
                         <div>
-                            <h1 class="serif text-2xl sm:text-3xl md:text-4xl text-white tracking-tight leading-tight">
+                            <h1 class="serif text-xl sm:text-2xl md:text-4xl text-white tracking-tight leading-tight">
                                 Nairobi Directory
                             </h1>
-                            <div class="flex items-center gap-2 mt-1.5">
+                            <div class="flex items-center gap-1.5 md:gap-2 mt-1.5">
                                 <span
                                     class="inline-flex items-center gap-1 bg-[#D4AF37]/10 border border-[#D4AF37]/20 text-[#D4AF37] px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-[0.15em] font-bold">
                                     <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -1322,12 +1375,15 @@
                 </div>
 
                 <!-- FOR PROVIDERS CTA BANNER -->
-                <div class="border-t border-white/5 py-16 md:py-20 px-4 text-center section-shell">
+                <div class="border-t border-white/5 py-10 md:py-20 px-4 text-center section-shell">
                     <div class="max-w-xl mx-auto">
-                        <p class="text-[10px] gold-text font-bold uppercase tracking-[0.3em] mb-3">For Providers</p>
-                        <h2 class="serif text-2xl md:text-3xl text-white mb-4">Join Nairobi's Most Exclusive Directory
+                        <p
+                            class="text-[9px] md:text-[10px] gold-text font-bold uppercase tracking-[0.3em] mb-2 md:mb-3">
+                            For Providers</p>
+                        <h2 class="serif text-xl md:text-3xl text-white mb-3 md:mb-4">Join Nairobi's Most Exclusive
+                            Directory
                         </h2>
-                        <p class="text-gray-400 text-sm md:text-base mb-8 leading-relaxed">
+                        <p class="text-gray-400 text-xs md:text-base mb-6 md:mb-8 leading-relaxed">
                             Get verified, attract premium clients, and manage your presence using Telegram or the new
                             web
                             portal.
@@ -1984,6 +2040,13 @@
                 document.getElementById('directory-page').classList.remove('hidden-page');
                 document.getElementById('directory-page').style.display = 'block';
             }
+
+            // Hide the global loader when the page finishes rendering
+            const loader = document.getElementById('global-loader');
+            if (loader) {
+                loader.classList.add('hidden-loader');
+                setTimeout(() => loader.style.display = 'none', 500);
+            }
             // Landing page is now visible by default - no animation needed
             updateCurrentLocationPill();
             restoreUiState();
@@ -2018,11 +2081,30 @@
                     activePage.classList.add('profile-slide-in');
                 }
 
+                // Show loader for a brief moment to hide jumping
+                const loader = document.getElementById('global-loader');
+                if (loader) {
+                    loader.style.display = 'flex';
+                    // Force reflow
+                    void loader.offsetWidth;
+                    loader.classList.remove('hidden-loader');
+                    setTimeout(() => loader.classList.add('hidden-loader'), 400);
+                }
+
                 window.scrollTo(0, 0);
             } else {
                 console.error('Page not found:', pageId + '-page');
             }
         }
+
+        // Handle Back-Forward Cache to clean loaders
+        window.addEventListener('pageshow', (event) => {
+            const loader = document.getElementById('global-loader');
+            if (loader) {
+                loader.classList.add('hidden-loader');
+                setTimeout(() => loader.style.display = 'none', 500);
+            }
+        });
 
         // Panic Button Logic
         function triggerPanic() {
@@ -2490,7 +2572,20 @@
                 }
 
                 trackEvent('card_open', { profile_id: data.id, city: data.city || null });
-                window.location.href = data.short_profile_url || `/p/${data.id}`;
+
+                // Show loader before hard navigation
+                const loader = document.getElementById('global-loader');
+                if (loader) {
+                    loader.style.display = 'flex';
+                    // Force reflow before removing hidden class for CSS transition
+                    void loader.offsetWidth;
+                    loader.classList.remove('hidden-loader');
+                }
+
+                // Add a tiny delay to let the loader paint before the browser freezes for navigation
+                setTimeout(() => {
+                    window.location.href = data.short_profile_url || `/p/${data.id}`;
+                }, 50);
                 return;
 
                 // Basic Info
