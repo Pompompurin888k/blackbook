@@ -2438,7 +2438,7 @@
         }
 
         function preloadUpcomingImages(limit = 6) {
-            const cards = Array.from(document.querySelectorAll('#provider-grid > div[data-provider]'))
+            const cards = Array.from(document.querySelectorAll('#provider-grid > [data-provider]'))
                 .filter((card) => card.style.display !== 'none')
                 .slice(0, limit);
             cards.forEach((card) => {
@@ -2471,7 +2471,7 @@
 
             searchTimeout = setTimeout(() => {
                 const grid = document.getElementById('provider-grid');
-                let cards = Array.from(document.querySelectorAll('#provider-grid > div[data-provider]'));
+                let cards = Array.from(document.querySelectorAll('#provider-grid > [data-provider]'));
                 cards = sortProviderCards(cards);
                 cards.forEach((card) => grid.appendChild(card));
 
@@ -2564,7 +2564,7 @@
                 showToast('Profile not available in current view', 'error', 2200);
                 return;
             }
-            const card = Array.from(document.querySelectorAll('#provider-grid > div[data-provider]')).find((el) => {
+            const card = Array.from(document.querySelectorAll('#provider-grid > [data-provider]')).find((el) => {
                 try {
                     return JSON.parse(el.dataset.provider).id === profileId;
                 } catch (_) {
@@ -3150,7 +3150,7 @@
         function shuffleGrid() {
             const grid = document.getElementById('provider-grid');
             if (!grid) return;
-            let cards = Array.from(document.querySelectorAll('#provider-grid > div[data-provider]'));
+            let cards = Array.from(document.querySelectorAll('#provider-grid > [data-provider]'));
 
             // Fisher-Yates shuffle
             for (let i = cards.length - 1; i > 0; i--) {
