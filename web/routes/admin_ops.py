@@ -179,3 +179,35 @@ async def admin_toggle_active(
 
     redirect_token = token or _admin_token_from_request(request)
     return RedirectResponse(url=f"/admin?token={redirect_token}", status_code=303)
+
+
+@router.post("/admin/actions/bulk")
+async def admin_bulk_actions(
+    request: Request,
+    action: str = Form(...),
+    telegram_ids: list[int] | None = Form(None),
+    reason: str = Form(""),
+    token: str = Form(""),
+):
+    """Bulk admin actions for listing and verification."""
+    if not _authorized_admin_request(request):
+        return HTMLResponse(status_code=403, content="<h1>Forbidden</h1>")
+
+    ids = [int(value) for value in (telegram_ids or []) if str(value).strip()]
+    if not ids:
+        redirect_token = token or _admin_token_from_request(request)
+        return RedirectResponse(url=f"/admin?token={redirect_token}", status_code=303)
+
+    normalized = (action or "").strip().lower()
+    if normalized in {"list", "unlist"}:
+        desired_state = normalized == "list"
+        for tg_id in ids:
+            await db_call(db.set_provider_active_status, tg_id, desired_state)
+    elif normalized in {"approve", "reject"}:
+        verified = normalized == "approve"
+        rejection_reason = (reason or "").strip() if not verified else None
+        for tg_id in ids:
+            await db_call(db.verify_provider, tg_id, verified, None, rejection_reason)
+
+    redirect_token = token or _admin_token_from_request(request)
+    return RedirectResponse(url=f"/admin?token={redirect_token}", status_code=303)

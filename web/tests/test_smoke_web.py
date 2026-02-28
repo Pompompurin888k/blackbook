@@ -141,7 +141,13 @@ class TestWebImports(unittest.TestCase):
             provider_claim_referral_reward,
         )
         from routes.payments import megapay_callback
-        from routes.admin_ops import admin_dashboard, admin_provider_detail, admin_verify_provider, admin_toggle_active
+        from routes.admin_ops import (
+            admin_dashboard,
+            admin_provider_detail,
+            admin_verify_provider,
+            admin_toggle_active,
+            admin_bulk_actions,
+        )
 
         # All should be callable
         self.assertTrue(callable(home))
@@ -158,6 +164,7 @@ class TestWebImports(unittest.TestCase):
         self.assertTrue(callable(admin_provider_detail))
         self.assertTrue(callable(admin_verify_provider))
         self.assertTrue(callable(admin_toggle_active))
+        self.assertTrue(callable(admin_bulk_actions))
 
 
 # ──────────────────────────────────────────────────────────

@@ -166,11 +166,35 @@
                     {% endfor %}
                 </div>
             </div>
+            <form id="bulk-actions-form" method="post" action="/admin/actions/bulk?token={{ token }}"
+                class="glass-soft rounded-xl p-4 mb-6 flex flex-col md:flex-row md:items-center gap-3">
+                <input type="hidden" name="token" value="{{ token }}">
+                <div class="flex items-center gap-2 text-xs text-zinc-400">
+                    <input id="select-all-providers" type="checkbox" class="accent-amber-400">
+                    <label for="select-all-providers" class="uppercase tracking-[0.2em]">Select All</label>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <select name="action"
+                        class="bg-black/40 border border-white/10 text-xs text-white rounded-lg px-3 py-2 uppercase tracking-widest">
+                        <option value="list">Relist</option>
+                        <option value="unlist">Unlist</option>
+                        <option value="approve">Approve</option>
+                        <option value="reject">Reject</option>
+                    </select>
+                    <input type="text" name="reason" placeholder="Reject reason (optional)"
+                        class="px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-xs text-white w-48">
+                    <button type="submit"
+                        class="px-4 py-2 rounded-lg bg-amber-500/20 text-amber-200 text-xs uppercase tracking-widest">
+                        Apply To Selected
+                    </button>
+                </div>
+            </form>
             {% if providers %}
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead class="text-xs text-zinc-500 uppercase tracking-widest">
                         <tr>
+                            <th class="pb-3"></th>
                             <th class="pb-3">Name</th>
                             <th class="pb-3">City</th>
                             <th class="pb-3">Verified</th>
@@ -181,6 +205,10 @@
                     <tbody class="divide-y divide-white/5">
                         {% for provider in providers %}
                         <tr class="text-zinc-200">
+                            <td class="py-4">
+                                <input type="checkbox" name="telegram_ids" value="{{ provider.telegram_id }}"
+                                    form="bulk-actions-form" class="provider-checkbox accent-amber-400">
+                            </td>
                             <td class="py-4">
                                 <div class="font-semibold text-white">{{ provider.display_name or "Unnamed" }}</div>
                                 <div class="text-xs text-zinc-500">TG ID: {{ provider.telegram_id }}</div>
@@ -210,5 +238,16 @@
             {% endif %}
         </section>
     </main>
+    <script>
+        const selectAll = document.getElementById("select-all-providers");
+        const providerChecks = Array.from(document.querySelectorAll(".provider-checkbox"));
+        if (selectAll) {
+            selectAll.addEventListener("change", () => {
+                providerChecks.forEach((box) => {
+                    box.checked = selectAll.checked;
+                });
+            });
+        }
+    </script>
 </body>
 </html>
