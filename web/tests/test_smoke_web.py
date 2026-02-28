@@ -147,6 +147,7 @@ class TestWebImports(unittest.TestCase):
             admin_verify_provider,
             admin_toggle_active,
             admin_bulk_actions,
+            admin_update_location,
         )
 
         # All should be callable
@@ -165,6 +166,7 @@ class TestWebImports(unittest.TestCase):
         self.assertTrue(callable(admin_verify_provider))
         self.assertTrue(callable(admin_toggle_active))
         self.assertTrue(callable(admin_bulk_actions))
+        self.assertTrue(callable(admin_update_location))
 
 
 # ──────────────────────────────────────────────────────────

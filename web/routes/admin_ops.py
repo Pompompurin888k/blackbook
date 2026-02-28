@@ -211,3 +211,27 @@ async def admin_bulk_actions(
 
     redirect_token = token or _admin_token_from_request(request)
     return RedirectResponse(url=f"/admin?token={redirect_token}", status_code=303)
+
+
+@router.post("/admin/actions/location")
+async def admin_update_location(
+    request: Request,
+    telegram_id: int = Form(...),
+    city: str = Form(""),
+    neighborhood: str = Form(""),
+    token: str = Form(""),
+):
+    """Update provider city/neighborhood from admin portal."""
+    if not _authorized_admin_request(request):
+        return HTMLResponse(status_code=403, content="<h1>Forbidden</h1>")
+
+    normalized_city = (city or "").strip() or None
+    normalized_neighborhood = (neighborhood or "").strip() or None
+    await db_call(
+        db.update_provider_profile,
+        telegram_id,
+        {"city": normalized_city, "neighborhood": normalized_neighborhood},
+    )
+
+    redirect_token = token or _admin_token_from_request(request)
+    return RedirectResponse(url=f"/admin/providers/{telegram_id}?token={redirect_token}", status_code=303)

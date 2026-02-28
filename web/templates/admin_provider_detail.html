@@ -124,6 +124,24 @@
                     <p class="text-white">{{ provider.bio or "—" }}</p>
                 </div>
             </div>
+            <div class="pt-4 border-t border-white/10">
+                <h3 class="text-sm uppercase tracking-[0.2em] text-zinc-400 mb-3">Update Location</h3>
+                <form method="post" action="/admin/actions/location?token={{ token }}" class="flex flex-col md:flex-row gap-3">
+                    <input type="hidden" name="token" value="{{ token }}">
+                    <input type="hidden" name="telegram_id" value="{{ provider.telegram_id }}">
+                    <input type="text" name="city" placeholder="City"
+                        value="{{ provider.city or '' }}"
+                        class="px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-xs text-white w-full md:w-48">
+                    <input type="text" name="neighborhood" placeholder="Neighborhood"
+                        value="{{ provider.neighborhood or '' }}"
+                        class="px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-xs text-white w-full md:w-56">
+                    <button type="submit"
+                        class="px-4 py-2 rounded-lg bg-amber-500/20 text-amber-200 text-xs uppercase tracking-widest">
+                        Save Location
+                    </button>
+                </form>
+                <p class="text-xs text-zinc-500 mt-2">City is required for the profile to appear in city-filtered listings.</p>
+            </div>
         </section>
     </main>
 </body>
