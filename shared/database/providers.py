@@ -217,24 +217,33 @@ class ProvidersRepository(BaseRepository):
 
     def get_provider_by_id(self, provider_id: int) -> Optional[Dict]:
             """Gets a single provider by database ID."""
+            _QUERY = """
+                SELECT id, telegram_id, display_name, phone, city, neighborhood, is_online,
+                       age, height_cm, weight_kg, build, services, bio, nearby_places,
+                       availability_type, languages,
+                       gender, sexual_orientation, nationality, county,
+                       incalls_from, outcalls_from, video_url,
+                       rate_30min, rate_1hr, rate_2hr, rate_3hr, rate_overnight,
+                       email_verified, created_at, created_at AS updated_at, profile_photos, telegram_username,
+                       subscription_tier, boost_until, is_premium_verified, story_photo, story_created_at
+                FROM providers
+                WHERE id = %s AND is_verified = TRUE AND is_active = TRUE
+            """
             try:
                 with self.conn.cursor() as cur:
-                    cur.execute("""
-                        SELECT id, telegram_id, display_name, phone, city, neighborhood, is_online,
-                               age, height_cm, weight_kg, build, services, bio, nearby_places,
-                               availability_type, languages,
-                               gender, sexual_orientation, nationality, county,
-                               incalls_from, outcalls_from, video_url,
-                               rate_30min, rate_1hr, rate_2hr, rate_3hr, rate_overnight,
-                               email_verified, created_at, created_at AS updated_at, profile_photos, telegram_username,
-                               subscription_tier, boost_until, is_premium_verified, story_photo, story_created_at
-                        FROM providers
-                        WHERE id = %s AND is_verified = TRUE AND is_active = TRUE
-                    """, (provider_id,))
+                    cur.execute(_QUERY, (provider_id,))
                     return cur.fetchone()
             except Exception as e:
-                logger.error(f"❌ Error getting provider by ID: {e}")
-                return None
+                logger.error(f"❌ Error getting provider by ID (attempt 1): {e}")
+                try:
+                    # Reconnect and retry once — mirrors pattern in get_active_providers
+                    self._connect()
+                    with self.conn.cursor() as cur:
+                        cur.execute(_QUERY, (provider_id,))
+                        return cur.fetchone()
+                except Exception as e2:
+                    logger.error(f"❌ Error getting provider by ID (attempt 2): {e2}")
+                    return None
 
     def get_provider_by_telegram_id(self, telegram_id: int) -> Optional[Dict]:
             """Gets a single provider by Telegram ID."""

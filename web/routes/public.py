@@ -51,7 +51,40 @@ async def _redirect_to_short_profile(provider_id: int) -> RedirectResponse:
 async def _render_contact_page(request: Request, provider_id: int) -> HTMLResponse | RedirectResponse:
     provider = await db_call(db.get_provider_by_id, provider_id)
     if not provider:
-        return RedirectResponse(url="/", status_code=302)
+        # Return a proper 404 page instead of silently redirecting to /
+        # This makes it clear to the user that the profile is unavailable
+        # rather than bouncing them back to the homepage with no explanation
+        return HTMLResponse(
+            content="""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Not Found | ACE GIRLS</title>
+    <script>
+        // Redirect to homepage after 3 seconds
+        setTimeout(() => { window.location.href = '/'; }, 3000);
+    </script>
+    <style>
+        body { background: #050505; color: #eceae6; font-family: sans-serif;
+               display: flex; align-items: center; justify-content: center;
+               min-height: 100vh; margin: 0; text-align: center; padding: 1rem; }
+        h1 { color: #D4AF37; font-size: 1.5rem; margin-bottom: 0.5rem; }
+        p  { color: #9ca3af; font-size: 0.875rem; }
+        a  { color: #D4AF37; text-decoration: none; margin-top: 1rem; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div>
+        <h1>Profile Not Available</h1>
+        <p>This profile may have been removed or is temporarily unavailable.</p>
+        <p style="margin-top:0.5rem;font-size:0.75rem;color:#6b7280;">Redirecting you back in 3 seconds...</p>
+        <a href="/">← Back to Directory</a>
+    </div>
+</body>
+</html>""",
+            status_code=404,
+        )
 
     await db_call(
         db.log_analytics_event,
