@@ -83,15 +83,14 @@ class VerificationRepository(BaseRepository):
                 city,
                 neighborhood,
                 created_at,
-                updated_at,
                 account_state,
                 portal_onboarding_complete,
                 phone_verified,
-                ROUND(EXTRACT(EPOCH FROM (NOW() - COALESCE(updated_at, created_at))) / 60.0) AS pending_minutes
+                ROUND(EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0) AS pending_minutes
             FROM providers
             WHERE COALESCE(auth_channel, 'telegram') = 'portal'
               AND COALESCE(account_state, 'pending_review') = 'pending_review'
-            ORDER BY COALESCE(updated_at, created_at) ASC
+            ORDER BY created_at ASC
             LIMIT %s OFFSET %s
             """
             try:
