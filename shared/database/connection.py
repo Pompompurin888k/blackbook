@@ -20,6 +20,7 @@ class DatabaseConnection:
         self.password = os.getenv("DB_PASSWORD")
         self.port = os.getenv("DB_PORT", "5432")
         self.db_timezone = os.getenv("DB_TIMEZONE", "Africa/Nairobi")
+        self.sslmode = os.getenv("DB_SSLMODE", "prefer")
         self._local = threading.local()
         
         # Open connection initially
@@ -45,6 +46,7 @@ class DatabaseConnection:
                     user=self.user,
                     password=self.password,
                     port=self.port,
+                    sslmode=self.sslmode,
                     options=f"-c timezone={self.db_timezone}",
                     cursor_factory=RealDictCursor
                 )
