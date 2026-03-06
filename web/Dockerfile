@@ -19,9 +19,9 @@ COPY web/pyproject.toml ./
 RUN uv export --no-dev --format requirements-txt > requirements.lock \
     && uv pip install --system --no-cache -r requirements.lock
 
-# Copy shared module (repo root) then web app
-COPY shared/ ./shared/b
+# Copy web app first, then shared (must come after to override the empty web/shared/ dir)
 COPY web/ .
+COPY shared/ ./shared/
 
 # Expose port
 EXPOSE 8080
