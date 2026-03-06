@@ -15,12 +15,13 @@ RUN apt-get update && apt-get install -y libpq-dev gcc tzdata \
 
 # Install uv and Python dependencies from pyproject
 RUN pip install --no-cache-dir uv
-COPY pyproject.toml ./
+COPY web/pyproject.toml ./
 RUN uv export --no-dev --format requirements-txt > requirements.lock \
     && uv pip install --system --no-cache -r requirements.lock
 
-# Copy the rest of the code
-COPY . .
+# Copy shared module (repo root) then web app
+COPY shared/ ./shared/b
+COPY web/ .
 
 # Expose port
 EXPOSE 8080
