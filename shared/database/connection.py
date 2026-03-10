@@ -40,16 +40,20 @@ class DatabaseConnection:
         """Attempts to connect to Postgres. Retries every 2 seconds if DB is still booting."""
         while True:
             try:
-                self.conn = psycopg2.connect(
+                connect_kwargs = dict(
                     host=self.host,
                     database=self.database,
                     user=self.user,
                     password=self.password,
                     port=self.port,
                     sslmode=self.sslmode,
-                    options=f"-c timezone={self.db_timezone}",
-                    cursor_factory=RealDictCursor
+                    cursor_factory=RealDictCursor,
                 )
+                # Neon pooler (pgBouncer transaction mode) doesn't support SET options;
+                # skip the timezone option when sslmode=require (i.e. Neon/external host)
+                if self.sslmode != "require":
+                    connect_kwargs["options"] = f"-c timezone={self.db_timezone}"
+                self.conn = psycopg2.connect(**connect_kwargs)
                 # By default we do NOT use autocommit for most ops, to allow managed transactions.
                 self.conn.autocommit = False
                 logger.info(f"✅ Successfully connected to the Blackbook Vault (timezone={self.db_timezone}).")

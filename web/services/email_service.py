@@ -53,7 +53,7 @@ def _send_email_sync(recipient: str, subject: str, body: str) -> None:
     msg["To"] = recipient
     msg.set_content(body)
 
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
         server.ehlo()
         server.starttls()
         server.ehlo()
