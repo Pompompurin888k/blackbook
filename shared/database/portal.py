@@ -383,9 +383,9 @@ class PortalRepository(BaseRepository):
                     UPDATE providers
                     SET phone_verify_code = %s,
                         verification_code_hash = %s,
-                        verification_code_expires_at = NOW() + (%s || ' minutes')::INTERVAL,
+                        verification_code_expires_at = (NOW() AT TIME ZONE 'UTC') + (%s || ' minutes')::INTERVAL,
                         verification_code_used_at = NULL,
-                        phone_verify_code_created_at = NOW(),
+                        phone_verify_code_created_at = (NOW() AT TIME ZONE 'UTC'),
                         account_state = CASE
                             WHEN %s AND COALESCE(account_state, 'approved') != 'approved' THEN 'pending_review'
                             ELSE COALESCE(account_state, 'approved')
@@ -415,9 +415,9 @@ class PortalRepository(BaseRepository):
                     """
                     UPDATE providers
                     SET verification_code_hash = %s,
-                        verification_code_expires_at = NOW() + (%s || ' minutes')::INTERVAL,
+                        verification_code_expires_at = (NOW() AT TIME ZONE 'UTC') + (%s || ' minutes')::INTERVAL,
                         verification_code_used_at = NULL,
-                        email_verify_code_created_at = NOW(),
+                        email_verify_code_created_at = (NOW() AT TIME ZONE 'UTC'),
                         account_state = CASE
                             WHEN %s AND COALESCE(account_state, 'approved') != 'approved' THEN 'pending_review'
                             ELSE COALESCE(account_state, 'approved')
@@ -471,7 +471,7 @@ class PortalRepository(BaseRepository):
                     """
                     UPDATE providers
                     SET password_reset_code_hash = %s,
-                        password_reset_code_expires_at = NOW() + (%s || ' minutes')::INTERVAL,
+                        password_reset_code_expires_at = (NOW() AT TIME ZONE 'UTC') + (%s || ' minutes')::INTERVAL,
                         password_reset_code_used_at = NULL
                     WHERE id = %s
                     """,

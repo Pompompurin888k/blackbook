@@ -494,7 +494,7 @@ async def provider_portal_password_reset_confirm(request: Request):
     if not code_hash or used_at or not expires_at:
         return RedirectResponse(url="/provider/password-reset?expired=1", status_code=303)
 
-    now = datetime.now(expires_at.tzinfo) if getattr(expires_at, "tzinfo", None) else datetime.now()
+    now = datetime.now(expires_at.tzinfo) if getattr(expires_at, "tzinfo", None) else datetime.utcnow()
     if expires_at <= now:
         return RedirectResponse(url="/provider/password-reset?expired=1", status_code=303)
 

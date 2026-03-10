@@ -57,7 +57,7 @@ def _verification_code_is_active(provider: dict) -> bool:
     used_at = provider.get("verification_code_used_at")
     if not code_hash or used_at or not expires_at:
         return False
-    now = datetime.now(expires_at.tzinfo) if getattr(expires_at, "tzinfo", None) else datetime.now()
+    now = datetime.now(expires_at.tzinfo) if getattr(expires_at, "tzinfo", None) else datetime.utcnow()
     return expires_at > now
 
 
@@ -264,7 +264,7 @@ async def provider_portal_confirm_email_code(request: Request):
     if not code_hash or used_at or not expires_at:
         return RedirectResponse(url="/provider/verify-email?expired=1", status_code=303)
 
-    now = datetime.now(expires_at.tzinfo) if getattr(expires_at, "tzinfo", None) else datetime.now()
+    now = datetime.now(expires_at.tzinfo) if getattr(expires_at, "tzinfo", None) else datetime.utcnow()
     if expires_at <= now:
         return RedirectResponse(url="/provider/verify-email?expired=1", status_code=303)
 
