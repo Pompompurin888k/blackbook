@@ -1,24 +1,23 @@
 """
-Email Service - SMTP helpers for provider portal verification.
+Email Service - Brevo HTTP API for provider portal verification.
+Uses the Brevo transactional email API (HTTPS) instead of SMTP,
+which avoids port 587 being blocked on Render's free tier.
 """
 from __future__ import annotations
 
 import logging
-import smtplib
-from email.message import EmailMessage
 
-from fastapi.concurrency import run_in_threadpool
+import httpx
 
 from config import (
     SMTP_FROM_EMAIL,
     SMTP_FROM_NAME,
-    SMTP_HOST,
     SMTP_PASSWORD,
-    SMTP_PORT,
-    SMTP_USERNAME,
 )
 
 logger = logging.getLogger(__name__)
+
+_BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 
 def _recipient_domain(recipient: str) -> str:
@@ -40,25 +39,24 @@ def _mask_recipient(recipient: str) -> str:
     return f"{local[0]}***{local[-1]}@{domain}"
 
 
-def _build_from_header() -> str:
-    if SMTP_FROM_NAME and SMTP_FROM_EMAIL:
-        return f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
-    return SMTP_FROM_EMAIL
-
-
-def _send_email_sync(recipient: str, subject: str, body: str) -> None:
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = _build_from_header()
-    msg["To"] = recipient
-    msg.set_content(body)
-
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
-        server.ehlo()
-        server.starttls()
-        server.ehlo()
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        server.send_message(msg)
+async def _send_email_via_brevo(recipient: str, subject: str, body: str) -> None:
+    """Sends an email via the Brevo transactional API over HTTPS."""
+    payload = {
+        "sender": {"name": SMTP_FROM_NAME, "email": SMTP_FROM_EMAIL},
+        "to": [{"email": recipient}],
+        "subject": subject,
+        "textContent": body,
+    }
+    headers = {
+        "api-key": SMTP_PASSWORD,
+        "Content-Type": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        response = await client.post(_BREVO_API_URL, json=payload, headers=headers)
+        if response.status_code not in (200, 201):
+            raise RuntimeError(
+                f"Brevo API error {response.status_code}: {response.text[:200]}"
+            )
 
 
 async def send_portal_verification_email(
@@ -68,11 +66,9 @@ async def send_portal_verification_email(
     display_name: str = "",
 ) -> bool:
     """Sends the portal email verification code."""
-    if not (SMTP_HOST and SMTP_PORT and SMTP_USERNAME and SMTP_PASSWORD and SMTP_FROM_EMAIL):
+    if not (SMTP_PASSWORD and SMTP_FROM_EMAIL):
         logger.error(
-            "SMTP is not fully configured; cannot send verification email. "
-            f"host_set={bool(SMTP_HOST)} username_set={bool(SMTP_USERNAME)} "
-            f"password_set={bool(SMTP_PASSWORD)} from_set={bool(SMTP_FROM_EMAIL)}"
+            "Brevo API key or sender email not configured; cannot send verification email."
         )
         return False
 
@@ -88,7 +84,7 @@ async def send_portal_verification_email(
     )
 
     try:
-        await run_in_threadpool(_send_email_sync, recipient, subject, body)
+        await _send_email_via_brevo(recipient, subject, body)
         logger.info(
             f"Verification email sent to {_mask_recipient(recipient)} "
             f"(domain={_recipient_domain(recipient)})"
@@ -109,11 +105,9 @@ async def send_portal_password_reset_email(
     display_name: str = "",
 ) -> bool:
     """Sends the portal password-reset code."""
-    if not (SMTP_HOST and SMTP_PORT and SMTP_USERNAME and SMTP_PASSWORD and SMTP_FROM_EMAIL):
+    if not (SMTP_PASSWORD and SMTP_FROM_EMAIL):
         logger.error(
-            "SMTP is not fully configured; cannot send password-reset email. "
-            f"host_set={bool(SMTP_HOST)} username_set={bool(SMTP_USERNAME)} "
-            f"password_set={bool(SMTP_PASSWORD)} from_set={bool(SMTP_FROM_EMAIL)}"
+            "Brevo API key or sender email not configured; cannot send password-reset email."
         )
         return False
 
@@ -129,7 +123,7 @@ async def send_portal_password_reset_email(
     )
 
     try:
-        await run_in_threadpool(_send_email_sync, recipient, subject, body)
+        await _send_email_via_brevo(recipient, subject, body)
         logger.info(
             f"Password-reset email sent to {_mask_recipient(recipient)} "
             f"(domain={_recipient_domain(recipient)})"
